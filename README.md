@@ -11,6 +11,37 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 3.  **Traceability First**: Every piece of normalized data links back to its specific source template and verbatim wikitext.
 4.  **Developer-Centric Verification**: A premium React dashboard with interactive template inspection and debugger mode provides instant visual confirmation of extraction quality.
 
+## Features & Capabilities
+
+### Extraction Engine
+
+- **Brace-aware Wikitext parser** that correctly handles arbitrarily nested `{{...}}` template structures — standard regex is insufficient for Wikitext.
+- **Registry of Template Decoders** — a decentralized, pure-function architecture where each supported template family has its own decoder. Adding support for a new template means registering one function; no changes to the parser or orchestrator.
+- **Sense-level structuring** — definition lines (`#`, `##`, `#:`) are parsed into structured `Sense` objects with unique IDs, nested subsenses, and usage examples. Wiki markup is stripped from glosses.
+- **Semantic relations** — `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}` templates are decoded into structured synonym, antonym, hypernym, and hyponym lists with optional qualifiers and sense IDs.
+- **Etymology graph** — `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` templates are decoded into structured etymological links capturing source language, term, gloss, and verbatim raw text.
+- **Pronunciation** — `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, and `{{hyphenation}}` templates are decoded, with audio filenames mapped to Wikimedia Commons URLs.
+- **Translations** — `{{t}}`, `{{t+}}`, `{{tt}}`, `{{tt+}}`, `{{t-simple}}` templates are extracted from `====Translations====` sections, grouped by language.
+- **Usage notes** — `===Usage notes===` section text is captured verbatim.
+- **Lemma resolution** — inflected forms are automatically linked back to their lemma entry via form-of template parameters (explicit only, no guessing).
+- **Wikidata enrichment** — optional QID, multilingual labels, descriptions, sitelinks, and P18 image thumbnails via the Wikidata API.
+
+### Infrastructure
+
+- **Multi-tier caching** — L1 in-memory with TTL, L2/L3 pluggable adapters (IndexedDB for browser, SQLite for Node, Redis for services). API responses are cached automatically.
+- **Rate limiting** — request throttling (default 10 req/s per Wikimedia guidelines), custom User-Agent, and optional proxy support for batch processing.
+- **Template introspection** — a crawler that discovers all Greek templates from Wiktionary categories and produces a Missing Decoder Report showing coverage gaps.
+- **Formal JSON Schema** — the normalized output shape is formalized in `schema/normalized-entry.schema.json` (draft-07), with semantic versioning documented in `VERSIONING.md`.
+- **62 automated tests** — parser unit tests, decoder tests, schema validation tests, performance assertions, and cache/rate-limiter tests.
+- **Parser benchmarks** — verified sub-10ms parsing and sub-1ms section extraction on large entries.
+
+### Interfaces
+
+- **React webapp** — glassmorphism dashboard with real-time YAML preview, Wikidata media gallery, interactive click-to-source template inspector, debugger mode (shows which decoder matched which template), entry selector, and cross-language comparison view.
+- **CLI** — `wiktionary-fetch <term> --lang=el --format=yaml` with batch CSV/JSON processing, file output, and all engine options exposed.
+- **HTTP API** — lightweight Node.js server with `GET /api/fetch` and `GET /api/health`, CORS enabled, Docker-ready.
+- **NPM package** — dual ESM/CJS build for library consumers, with TypeDoc-generated API documentation.
+
 ## Architecture & Project Structure
 
 ```
