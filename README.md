@@ -2,6 +2,8 @@
 
 WiktionaryFetch is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries**.
 
+The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, and future Node packages).
+
 It aims to provide a clean, normalized representation of word data (JSON/YAML) directly from the English Wiktionary's wikitext, optionally enriched with Wikidata and Wikimedia Commons media.
 
 ## 🎯 Goals

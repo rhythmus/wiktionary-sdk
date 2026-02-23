@@ -69,7 +69,20 @@ This document outlines the detailed, staged evolution of the WiktionaryFetch eng
 
 ---
 
-## 📜 Instructions for Developers
+## � Phase 5: Multi-Client Expansion
+**Goal**: Broaden the reach of the engine through diverse consumption patterns.
+
+### 5.1 CLI Tool
+- **Task**: Implement a dedicated Command Line Interface.
+- **Details**: Enable terminal-based fetching with output to stdout or files, supporting batch processing.
+
+### 5.2 NPM Package Distribution
+- **Task**: Prepare the core engine as a standalone, versioned package.
+- **Details**: Implement a build pipeline for CJS/ESM and publish to an npm registry for easy dependency management in other projects.
+
+---
+
+## �📜 Instructions for Developers
 
 ### For Human Developers
 - **Audit Decoders**: Periodically review the "Ignored Parameters" in the Inspector UI. If a parameter carries consistent linguistic value, add it to the decoder.
