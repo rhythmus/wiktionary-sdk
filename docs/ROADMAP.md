@@ -1,94 +1,122 @@
-# WiktionaryFetch: Staged Implementation Roadmap
+# WiktionaryFetch: Exhaustive Implementation Roadmap
 
-This document outlines the detailed, staged evolution of the WiktionaryFetch engine, transitioning from a v0.9 prototype to a production-grade, 100% coverage extraction service for Greek lexicographic data.
+This document outlines the detailed, staged evolution of the WiktionaryFetch engine, transitioning from a v1.0 Alpha to a production-grade, 100% coverage extraction ecosystem for Greek lexicographic data.
 
 ---
 
 ## 🏛️ Phase 1: DX, Quality & Observability [COMPLETED]
-**Goal**: Stabilize the existing engine and provide developers with the tools to debug and verify extraction logic deterministically.
+**Goal**: Stabilize the existing engine and provide developers with tools to debug and verify extraction logic deterministically.
 
 ### 1.1 Developer Inspector UI
-- **Status**: **DONE** (Implemented as a premium React dashboard with live preview and YAML highlighting).
-- **Details**: The new web client provides a real-time inspection of matched decoders and extracted fields.
+- **Status**: **DONE** (Implemented as a premium React dashboard in `/webapp`).
+- **Details**: Real-time inspection of matched decoders, extracted fields, and raw wikitext.
 
-
-### 1.2 JSON Schema & Versioning
-- **Task**: Formalize the `NormalizedEntry` output using JSON Schema.
-- **Details**: Define strict types for POS, features (person, number, etc.), and source metadata. Implement semantic versioning for the output format.
-- **AI Instruction**: Generate TypeScript interfaces directly from the JSON Schema to ensure a single source of truth.
-
-### 1.3 Gold Standard Test Suite
-- **Task**: Create a regression suite containing canonical Greek test cases (e.g., *γράφω*, *έγραψα*, *καλός*, *άνθρωπος*).
-- **Details**: Ensure no future change reintroduces heuristics or breaks existing template mapping.
+### 1.2 Library Modularization
+- **Status**: **DONE** (Core logic extracted into `/src`).
+- **Details**: Tree-shakeable TypeScript modules for API, Parser, Registry, and Utils.
 
 ---
 
-## 🧠 Phase 2: Semantic Depth
+## 🧠 Phase 2: Semantic & Linguistic Depth
 **Goal**: Extract deeper structural meaning from entries without crossing into linguistic inference.
 
 ### 2.1 Sense-Level Structuring
 - **Task**: Parse numbered definition lines (`#`) into structured `Sense` objects.
-- **Details**: Each sense should have an index, gloss, and optional example sentences.
-- **AI Instruction**: Use regex or a line-based parser to identify `#` markers within PoS blocks.
+- **Details**: Identify glosses, nested definitions (`##`), and distinguish from examples (`#: `).
+- **Output**: Each sense becomes a node with its own unique ID.
 
-### 2.2 Structured Etymology
-- **Task**: Decode relationship templates (`{{inh}}`, `{{der}}`, `{{bor}}`) inside etymology sections.
-- **Details**: Capture source language, target lemma, and raw parameters.
-- **Human Instruction**: Prioritize Greek-to-Ancient-Greek and Greek-to-PIE mappings.
+### 2.2 Semantic Relations
+- **Task**: Decode `{{syn}}`, `{{ant}}`, `{{hyper}}`, and `{{hypo}}` templates.
+- **Details**: Map synonyms, antonyms, hypernyms, and hyponyms to specific senses where possible.
 
-### 2.3 Pronunciation & Media Expansion
-- **Task**: Capture `{{audio}}` templates and map them to Wikimedia Commons URLs.
-- **Details**: Include syllabification if present in the `{{el-IPA}}` or dedicated templates.
+### 2.3 Structured Etymology & Cognates
+- **Task**: Deeply decode relationship templates (`{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}`).
+- **Details**: Capture source language, target lemma, and raw parameters to build a local etymological graph.
 
-### 2.4 Homonym Disambiguation
-- **Task**: Implement stable addressing for terms with multiple etymologies or PoS (e.g., `el:γράφω#1`).
-- **Details**: Ensure the `id` field is deterministic and persists across fetches.
+### 2.4 Advanced Pronunciation (IPA/Audio)
+- **Task**: Exhaustive decoding of `{{el-IPA}}` and `{{audio}}`.
+- **Details**: Extract multiple variants (e.g., standard vs. dialectal pronunciation) and map to CDN-ready Commons URLs.
+
+### 2.5 Usage Notes & Inflection Notes
+- **Task**: Extract text from `===Usage notes===` and template-specific footers.
+- **Details**: Capture register (e.g., informal, archaic) and specific constraints on form usage.
 
 ---
 
-## 🚀 Phase 3: Scalability & Coverage
+## 🚀 Phase 3: Total Coverage & Scalability
 **Goal**: Move from selective template support to exhaustive coverage and production reliability.
 
-### 3.1 Template Introspection Engine
+### 3.1 Template Introspection Engine (Auto-Discovery)
 - **Task**: Build a crawler that explores the "Greek template categories" on Wiktionary.
-- **Details**: Dynamically discover new inflection and headword templates via the MediaWiki API (`categorymembers`).
-- **AI Instruction**: Implement a "Registry Generator" that can output a report of uncovered templates found in the wild.
+- **Goal**: 100% support for `Category:Greek headword-line templates` and `Category:Greek inflection-table templates`.
+- **Feature**: A "Missing Decoder Report" that alerts developers when a new template appears in the wild.
 
-### 3.2 Production Caching & Rate Limiting
-- **Task**: Implement a client-side caching layer (IndexedDB) with Time-To-Live (TTL).
-- **Details**: Add request throttling for Wikidata and MediaWiki APIs to avoid 429 errors.
+### 3.2 Production Caching Layer
+- **Task**: Implement a sophisticated multi-tier cache.
+- **Details**: 
+    - L1: In-memory (transient).
+    - L2: Persistent (IndexedDB for Web / SQLite for Node).
+    - L3: Shared (Redis if deployed as a service).
 
----
-
-## 🌐 Phase 4: Ecosystem Integration
-**Goal**: Prepare WiktionaryFetch to be the foundation for higher-level linguistic services.
-
-### 4.1 "Layer 2" Handover (Morphology Engine)
-- **Task**: Ensure the Normalized YAML contains all "invariants" (stems, class markers) required for a separate Morphology Engine to generate paradigms.
-- **Note**: **STRICT SCOPE GUARD**: No generation logic should be added to WiktionaryFetch itself.
+### 3.3 Rate Limiting & Proxy Management
+- **Task**: Implement robust MediaWiki API etiquette.
+- **Details**: Custom User-Agents, request throttling, and optional proxy rotation for high-volume batch processing.
 
 ---
 
-## � Phase 5: Multi-Client Expansion
+## 🌐 Phase 4: Multi-Client & Distribution
 **Goal**: Broaden the reach of the engine through diverse consumption patterns.
 
-### 5.1 CLI Tool
-- **Task**: Implement a dedicated Command Line Interface.
-- **Details**: Enable terminal-based fetching with output to stdout or files, supporting batch processing.
+### 4.1 CLI Tool (`cli/`)
+- **Task**: Create a standalone Node.js CLI tool.
+- **Features**: `wiktionary-fetch <term> --lang=el --format=yaml`. Support for batch CSV/JSON processing.
 
-### 5.2 NPM Package Distribution
-- **Task**: Prepare the core engine as a standalone, versioned package.
-- **Details**: Implement a build pipeline for CJS/ESM and publish to an npm registry for easy dependency management in other projects.
+### 4.2 NPM Package Distribution
+- **Task**: Publish the core engine to an registry (e.g., `@woutersoudan/wiktionary-fetch`).
+- **Details**: Dual ESM/CJS build pipeline with automated versioning (semantic-release).
+
+### 4.3 Containerization
+- **Task**: Provide a Docker-ready microservice version.
+- **Details**: A lightweight Express/Fastify API wrapper for the engine.
 
 ---
 
-## �📜 Instructions for Developers
+## ⚖️ Phase 5: Quality & Engineering Excellence
+**Goal**: Ensure the library is robust, documented, and easy to maintain.
 
-### For Human Developers
-- **Audit Decoders**: Periodically review the "Ignored Parameters" in the Inspector UI. If a parameter carries consistent linguistic value, add it to the decoder.
-- **No Heuristics**: If you find yourself writing a regex to "guess" a stem from a string, stop. The stem must come from a template parameter or be left to the Layer 2 engine.
+### 5.1 Gold Standard Test Suite
+- **Task**: Regression testing against 100+ canonical "complex" entries.
+- **Technology**: Vitest / Playwright for end-to-end extraction verification.
+
+### 5.2 Automated API Documentation
+- **Task**: Generate TypeDoc outputs for the core library.
+- **Details**: Host a searchable documentation site for library consumers.
+
+### 5.3 Benchmarking & Optimization
+- **Task**: Performance audit of the brace-aware parser.
+- **Goal**: Ensure sub-10ms parsing time for large entries (e.g., high-frequency verbs).
+
+---
+
+## 🎨 Phase 6: Webapp Polish & Evolution
+**Goal**: Make the visual verification tool more powerful for linguistic research.
+
+### 6.1 Interactive Template Inspector
+- **Task**: Allow users to click on any part of the YAML output to highlight the source wikitext in the left pane.
+- **Feature**: "Debugger Mode" to see exactly which decoder rule matched which template.
+
+### 6.2 Comparison View
+- **Task**: Compare the same word across different languages or etymology blocks side-by-side.
+
+---
+
+## 📜 Instructions for Developers
+
+### Core Principles
+- **No Scraped HTML**: If the data isn't in the Wikitext/API, it doesn't exist for this engine.
+- **No Linguistic Inference**: We extract *what is there*, not what *should be there*.
+- **Traceability**: Every field in the `NormalizedEntry` must lead back to a source line or template.
 
 ### For AI Agents
-- **Traceability First**: Every `NormalizedEntry` field should ideally have a `source` property pointing to the specific template or line it was derived from.
-- **Modular Decoders**: Follow the `TemplateDecoder` interface strictly. Keep decoders pure and side-effect free.
-- **Defensive Parsing**: Wikitext structure can vary. Always provide fallbacks and handle missing template parameters gracefully without throwing errors.
+- **Decoder Registry**: Always check `registry.ts` before adding new mapping logic. Keep decoders atomic.
+- **Strict Typing**: Update `types.ts` before implementing new features to ensure contract consistency.
