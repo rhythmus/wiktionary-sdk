@@ -16,14 +16,15 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 ### 🧠 Extraction Engine
 
 - **Brace-aware template extraction** that handles nested `{{...}}` blocks —
-  standard regex is insufficient for Wikitext. (See `docs/ROADMAP.md` for
-  post-v1.0 hardening of parameter splitting for nested templates.)
+  standard regex is insufficient for Wikitext. Parameter splitting preserves
+  pipes inside both `[[...]]` and `{{...}}`; only splits on `|` when both
+  depths are zero.
 - **Registry of Template Decoders** — a decentralized, pure-function architecture where each supported template family has its own decoder. Adding support for a new template means registering one function; no changes to the parser or orchestrator.
 - **Sense-level structuring** — definition lines (`#`, `##`, `#:`) are parsed into structured `Sense` objects with unique IDs, nested subsenses, and usage examples. Wiki markup is stripped from glosses.
 - **Semantic relations** — `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}` templates are decoded into structured synonym, antonym, hypernym, and hyponym lists with optional qualifiers and sense IDs.
 - **Etymology graph** — `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` templates are decoded into structured etymological links capturing source language, term, gloss, and verbatim raw text.
 - **Pronunciation** — `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, and `{{hyphenation}}` templates are decoded, with audio filenames mapped to Wikimedia Commons URLs.
-- **Translations** — `{{t}}`, `{{t+}}`, `{{tt}}`, `{{tt+}}`, `{{t-simple}}` templates are extracted from `====Translations====` sections, grouped by language.
+- **Translations** — `{{t}}`, `{{t+}}`, `{{tt}}`, `{{tt+}}`, `{{t-simple}}` templates are extracted from `====Translations====` sections. Each item has `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params. Grouped by language.
 - **Usage notes** — `===Usage notes===` section text is captured verbatim.
 - **Lemma resolution** — inflected forms are automatically linked back to their lemma entry via form-of template parameters (explicit only, no guessing).
 - **Wikidata enrichment** — optional QID, multilingual labels, descriptions, sitelinks, and P18 image thumbnails via the Wikidata API.
@@ -34,14 +35,14 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 - 🚦 **Rate limiting** — request throttling (default 10 req/s per Wikimedia guidelines), custom User-Agent, and optional proxy support for batch processing.
 - 🔎 **Template introspection** — a crawler that discovers all Greek templates from Wiktionary categories and produces a Missing Decoder Report showing coverage gaps.
 - 📐 **Formal JSON Schema** — the normalized output shape is formalized in `schema/normalized-entry.schema.json` (draft-07), with semantic versioning documented in `VERSIONING.md`.
-- ✅ **62 automated tests** — parser unit tests, decoder tests, schema validation tests, performance assertions, and cache/rate-limiter tests.
+- ✅ **68 automated tests** — parser unit tests, decoder tests, fixture-based integration tests (no network), schema validation tests, performance assertions, and cache/rate-limiter tests.
 - ⚡ **Parser benchmarks** — verified sub-10ms parsing and sub-1ms section extraction on large entries.
 
 ### 🌐 Interfaces
 
 - 🖥️ **React webapp** — glassmorphism dashboard with real-time YAML preview, Wikidata media gallery, interactive click-to-source template inspector, debugger mode (shows which decoder matched which template), entry selector, and cross-language comparison view.
-- 💻 **CLI** — `wiktionary-fetch <term> --lang=el --format=yaml` with batch CSV/JSON processing, file output, and all engine options exposed.
-- 🔌 **HTTP API** — lightweight Node.js server with `GET /api/fetch` and `GET /api/health`, CORS enabled, Docker-ready.
+- 💻 **CLI** — `wiktionary-fetch <term> --lang=el --format=yaml` with batch CSV/JSON processing, file output, and all engine options exposed. Built to `dist/cjs/cli/index.js`; `npm run build` compiles it. `npm run cli` uses `tsx` for development.
+- 🔌 **HTTP API** — lightweight Node.js server with `GET /api/fetch` and `GET /api/health`, CORS enabled, Docker-ready. `npm run serve` runs the built server (`dist/cjs/server.js`).
 - 📦 **NPM package** — dual ESM/CJS build for library consumers, with TypeDoc-generated API documentation.
 
 ## 🏗️ Architecture & Project Structure
@@ -99,14 +100,15 @@ npm run cli -- --help
 
 ### 🔌 Running the API Server
 ```bash
-npm run serve        # starts on http://localhost:3000
+npm run build        # compile first
+npm run serve        # starts on http://localhost:3000 (runs built server)
 # GET /api/fetch?query=γράφω&lang=el
 # GET /api/health
 ```
 
 ### ✅ Running Tests
 ```bash
-npm test             # run all 62 tests
+npm test             # run all 68 tests (includes fixture-based integration tests)
 npm run bench        # run parser benchmarks
 ```
 
@@ -159,13 +161,12 @@ See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps fo
 
 ## 🧭 Roadmap (post-v1.0)
 
-`docs/ROADMAP.md` is the living post‑v1.0 plan. The key themes are:
+`docs/ROADMAP.md` is the living post‑v1.0 plan. **Completed:**
 
-- **Parser correctness hardening**: fully brace-aware parameter splitting for
-  nested templates (no more silent mis-parses).
-- **Translation shape correctness**: expose explicitly provided translation
-  fields (`term`, `tr=`, `g=`, etc.) without inference.
-- **Ground-truth traceability**: registry-driven decoder debug events and
-  ordered template storage with location metadata for click-to-source.
-- **Packaging reliability**: ensure the published npm package ships runnable
-  CLI/server artifacts (not only TypeScript entrypoints).
+- **Parser correctness**: brace-aware parameter splitting (pipes inside `{{...}}` preserved).
+- **Translation shape**: `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params.
+- **Unknown language**: `lang=it` returns early with a note; no silent fallback to Greek.
+- **Schema versioning**: `FetchResult` always includes `schema_version`.
+- **Packaging**: CLI and server run from built JS; cache key normalization for redirects.
+
+**Remaining:** Registry-driven decoder debug events, ordered template storage with location metadata.

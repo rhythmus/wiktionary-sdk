@@ -72,10 +72,15 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
+schema_version: "1.0.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
 ```
+
+- `schema_version` (required): Semantic version of the output schema, from
+  `SCHEMA_VERSION` in `src/types.ts`. Enables consumers to detect format
+  evolution.
 
 Each `Entry` contains:
 
@@ -96,7 +101,7 @@ Each `Entry` contains:
 | `etymology` | `EtymologyData` | From `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` |
 | `usage_notes` | `string[]` | From `===Usage notes===` section text |
 | `form_of` | `FormOf` | From form-of templates (inflected forms only) |
-| `translations` | `Record<lang, TranslationItem[]>` | From `{{t}}`, `{{t+}}`, etc. |
+| `translations` | `Record<lang, TranslationItem[]>` | From `{{t}}`, `{{t+}}`, etc. Each item has `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params. |
 | `templates` | `Record<name, StoredTemplate[]>` | All template calls, stored verbatim |
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
@@ -170,6 +175,9 @@ The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Sc
 
 - Locate exact language header `==Greek==` for `lang=el`, etc.
 - Return only that block (up to the next level-2 header or end of page).
+- **Unknown language codes:** If `lang` is not in the known mapping (el, grc,
+  en, nl, de, fr), `langToLanguageName()` returns `null` and `fetchWiktionary()`
+  returns early with `empty entries` and a note. No silent fallback to Greek.
 
 ### 4.2 Etymology and PoS segmentation
 
@@ -187,9 +195,10 @@ their verbatim `raw` wikitext, including nested templates.
   - `params.named{}`
   - `raw` (verbatim)
 
-**Implementation note (non-normative):** parameter splitting is currently
-link-aware (pipes inside `[[...]]` are preserved). Fully brace-aware parameter
-splitting for nested templates is tracked as post‑v1.0 work in `docs/ROADMAP.md`.
+**Implementation note:** Parameter splitting is fully brace-aware. Pipes inside
+`[[...]]` are preserved (link depth). Pipes inside `{{...}}` are also preserved
+(template depth). Only split on `|` when both depths are zero. This avoids
+silent mis-parses when `{{t|el|fr|écrire|g={{g|m}}}}` appears.
 
 ### 4.4 Definition line parsing
 
@@ -250,6 +259,12 @@ Within a PoS block, detect translation sections:
 - Extract only from explicit translation templates:
   - `{{t}}`, `{{t+}}`, `{{tt}}`, `{{tt+}}`, `{{t-simple}}`
 
+**Translation item shape:** For `{{t|target_lang|source_lang|term|...}}`, the
+decoder uses `pos[1]` as translation language and `pos[2]` as term. Explicit
+named params: `t=` or `gloss=` → gloss; `tr=` → transliteration; `g=` → gender;
+`alt=` → alternative form. `term` is authoritative; `gloss` only when explicitly
+provided.
+
 ## 8. Wikidata Enrichment (lemma-only)
 
 If enabled and if `pageprops.wikibase_item` exists:
@@ -279,9 +294,13 @@ The engine is available through multiple interfaces:
 |-----------|----------|-------------|
 | TypeScript library | `src/` | Core engine, importable as ESM or CJS (`dist/esm/`, `dist/cjs/`) |
 | React webapp | `webapp/` | Interactive inspector with debugger mode and comparison view |
-| CLI | `cli/index.ts` | `wiktionary-fetch <term> --lang=el --format=yaml`, batch support |
-| HTTP API | `server.ts` | Lightweight Node.js server, `GET /api/fetch?query=...` |
+| CLI | `dist/cjs/cli/index.js` | Built from `cli/index.ts`; `npm run build` compiles it. `bin` points to built JS. |
+| HTTP API | `dist/cjs/server.js` | Built from `server.ts`. `npm run serve` runs built server. |
 | Docker | `Dockerfile` | Multi-stage Alpine build for containerized deployment |
+
+**Packaging:** Published npm installs ship runnable CLI and server. No `tsx` or
+TypeScript sources required for consumers. Cache keys normalize redirects:
+`wikt:${requestedTitle}` and `wikt:${normalizedTitle}` both store the result.
 
 ## 12. Design Rationale
 
@@ -329,13 +348,20 @@ The `/webapp` is not just a demo; it is a **Developer Inspector**.
 This section is informational only; it does not change v1.0 requirements.
 For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
 
-Priorities:
+**Completed (post-v1.0):**
 
-- **Parser correctness**: fully brace-aware template parameter splitting to
-  avoid silent mis-parses with nested templates.
-- **Translation shape correctness**: expose explicitly provided translation
-  fields (e.g. `term`, `tr=`, `g=`, `alt=`) without inference.
-- **Traceability and debugging**: make decoder matches ground-truth (registry
-  debug events) and preserve ordered template instances with location metadata.
-- **Distribution hardening**: ensure published npm installs ship runnable CLI
-  and server entrypoints (not TypeScript-only bins).
+- **Parser correctness**: fully brace-aware template parameter splitting
+  (split on `|` only when both `[[...]]` and `{{...}}` depths are zero).
+- **Translation shape correctness**: `term` (required), `gloss?`, `transliteration?`,
+  `gender?`, `alt?` from explicit params. No inference.
+- **Unknown language behavior**: `langToLanguageName()` returns `null` for
+  unknown codes; `fetchWiktionary()` returns early with a note.
+- **Schema versioning**: `FetchResult` always includes `schema_version`.
+- **Distribution hardening**: CLI and server compiled to `dist/`; `bin` and
+  `serve` point to built JS. Cache key normalization for redirects.
+- **Type alignment**: `EntryType` matches schema enum.
+
+**Remaining priorities:**
+
+- **Traceability and debugging**: registry-driven decoder debug events and
+  ordered template instances with location metadata.

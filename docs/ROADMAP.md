@@ -21,7 +21,7 @@ This roadmap proposes the next implementation stages for the
 
 ## Stage 0 — Baseline + safety rails
 
-### 0.1 Fixture-based integration tests (no network)
+### 0.1 Fixture-based integration tests (no network) ✅ DONE
 
 - **Goal**: lock in behavior and catch regressions without API calls.
 - **Work**:
@@ -38,8 +38,11 @@ This roadmap proposes the next implementation stages for the
   - All fixtures parse deterministically.
   - At least one test would fail under the current nested-template pipe-split
     behavior (to prove the test actually guards a bug).
+- **Delivered**: Five fixtures (basic-verb, nested-templates, nested-pipe-bug,
+  form-of-inflected, translations-multi) and integration.test.ts. The
+  nested-pipe-bug fixture guards the brace-aware pipe-split bug (Stage 1.1).
 
-### 0.2 Always emit `schema_version`
+### 0.2 Always emit `schema_version` ✅ DONE
 
 - **Files**: `src/index.ts`, `src/types.ts`, `schema/normalized-entry.schema.json`,
   `test/schema.test.ts`
@@ -51,12 +54,14 @@ This roadmap proposes the next implementation stages for the
   it optional in schema first, then consider requiring it in a future major.
 - **Acceptance**:
   - Schema validation tests pass with `schema_version` present.
+- **Delivered**: `FetchResult` now includes required `schema_version` in all
+  return paths. Schema already had the field; types and tests updated.
 
 ---
 
 ## Stage 1 — Parser correctness (highest leverage)
 
-### 1.1 Brace-aware pipe splitting in template parsing
+### 1.1 Brace-aware pipe splitting in template parsing ✅ DONE
 
 - **Problem**: `src/parser.ts` only prevents splitting on `|` inside `[[...]]`,
   not inside nested `{{...}}`, causing silent mis-parses in real templates.
@@ -70,6 +75,9 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - `parseTemplates()` returns correct `TemplateCall.params` for nested cases
     proven by fixtures.
+- **Delivered**: Extended `splitPipesPreservingLinks()` to track `depthTpl` for
+  `{{`/`}}`. Pipes inside nested templates (e.g. `{{t|el|fr|écrire|g={{g|m}}}}`)
+  are now preserved. Parser unit test and nested-pipe-bug integration test pass.
 
 ### 1.2 Remove “unknown language defaults to Greek”
 
@@ -84,12 +92,15 @@ This roadmap proposes the next implementation stages for the
     for advanced use.
 - **Acceptance**:
   - `lang=it` does not search `==Greek==` and yields a clear note.
+- **Delivered**: `langToLanguageName()` returns `null` for unknown codes.
+  `fetchWiktionary()` returns early with note `"Unknown language code: ${lang}..."`.
+  Parser test updated.
 
 ---
 
 ## Stage 4 — Translations correctness (explicit-only, structurally right)
 
-### 4.1 Correct translation item semantics and extract explicit params
+### 4.1 Correct translation item semantics and extract explicit params ✅ DONE
 
 - **Problem**:
   - For `{{t|lang|term|...}}`, `pos[1]` is typically the translation **term**,
@@ -110,6 +121,10 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - Fixtures show `term` populated correctly and optional fields present only
     when explicitly provided.
+- **Delivered**: `TranslationItem` now has `term` (required), `gloss?`, `transliteration?`,
+  `gender?`, `alt?`. `parseTranslationsFromBlock()` uses `pos[1]` as translation
+  lang and `pos[2]` as term; extracts named `t`, `tr`, `g`, `alt`. Schema and
+  integration tests updated.
 
 ---
 
@@ -157,7 +172,7 @@ This roadmap proposes the next implementation stages for the
 
 ## Stage 8 — Packaging & distribution hardening (npm/CLI/server)
 
-### 8.1 Make CLI/server runnable from published installs
+### 8.1 Make CLI/server runnable from published installs ✅ DONE
 
 - **Problem**:
   - `package.json` `bin` points to `cli/index.ts`, but `npm run build` only
@@ -174,8 +189,11 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - `npm pack` contains runnable CLI/server JS.
   - Global install exposes a working `wiktionary-fetch` command without `tsx`.
+- **Delivered**: tsconfig includes `cli/**/*` and `server.ts`. `bin` points to
+  `./dist/cjs/cli/index.js`, `serve` runs `node dist/cjs/server.js`. Added
+  `@types/node` for Node globals. `npm run build` produces runnable CLI and server.
 
-### 8.2 Cache key normalization for redirects
+### 8.2 Cache key normalization for redirects ✅ DONE
 
 - **Problem**: cache is keyed by the requested title only, missing hits when
   redirects normalize the title.
@@ -188,8 +206,11 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - Redirect lookups hit cache on subsequent requests regardless of the input
     spelling/casing.
+- **Delivered**: When a redirect normalizes the title, result is stored under
+  both `wikt:${title}` and `wikt:${normalizedTitle}`. Returned title stays
+  normalized.
 
-### 8.3 Align TypeScript types with schema
+### 8.3 Align TypeScript types with schema ✅ DONE
 
 - **Problem**: `EntryType` allows arbitrary `string`, while schema enumerates.
 - **Files**: `src/types.ts`, schema, tests
@@ -198,6 +219,8 @@ This roadmap proposes the next implementation stages for the
     schema extensible and document the policy).
 - **Acceptance**:
   - TS types and schema are consistent; schema tests enforce the contract.
+- **Delivered**: `EntryType` tightened to `"LEXEME" | "INFLECTED_FORM" | "FORM_OF"`
+  to match schema enum. No `string` escape hatch.
 
 ---
 
