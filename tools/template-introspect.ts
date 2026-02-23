@@ -4,20 +4,25 @@
  * Crawls Greek template categories on Wiktionary and produces a
  * "Missing Decoder Report" listing templates without registered decoders.
  *
- * Usage:  npx tsx tools/template-introspect.ts [--category <name>] [--json]
+ * Usage:
+ *   npx tsx tools/template-introspect.ts [--category <name>] [--json]
+ *   npx tsx tools/template-introspect.ts --sample <N> [--json]  # sample N Greek entries, report top missing by frequency
  */
 
 import { mwFetchJson } from "../src/api";
+import { fetchWikitextEnWiktionary } from "../src/api";
 import { registry } from "../src/registry";
+import { extractLanguageSection } from "../src/parser";
 import { parseTemplates } from "../src/parser";
-import type { DecodeContext } from "../src/types";
 
 const DEFAULT_CATEGORIES = [
   "Category:Greek headword-line templates",
   "Category:Greek inflection-table templates",
 ];
 
-async function fetchCategoryMembers(category: string): Promise<string[]> {
+const GREEK_SAMPLE_CATEGORY = "Category:Greek lemmas";
+
+async function fetchCategoryMembers(category: string, namespace = 10): Promise<string[]> {
   const members: string[] = [];
   let cmcontinue: string | undefined;
 
@@ -30,14 +35,15 @@ async function fetchCategoryMembers(category: string): Promise<string[]> {
       list: "categorymembers",
       cmtitle: category,
       cmlimit: "500",
-      cmnamespace: "10",
+      cmnamespace: String(namespace),
     };
     if (cmcontinue) params.cmcontinue = cmcontinue;
 
     const data = await mwFetchJson("https://en.wiktionary.org/w/api.php", params);
     const cms = data?.query?.categorymembers ?? [];
     for (const cm of cms) {
-      const name = (cm.title ?? "").replace(/^Template:/, "");
+      const title = cm.title ?? "";
+      const name = namespace === 10 ? title.replace(/^Template:/, "") : title;
       if (name) members.push(name);
     }
     cmcontinue = data?.continue?.cmcontinue;
@@ -47,48 +53,7 @@ async function fetchCategoryMembers(category: string): Promise<string[]> {
 }
 
 function getRegisteredTemplateNames(): Set<string> {
-  const dummyWikitext = "";
-  const dummyCtx: DecodeContext = {
-    lang: "el",
-    query: "",
-    page: { exists: false, title: "", wikitext: "", pageprops: {}, pageid: null },
-    languageBlock: "",
-    etymology: { idx: 0, title: "", posBlocks: [] },
-    posBlock: { posHeading: "", wikitext: "" },
-    posBlockWikitext: "",
-    templates: [],
-    lines: [],
-  };
-
-  const knownNames = new Set<string>();
-
-  const probeNames = [
-    "el-verb", "el-noun", "el-adj", "el-adv", "el-pron", "el-numeral",
-    "el-part", "el-art", "el-art-def", "el-art-indef",
-    "IPA", "el-IPA", "audio", "hyphenation",
-    "inflection of", "infl of", "form of", "alternative form of",
-    "alt form", "alt form of", "misspelling of", "abbreviation of",
-    "short for", "clipping of", "diminutive of", "augmentative of",
-    "syn", "ant", "hyper", "hypo",
-    "inh", "der", "bor", "cog", "inherited", "derived", "borrowed", "cognate",
-    "t", "t+", "t-simple", "tt", "tt+",
-  ];
-
-  for (const name of probeNames) {
-    const raw = `{{${name}|el|test}}`;
-    const templates = parseTemplates(raw);
-    const ctx = { ...dummyCtx, templates, lines: [raw], posBlockWikitext: raw };
-    try {
-      const patch = registry.decodeAll(ctx);
-      if (patch && Object.keys(patch).length > 0) {
-        knownNames.add(name);
-      }
-    } catch {
-      // skip
-    }
-  }
-
-  return knownNames;
+  return registry.getHandledTemplates();
 }
 
 export interface IntrospectionReport {
@@ -100,6 +65,63 @@ export interface IntrospectionReport {
   coverage_pct: number;
   covered: string[];
   missing: string[];
+}
+
+export interface SampleReport {
+  timestamp: string;
+  sample_size: number;
+  entries_sampled: number;
+  templates_encountered: number;
+  templates_decoded: number;
+  top_missing_by_frequency: Array<{ template: string; count: number }>;
+  all_encountered: number;
+  all_decoded: number;
+}
+
+export async function generateSampleReport(sampleSize: number): Promise<SampleReport> {
+  const members = await fetchCategoryMembers(GREEK_SAMPLE_CATEGORY, 0);
+  const shuffled = [...members].sort(() => Math.random() - 0.5);
+  const toSample = shuffled.slice(0, sampleSize);
+  const freq = new Map<string, number>();
+  const registered = registry.getHandledTemplates();
+  let entriesSampled = 0;
+
+  for (const title of toSample) {
+    try {
+      const page = await fetchWikitextEnWiktionary(title);
+      if (!page.exists || !page.wikitext) continue;
+      const langBlock = extractLanguageSection(page.wikitext, "Greek");
+      if (!langBlock) continue;
+      entriesSampled++;
+      const templates = parseTemplates(langBlock);
+      for (const t of templates) {
+        freq.set(t.name, (freq.get(t.name) ?? 0) + 1);
+      }
+    } catch {
+      // skip failed fetches
+    }
+  }
+
+  const allTemplates = [...freq.entries()];
+  const allEncountered = allTemplates.reduce((s, [, c]) => s + c, 0);
+  const decoded = allTemplates.filter(([n]) => registered.has(n));
+  const missing = allTemplates.filter(([n]) => !registered.has(n));
+  const allDecoded = decoded.reduce((s, [, c]) => s + c, 0);
+  const topMissing = missing
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([template, count]) => ({ template, count }));
+
+  return {
+    timestamp: new Date().toISOString(),
+    sample_size: sampleSize,
+    entries_sampled: entriesSampled,
+    templates_encountered: freq.size,
+    templates_decoded: decoded.length,
+    top_missing_by_frequency: topMissing,
+    all_encountered: allEncountered,
+    all_decoded: allDecoded,
+  };
 }
 
 export async function generateReport(categories?: string[]): Promise<IntrospectionReport> {
@@ -147,22 +169,53 @@ export function formatReport(report: IntrospectionReport): string {
   return lines.join("\n");
 }
 
+export function formatSampleReport(report: SampleReport): string {
+  const pct = report.all_encountered
+    ? Math.round((report.all_decoded / report.all_encountered) * 100)
+    : 100;
+  const lines = [
+    "# Template Sample Report (Greek entries)",
+    "",
+    `Generated: ${report.timestamp}`,
+    `Entries sampled: ${report.entries_sampled} (requested ${report.sample_size})`,
+    `Template types encountered: ${report.templates_encountered}`,
+    `Template types decoded: ${report.templates_decoded}`,
+    `Template instances: ${report.all_encountered} total, ${report.all_decoded} decoded (${pct}%)`,
+    "",
+    "## Top missing templates by frequency",
+    "",
+    ...report.top_missing_by_frequency.map((t) => `- \`${t.template}\`: ${t.count}`),
+    "",
+  ];
+  return lines.join("\n");
+}
+
 if (typeof process !== "undefined" && process.argv[1]?.includes("template-introspect")) {
   const args = process.argv.slice(2);
   const jsonOutput = args.includes("--json");
   const catIdx = args.indexOf("--category");
   const categories = catIdx >= 0 && args[catIdx + 1] ? [args[catIdx + 1]] : undefined;
+  const sampleIdx = args.indexOf("--sample");
+  const sampleSize = sampleIdx >= 0 && args[sampleIdx + 1] ? parseInt(args[sampleIdx + 1], 10) : 0;
 
-  generateReport(categories)
-    .then((report) => {
-      if (jsonOutput) {
-        console.log(JSON.stringify(report, null, 2));
-      } else {
-        console.log(formatReport(report));
-      }
-    })
-    .catch((err) => {
-      console.error("Error generating report:", err);
-      process.exit(1);
-    });
+  const run = sampleSize > 0
+    ? generateSampleReport(sampleSize).then((report) => {
+        if (jsonOutput) {
+          console.log(JSON.stringify(report, null, 2));
+        } else {
+          console.log(formatSampleReport(report));
+        }
+      })
+    : generateReport(categories).then((report) => {
+        if (jsonOutput) {
+          console.log(JSON.stringify(report, null, 2));
+        } else {
+          console.log(formatReport(report));
+        }
+      });
+
+  run.catch((err) => {
+    console.error("Error generating report:", err);
+    process.exit(1);
+  });
 }
