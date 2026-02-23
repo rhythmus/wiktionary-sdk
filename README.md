@@ -4,6 +4,51 @@ WiktionaryFetch is a specialized tool for the **deterministic and source-faithfu
 
 The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).
 
+**In** (library or CLI):
+
+```typescript
+import { fetchWiktionary } from "wiktionary-fetch";
+const result = await fetchWiktionary({ query: "γράφω", lang: "el" });
+```
+
+```bash
+wiktionary-fetch γράφω --lang el --format yaml
+```
+
+**Out** (normalized entries):
+
+```yaml
+schema_version: "1.0.0"
+entries:
+    - id: "el:γράφω#E1#verb#LEXEME"
+    language: el
+    query: γράφω
+    type: LEXEME
+    form: γράφω
+    part_of_speech: verb
+    senses:
+      - id: S1
+        gloss: to write
+        subsenses:
+          - id: S1.1
+            gloss: to write by hand
+          - id: S1.2
+            gloss: to type
+    semantic_relations:
+      synonyms:
+        - term: σημειώνω
+        - term: καταγράφω
+      antonyms:
+        - term: σβήνω
+    etymology:
+      links:
+        - template: inh
+          source_lang: grc
+          term: γράφω
+          gloss: to write
+```
+
+
 ## 🏛️ Design Philosophy
 
 1.  🎯 **Extraction, Not Inference** — We extract *what is actually there*. By avoiding linguistic heuristics, we ensure the data is 100% faithful to the source, making it a reliable foundation for higher-level morphology engines.
