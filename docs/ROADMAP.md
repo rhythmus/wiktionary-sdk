@@ -258,7 +258,7 @@ This roadmap proposes the next implementation stages for the
   - Coverage report is stable, explainable, and does not depend on dummy decode
     outcomes.
 
-### 6.2 Expand coverage measurement beyond categories (optional)
+### 6.2 Expand coverage measurement beyond categories (optional) ✅ DONE
 
 - **Files**: `tools/template-introspect.ts`
 - **Work**:
@@ -269,12 +269,16 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - Report can prioritize decoder work using observed frequency, not just
     category membership.
+- **Delivered**: `--sample N` flag samples N Greek entries from Category:Greek
+  lemmas, parses templates from the Greek language section, and reports
+  top missing templates by frequency. `generateSampleReport()` and
+  `formatSampleReport()` added.
 
 ---
 
 ## Stage 2 — “Source-faithful” text handling improvements
 
-### 2.1 Store both raw and stripped sense glosses; make stripping brace-aware
+### 2.1 Store both raw and stripped sense glosses; make stripping brace-aware ✅ DONE (partial)
 
 - **Problem**: `stripWikiMarkup()` is regex-based and can mis-handle nested
   templates/markup, removing unintended text.
@@ -288,12 +292,15 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - Fixtures demonstrate stable stripping without deleting adjacent content.
   - `gloss_raw` always matches the source line content (minus the list marker).
+- **Delivered**: `Sense.gloss_raw` added; `parseSenses` stores raw text before
+  stripping. `Sense.gloss` still uses regex-based `stripWikiMarkup` (brace-aware
+  stripping reverted due to incorrect output; full fix deferred).
 
 ---
 
 ## Stage 7 — Broaden explicit extraction to additional section families
 
-### 7.1 Add section decoders for explicit list templates (no heuristics)
+### 7.1 Add section decoders for explicit list templates (no heuristics) ✅ DONE
 
 - **Goal**: extract more structured data from explicit templates in sections
   like Derived terms / Related terms / Descendants (only what’s explicitly
@@ -309,3 +316,8 @@ This roadmap proposes the next implementation stages for the
 - **Acceptance**:
   - New fields appear only when explicitly present in Wikitext.
   - Raw section text is retained alongside structured extraction.
+- **Delivered**: Section decoders for `{{l}}` and `{{link}}` in
+  ====Derived terms====, ====Related terms====, ====Descendants====. New types
+  `SectionLinkItem`, `SectionWithLinks`; Entry fields `derived_terms`,
+  `related_terms`, `descendants` with `raw_text` and `items`. Schema and
+  registry test updated.

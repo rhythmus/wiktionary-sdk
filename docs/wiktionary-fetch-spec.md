@@ -76,11 +76,17 @@ schema_version: "1.0.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
+debug: [...]   # optional; present when debugDecoders=true
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
   `SCHEMA_VERSION` in `src/types.ts`. Enables consumers to detect format
   evolution.
+- `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
+  `debug[i]` is an array of `DecoderDebugEvent` for `entries[i]`, listing which
+  decoder matched which templates and what fields it produced. **Rationale:**
+  enables developers to verify extraction correctness and diagnose missing
+  decoders without inspecting raw wikitext manually.
 
 Each `Entry` contains:
 
@@ -102,7 +108,12 @@ Each `Entry` contains:
 | `usage_notes` | `string[]` | From `===Usage notes===` section text |
 | `form_of` | `FormOf` | From form-of templates (inflected forms only) |
 | `translations` | `Record<lang, TranslationItem[]>` | From `{{t}}`, `{{t+}}`, etc. Each item has `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params. |
+| `derived_terms` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Derived terms====` section |
+| `related_terms` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Related terms====` section |
+| `descendants` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Descendants====` section |
 | `templates` | `Record<name, StoredTemplate[]>` | All template calls, stored verbatim |
+| `templates_all` | `StoredTemplateInstance[]` | Templates in document order with optional `start`, `end`, `line`. **Rationale:** preserves ordering and location for forensic traceability and click-to-source. |
+| `lemma_triggered_by_entry_id` | string? | When this lemma was resolved for an inflected form, the entry id that triggered it. **Rationale:** explicit linkage metadata for cycle-free lemma resolution. |
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
 
@@ -137,6 +148,7 @@ senses:
 - `##` lines produce subsenses nested under the preceding sense (`S1.1`, `S1.2`, ...).
 - `#:` lines produce examples attached to the preceding sense.
 - Wiki markup (`[[links]]`, `'''bold'''`, `''italic''`, templates) is stripped from glosses.
+- `gloss_raw` (optional): the exact text after `#` / `##` before stripping. **Rationale:** enables consumers to apply custom stripping or retain verbatim source; supports forensic verification.
 
 ### 3.4 Semantic relations
 
@@ -165,9 +177,32 @@ etymology:
 
 Extracted from `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` and their long-form aliases. The `cog` template uses `pos[0]` as source language; the others use `pos[1]` (pos[0] being the target language).
 
-### 3.6 Schema versioning
+### 3.6 Section link lists (Derived / Related / Descendants)
+
+Sections `====Derived terms====`, `====Related terms====`, `====Descendants====` may contain `{{l}}` or `{{link}}` templates. Each such section is stored as `SectionWithLinks`:
+
+```yaml
+derived_terms:
+  raw_text: "* {{l|el|αντιγράφω|gloss=to copy}}\n* {{link|el|γραφή}}"
+  items:
+    - term: αντιγράφω
+      lang: el
+      gloss: "to copy"
+      template: l
+      raw: "{{l|el|αντιγράφω|gloss=to copy}}"
+```
+
+- `raw_text`: verbatim section content for forensic traceability.
+- `items`: structured extraction from `{{l}}`/`{{link}}` only; no heuristics.
+- **Design choice:** we extract only explicitly templated links. Plain text or `[[wikilinks]]` in these sections are not parsed into items.
+
+### 3.7 Schema versioning
 
 The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The schema version (`1.0.0`) follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
+
+### 3.8 Lemma resolution and cycle protection
+
+When an `INFLECTED_FORM` entry references a lemma, the engine fetches that lemma recursively. To prevent infinite loops on pathological pages (e.g. circular form-of chains), a visited set tracks `(lang, lemma)` pairs. If a lemma is already visited, the fetch returns early with a cycle note. Resolved lemma entries carry `lemma_triggered_by_entry_id` indicating which entry triggered their resolution. **Design choice:** explicit linkage over implicit; no silent deduplication.
 
 ## 4. Parsing Pipeline
 
@@ -237,6 +272,9 @@ interface TemplateDecoder {
 7. **Semantic relations**: `syn`, `ant`, `hyper`, `hypo`.
 8. **Etymology**: `inh`, `der`, `bor`, `cog` (+ long-form aliases).
 9. **Usage notes**: extracts `===Usage notes===` section text.
+10. **Section links**: parses `====Derived terms====`, `====Related terms====`, `====Descendants====` for `{{l}}` and `{{link}}` templates; stores both `raw_text` and structured `items`.
+
+Each decoder may declare `handlesTemplates: string[]` for introspection; `registry.getHandledTemplates()` returns the union for coverage reporting.
 
 ## 6. Lemma Resolution (explicit only)
 
@@ -332,6 +370,15 @@ The `/webapp` is not just a demo; it is a **Developer Inspector**.
 - **Debugger Mode:** Shows exactly which decoder matched which template and what fields it produced.
 - **Comparison View:** Side-by-side view of the same term in different languages or etymology blocks.
 
+### 12.6 Registry-Driven Debug Events
+When `debugDecoders: true` is passed to `fetchWiktionary`, each entry receives a `DecoderDebugEvent[]` listing decoder id, matched templates, and fields produced. **Rationale:** coverage reporting and introspection tools no longer rely on probe-based heuristics ("did decoding produce a patch?"); they use declared `handlesTemplates` and actual decode outcomes. The webapp uses this for the Decoder column in debug mode.
+
+### 12.7 Template Ordering and Location Metadata
+`templates_all` stores templates in document order with optional `start`, `end`, `line`. **Rationale:** preserves source order for forensic verification; enables accurate click-to-source mapping when raw wikitext and decoded output are displayed side-by-side.
+
+### 12.8 Section Links: Explicit-Only Extraction
+Derived/Related/Descendants sections are stored with both `raw_text` (verbatim) and `items` (from `{{l}}`/`{{link}}` only). **Design choice:** we do not parse plain wikilinks or free text into structured items; only explicitly templated links are extracted. This keeps the output source-faithful and avoids heuristics.
+
 ---
 
 **Artifacts:**
@@ -360,8 +407,16 @@ For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
 - **Distribution hardening**: CLI and server compiled to `dist/`; `bin` and
   `serve` point to built JS. Cache key normalization for redirects.
 - **Type alignment**: `EntryType` matches schema enum.
-
-**Remaining priorities:**
-
-- **Traceability and debugging**: registry-driven decoder debug events and
-  ordered template instances with location metadata.
+- **Registry-driven debug events**: `fetchWiktionary({ debugDecoders: true })` returns
+  `FetchResult.debug` with per-entry decoder match info.
+- **Template ordering and location**: `Entry.templates_all` stores templates in document
+  order with optional `start`, `end`, `line`. Parser supports `parseTemplates(..., withLocation)`.
+- **Cycle protection and lemma linkage**: `fetchWiktionaryRecursive` with visited set;
+  `lemma_triggered_by_entry_id` on resolved lemma entries.
+- **Declared decoder coverage**: `handlesTemplates` on decoders; `getHandledTemplates()` for
+  introspection. Template-introspect uses declared coverage instead of probe-based logic.
+- **Sense gloss_raw**: `Sense.gloss_raw` stores exact text before stripping.
+- **Section links**: `derived_terms`, `related_terms`, `descendants` with `raw_text` and `items`
+  from `{{l}}`/`{{link}}` in `====Derived terms====`, etc.
+- **Sample mode**: `--sample N` flag on template-introspect samples real Greek entries and
+  reports top missing templates by frequency.

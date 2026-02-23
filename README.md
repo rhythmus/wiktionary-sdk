@@ -33,9 +33,9 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 
 - 💾 **Multi-tier caching** — L1 in-memory with TTL, L2/L3 pluggable adapters (IndexedDB for browser, SQLite for Node, Redis for services). API responses are cached automatically.
 - 🚦 **Rate limiting** — request throttling (default 10 req/s per Wikimedia guidelines), custom User-Agent, and optional proxy support for batch processing.
-- 🔎 **Template introspection** — a crawler that discovers all Greek templates from Wiktionary categories and produces a Missing Decoder Report showing coverage gaps.
+- 🔎 **Template introspection** — a crawler that discovers all Greek templates from Wiktionary categories and produces a Missing Decoder Report showing coverage gaps. Optional `--sample N` mode samples real Greek entries and reports top missing templates by frequency.
 - 📐 **Formal JSON Schema** — the normalized output shape is formalized in `schema/normalized-entry.schema.json` (draft-07), with semantic versioning documented in `VERSIONING.md`.
-- ✅ **68 automated tests** — parser unit tests, decoder tests, fixture-based integration tests (no network), schema validation tests, performance assertions, and cache/rate-limiter tests.
+- ✅ **69 automated tests** — parser unit tests, decoder tests, fixture-based integration tests (no network), schema validation tests, performance assertions, and cache/rate-limiter tests.
 - ⚡ **Parser benchmarks** — verified sub-10ms parsing and sub-1ms section extraction on large entries.
 
 ### 🌐 Interfaces
@@ -59,7 +59,7 @@ wiktionary-fetch/
 │   └── utils.ts              # Shared utilities (MD5, deep merge, etc.)
 ├── schema/                   # JSON Schema for normalized output
 │   └── normalized-entry.schema.json
-├── test/                     # Vitest test suite (62 tests)
+├── test/                     # Vitest test suite (69 tests)
 ├── cli/                      # CLI tool (single & batch lookup)
 ├── tools/                    # Developer tooling (template introspection)
 ├── webapp/                   # React/Vite frontend (inspector + debugger)
@@ -108,7 +108,7 @@ npm run serve        # starts on http://localhost:3000 (runs built server)
 
 ### ✅ Running Tests
 ```bash
-npm test             # run all 68 tests (includes fixture-based integration tests)
+npm test             # run all 69 tests (includes fixture-based integration tests)
 npm run bench        # run parser benchmarks
 ```
 
@@ -121,6 +121,7 @@ npm run docs         # TypeDoc output to docs/api/
 ```bash
 npm run introspect         # markdown report
 npm run introspect -- --json   # JSON report
+npm run introspect -- --sample 50   # sample 50 Greek entries, top missing by frequency
 ```
 
 ### 🐳 Docker
@@ -152,8 +153,9 @@ The registry currently supports decoders for:
 | Etymology | `inh`, `der`, `bor`, `cog` (+ long-form aliases) |
 | Senses | `#` / `##` / `#:` definition line parsing |
 | Usage notes | `===Usage notes===` section extraction |
+| Section links | `l`, `link` in `====Derived terms====`, `====Related terms====`, `====Descendants====` |
 
-Use `npm run introspect` to discover templates in the wild that do not yet have decoders.
+Use `npm run introspect` to discover templates in the wild that do not yet have decoders. Use `--sample N` to prioritize by observed frequency in real Greek entries.
 
 ## 📋 Output Schema Versioning
 
@@ -168,5 +170,10 @@ See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps fo
 - **Unknown language**: `lang=it` returns early with a note; no silent fallback to Greek.
 - **Schema versioning**: `FetchResult` always includes `schema_version`.
 - **Packaging**: CLI and server run from built JS; cache key normalization for redirects.
-
-**Remaining:** Registry-driven decoder debug events, ordered template storage with location metadata.
+- **Decoder debug mode**: `debugDecoders: true` returns per-entry decoder match info; webapp shows Decoder column.
+- **Template location metadata**: `templates_all` preserves document order and optional `start`/`end`/`line`.
+- **Cycle protection**: lemma resolution tracks visited `(lang, lemma)`; `lemma_triggered_by_entry_id` on resolved entries.
+- **Declared decoder coverage**: `handlesTemplates` on decoders; introspection uses declared coverage.
+- **Sense gloss_raw**: exact text before stripping for forensic verification.
+- **Section links**: `derived_terms`, `related_terms`, `descendants` from `{{l}}`/`{{link}}`.
+- **Sample mode**: `--sample N` on template-introspect reports top missing templates by frequency.
