@@ -278,7 +278,7 @@ This roadmap proposes the next implementation stages for the
 
 ## Stage 2 — “Source-faithful” text handling improvements
 
-### 2.1 Store both raw and stripped sense glosses; make stripping brace-aware ✅ DONE (partial)
+### 2.1 Store both raw and stripped sense glosses; make stripping brace-aware ✅ DONE
 
 - **Problem**: `stripWikiMarkup()` is regex-based and can mis-handle nested
   templates/markup, removing unintended text.
@@ -293,8 +293,9 @@ This roadmap proposes the next implementation stages for the
   - Fixtures demonstrate stable stripping without deleting adjacent content.
   - `gloss_raw` always matches the source line content (minus the list marker).
 - **Delivered**: `Sense.gloss_raw` added; `parseSenses` stores raw text before
-  stripping. `Sense.gloss` still uses regex-based `stripWikiMarkup` (brace-aware
-  stripping reverted due to incorrect output; full fix deferred).
+  stripping. `stripWikiMarkup` rewritten with brace-aware scanning: depth-based
+  matching for `[[...]]` and `{{...}}`, correct `[[link|display]]` → display,
+  nested templates removed without leaving stray braces. Phase2 tests extended.
 
 ---
 

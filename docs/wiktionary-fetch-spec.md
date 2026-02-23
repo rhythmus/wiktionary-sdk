@@ -149,6 +149,7 @@ senses:
 - `#:` lines produce examples attached to the preceding sense.
 - Wiki markup (`[[links]]`, `'''bold'''`, `''italic''`, templates) is stripped from glosses.
 - `gloss_raw` (optional): the exact text after `#` / `##` before stripping. **Rationale:** enables consumers to apply custom stripping or retain verbatim source; supports forensic verification.
+- Stripping is **brace-aware**: `[[link|display]]` → display, `[[link]]` → link; nested `{{...}}` removed correctly; no regex-induced duplication.
 
 ### 3.4 Semantic relations
 
@@ -378,6 +379,9 @@ When `debugDecoders: true` is passed to `fetchWiktionary`, each entry receives a
 
 ### 12.8 Section Links: Explicit-Only Extraction
 Derived/Related/Descendants sections are stored with both `raw_text` (verbatim) and `items` (from `{{l}}`/`{{link}}` only). **Design choice:** we do not parse plain wikilinks or free text into structured items; only explicitly templated links are extracted. This keeps the output source-faithful and avoids heuristics.
+
+### 12.9 Brace-Aware Gloss Stripping
+`stripWikiMarkup()` uses depth-based scanning rather than regex for `[[links]]` and `{{templates}}`. **Rationale:** regex-based replacement can mis-handle nested structures (e.g. `[[link]]` producing duplicated text, or `{{t|g={{g|m}}}}` leaving stray braces). The brace-aware implementation: (1) finds matching `]]`/`}}` by depth counting; (2) extracts `[[link|display]]` → display, `[[link]]` → link; (3) recursively strips markup inside link display text; (4) removes templates entirely. **Design choice:** process `'''` before `''` to avoid partial italic matches.
 
 ---
 

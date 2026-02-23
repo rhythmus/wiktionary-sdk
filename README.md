@@ -35,7 +35,7 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 - 🚦 **Rate limiting** — request throttling (default 10 req/s per Wikimedia guidelines), custom User-Agent, and optional proxy support for batch processing.
 - 🔎 **Template introspection** — a crawler that discovers all Greek templates from Wiktionary categories and produces a Missing Decoder Report showing coverage gaps. Optional `--sample N` mode samples real Greek entries and reports top missing templates by frequency.
 - 📐 **Formal JSON Schema** — the normalized output shape is formalized in `schema/normalized-entry.schema.json` (draft-07), with semantic versioning documented in `VERSIONING.md`.
-- ✅ **69 automated tests** — parser unit tests, decoder tests, fixture-based integration tests (no network), schema validation tests, performance assertions, and cache/rate-limiter tests.
+- ✅ **72 automated tests** — parser unit tests, decoder tests, fixture-based integration tests (no network), schema validation tests, performance assertions, and cache/rate-limiter tests.
 - ⚡ **Parser benchmarks** — verified sub-10ms parsing and sub-1ms section extraction on large entries.
 
 ### 🌐 Interfaces
@@ -108,7 +108,7 @@ npm run serve        # starts on http://localhost:3000 (runs built server)
 
 ### ✅ Running Tests
 ```bash
-npm test             # run all 69 tests (includes fixture-based integration tests)
+npm test             # run all 72 tests (includes fixture-based integration tests)
 npm run bench        # run parser benchmarks
 ```
 
