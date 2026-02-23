@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Globe, ChevronRight, Image as ImageIcon, Loader2, AlertCircle, Github, Languages } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, Globe, ChevronRight, Image as ImageIcon, Loader2, AlertCircle, Github, Languages, Bug, Columns2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import yaml from 'js-yaml';
 import { fetchWiktionary } from '@engine/index';
 import type { Entry, WikiLang } from '@engine/types';
 
-
 const LANGUAGES = [
-  { value: 'el', label: 'Greek', flag: '🇬🇷' },
-  { value: 'grc', label: 'Ancient Greek', flag: '🏛️' },
-  { value: 'en', label: 'English', flag: '🇬🇧' },
-  { value: 'nl', label: 'Dutch', flag: '🇳🇱' },
-  { value: 'de', label: 'German', flag: '🇩🇪' },
-  { value: 'fr', label: 'French', flag: '🇫🇷' },
+  { value: 'el', label: 'Greek', flag: '\u{1F1EC}\u{1F1F7}' },
+  { value: 'grc', label: 'Ancient Greek', flag: '\u{1F3DB}\u{FE0F}' },
+  { value: 'en', label: 'English', flag: '\u{1F1EC}\u{1F1E7}' },
+  { value: 'nl', label: 'Dutch', flag: '\u{1F1F3}\u{1F1F1}' },
+  { value: 'de', label: 'German', flag: '\u{1F1E9}\u{1F1EA}' },
+  { value: 'fr', label: 'French', flag: '\u{1F1EB}\u{1F1F7}' },
 ];
 
 const POS_OPTIONS = [
@@ -25,8 +24,48 @@ const POS_OPTIONS = [
   { value: 'adverb', label: 'Adverb' },
 ];
 
+interface DecoderMatch {
+  decoderId: string;
+  templateName: string;
+  raw: string;
+  fieldsProduced: string[];
+}
+
+function extractDecoderMatches(entry: Entry): DecoderMatch[] {
+  const matches: DecoderMatch[] = [];
+  const templates = entry.templates || {};
+
+  for (const [tplName, tplInstances] of Object.entries(templates)) {
+    const fieldsProduced: string[] = [];
+
+    if (tplName === 'IPA' || tplName === 'el-IPA') fieldsProduced.push('pronunciation.IPA');
+    if (tplName === 'audio') fieldsProduced.push('pronunciation.audio');
+    if (tplName === 'hyphenation') fieldsProduced.push('hyphenation');
+    if (tplName.startsWith('el-')) fieldsProduced.push('part_of_speech');
+    if (['inflection of', 'infl of', 'form of', 'alternative form of'].includes(tplName))
+      fieldsProduced.push('type', 'form_of');
+    if (['syn', 'ant', 'hyper', 'hypo'].includes(tplName))
+      fieldsProduced.push('semantic_relations');
+    if (['inh', 'der', 'bor', 'cog'].includes(tplName))
+      fieldsProduced.push('etymology');
+    if (['t', 't+', 'tt', 'tt+', 't-simple'].includes(tplName))
+      fieldsProduced.push('translations');
+
+    for (const inst of tplInstances) {
+      matches.push({
+        decoderId: tplName,
+        templateName: tplName,
+        raw: inst.raw,
+        fieldsProduced: fieldsProduced.length > 0 ? fieldsProduced : ['templates'],
+      });
+    }
+  }
+
+  return matches;
+}
+
 const App: React.FC = () => {
-  const [query, setQuery] = useState('γράφω');
+  const [query, setQuery] = useState('\u03b3\u03c1\u03ac\u03c6\u03c9');
   const [lang, setLang] = useState<WikiLang>('el');
   const [prefPos, setPrefPos] = useState('');
   const [enrich, setEnrich] = useState(true);
@@ -35,12 +74,23 @@ const App: React.FC = () => {
   const [rawBlock, setRawBlock] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const [highlightedTemplate, setHighlightedTemplate] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
+  const [selectedEntryIdx, setSelectedEntryIdx] = useState(0);
+
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareLang, setCompareLang] = useState<WikiLang>('grc');
+  const [compareResults, setCompareResults] = useState<Entry[]>([]);
+  const [compareRawBlock, setCompareRawBlock] = useState('');
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  const handleSearch = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim()) return;
 
     setLoading(true);
     setError(null);
+    setSelectedEntryIdx(0);
     try {
       const res = await fetchWiktionary({
         query: query.trim(),
@@ -53,12 +103,31 @@ const App: React.FC = () => {
       if (res.notes.length > 0 && res.entries.length === 0) {
         setError(res.notes[0]);
       }
+
+      if (compareMode) {
+        setCompareLoading(true);
+        try {
+          const cRes = await fetchWiktionary({
+            query: query.trim(),
+            lang: compareLang,
+            preferredPos: prefPos || undefined,
+            enrich: false
+          });
+          setCompareResults(cRes.entries);
+          setCompareRawBlock(cRes.rawLanguageBlock);
+        } catch {
+          setCompareResults([]);
+          setCompareRawBlock('');
+        } finally {
+          setCompareLoading(false);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred during fetch');
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, lang, prefPos, enrich, compareMode, compareLang]);
 
   useEffect(() => {
     handleSearch();
@@ -66,45 +135,87 @@ const App: React.FC = () => {
 
   const formatYaml = (data: any) => {
     try {
-      return yaml.dump(data, {
-        indent: 2,
-        lineWidth: -1,
-        noRefs: true,
-        sortKeys: false,
-      });
-    } catch (e) {
+      return yaml.dump(data, { indent: 2, lineWidth: -1, noRefs: true, sortKeys: false });
+    } catch {
       return JSON.stringify(data, null, 2);
     }
+  };
+
+  const decoderMatches = useMemo(() => {
+    if (!debugMode || results.length === 0) return [];
+    const entry = results[selectedEntryIdx] || results[0];
+    return extractDecoderMatches(entry);
+  }, [debugMode, results, selectedEntryIdx]);
+
+  const renderWikitext = (text: string) => {
+    if (!text) return <span className="text-text-muted">No wikitext loaded.</span>;
+
+    return text.split('\n').map((line, i) => {
+      const isHighlighted = highlightedTemplate && line.includes(highlightedTemplate);
+      return (
+        <div
+          key={i}
+          className={`whitespace-pre-wrap transition-colors ${
+            isHighlighted ? 'bg-amber-500/20 border-l-2 border-amber-400 pl-2 -ml-2' : ''
+          }`}
+        >
+          {line}
+        </div>
+      );
+    });
   };
 
   const highlightYaml = (text: string) => {
     return text.split('\n').map((line, i) => {
       const keyMatch = line.match(/^(\s*)([^:]+):/);
+
+      const handleClick = () => {
+        const rawMatch = line.match(/raw:\s*'([^']+)'/);
+        if (rawMatch) {
+          const templateRaw = rawMatch[1].slice(0, 40);
+          setHighlightedTemplate(templateRaw);
+          return;
+        }
+        const templateKeyMatch = line.match(/^\s{4}(\S+):$/);
+        if (templateKeyMatch) {
+          setHighlightedTemplate(`{{${templateKeyMatch[1]}`);
+          return;
+        }
+      };
+
       if (keyMatch) {
         const indent = keyMatch[1];
         const key = keyMatch[2];
         const rest = line.slice(keyMatch[0].length);
         return (
-          <div key={i} className="whitespace-pre">
+          <div
+            key={i}
+            className="whitespace-pre cursor-pointer hover:bg-white/5 transition-colors"
+            onClick={handleClick}
+          >
             {indent}<span className="yaml-key">{key}</span>:{highlightValue(rest)}
           </div>
         );
       }
-      return <div key={i} className="whitespace-pre">{line}</div>;
+      return (
+        <div key={i} className="whitespace-pre cursor-pointer hover:bg-white/5 transition-colors" onClick={handleClick}>
+          {line}
+        </div>
+      );
     });
   };
 
   const highlightValue = (val: string) => {
     if (val.trim() === '') return val;
     if (val.trim().match(/^"(.*)"$/)) return <span className="yaml-string">{val}</span>;
+    if (val.trim().match(/^'(.*)'$/)) return <span className="yaml-string">{val}</span>;
     if (val.trim().match(/^(true|false|null)$/)) return <span className="yaml-bool">{val}</span>;
     if (val.trim().match(/^-?\d+(\.\d+)?$/)) return <span className="yaml-number">{val}</span>;
-    return val;
+    return <span className="yaml-string">{val}</span>;
   };
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
-      {/* Header */}
       <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-1">
@@ -112,14 +223,32 @@ const App: React.FC = () => {
           </h1>
           <p className="text-text-secondary text-sm">Deterministic Greek Lexicographic Extraction</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setDebugMode(!debugMode)}
+            className={`p-2 rounded-full transition-colors ${debugMode ? 'bg-amber-500/20 text-amber-400' : 'glass hover:bg-white/10'}`}
+            title="Toggle Debugger Mode"
+          >
+            <Bug size={20} />
+          </button>
+          <button
+            onClick={() => {
+              setCompareMode(!compareMode);
+              if (!compareMode && results.length > 0) {
+                handleSearch();
+              }
+            }}
+            className={`p-2 rounded-full transition-colors ${compareMode ? 'bg-emerald-500/20 text-emerald-400' : 'glass hover:bg-white/10'}`}
+            title="Toggle Comparison View"
+          >
+            <Columns2 size={20} />
+          </button>
           <a href="https://github.com/woutersoudan/wiktionary-fetch" className="p-2 rounded-full glass hover:bg-white/10 transition-colors">
             <Github size={20} />
           </a>
         </div>
       </header>
 
-      {/* Search Bar */}
       <section className="glass glass-card p-6 mb-8 animate-fade-in">
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
@@ -128,7 +257,7 @@ const App: React.FC = () => {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter term (e.g. γράφω, έγραψα)..."
+              placeholder="Enter term (e.g. \u03b3\u03c1\u03ac\u03c6\u03c9, \u03ad\u03b3\u03c1\u03b1\u03c8\u03b1)..."
               className="w-full bg-bg-color/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-blue-500/50 transition-colors text-white"
             />
           </div>
@@ -151,6 +280,17 @@ const App: React.FC = () => {
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+            {compareMode && (
+              <select
+                value={compareLang}
+                onChange={(e) => setCompareLang(e.target.value as WikiLang)}
+                className="bg-bg-color/50 border border-emerald-500/30 rounded-xl py-3 px-4 outline-none focus:border-emerald-500/50 transition-colors text-white"
+              >
+                {LANGUAGES.filter(l => l.value !== lang).map((l) => (
+                  <option key={l.value} value={l.value}>{l.flag} {l.label}</option>
+                ))}
+              </select>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -163,27 +303,27 @@ const App: React.FC = () => {
         </form>
         <div className="mt-4 flex items-center gap-4 text-xs text-text-muted">
           <label className="flex items-center gap-2 cursor-pointer hover:text-text-secondary transition-colors">
-            <input
-              type="checkbox"
-              checked={enrich}
-              onChange={(e) => setEnrich(e.target.checked)}
-              className="accent-blue-500"
-            />
+            <input type="checkbox" checked={enrich} onChange={(e) => setEnrich(e.target.checked)} className="accent-blue-500" />
             Wikidata Enrichment
           </label>
         </div>
       </section>
 
-      {/* Main Content */}
-      <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Error Display */}
+      {highlightedTemplate && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-amber-400">
+          <span>Highlighting: <code className="bg-amber-500/10 px-2 py-0.5 rounded">{highlightedTemplate}</code></span>
+          <button onClick={() => setHighlightedTemplate(null)} className="p-1 rounded hover:bg-white/10"><X size={14} /></button>
+        </div>
+      )}
+
+      <main className={`grid gap-8 ${compareMode ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 lg:grid-cols-2'}`}>
         <AnimatePresence>
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="lg:col-span-2 p-4 bg-error/10 border border-error/20 rounded-xl text-error flex items-center gap-3"
+              className="lg:col-span-full p-4 bg-error/10 border border-error/20 rounded-xl text-error flex items-center gap-3"
             >
               <AlertCircle size={20} />
               <span>{error}</span>
@@ -191,7 +331,6 @@ const App: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Left Pane: Wikitext */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -205,23 +344,33 @@ const App: React.FC = () => {
               <span>{rawBlock.length} chars</span>
             </div>
             <pre className="flex-1 p-6 overflow-auto text-sm text-text-secondary leading-relaxed">
-              {rawBlock || 'No wikitext loaded.'}
+              {renderWikitext(rawBlock)}
             </pre>
           </div>
         </div>
 
-        {/* Right Pane: Normalized YAML */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <ChevronRight size={18} className="text-indigo-400" />
               Normalized YAML
             </h2>
+            {results.length > 1 && (
+              <select
+                value={selectedEntryIdx}
+                onChange={(e) => setSelectedEntryIdx(Number(e.target.value))}
+                className="text-xs bg-bg-color/50 border border-white/10 rounded-lg py-1 px-2 text-white"
+              >
+                {results.map((r, i) => (
+                  <option key={i} value={i}>Entry {i + 1}: {r.type} ({r.part_of_speech || r.part_of_speech_heading})</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="glass glass-card p-0 overflow-hidden h-[600px] flex flex-col">
             <div className="bg-white/5 border-b border-white/10 py-2 px-4 text-xs text-text-muted font-mono flex items-center justify-between">
               <span>Entries: {results.length}</span>
-              <span>Validated Schema v1.0</span>
+              <span>Schema v1.0.0 {debugMode && '| Debug ON'}</span>
             </div>
             <div className="flex-1 p-6 overflow-auto text-sm font-mono leading-relaxed">
               {loading ? (
@@ -238,9 +387,74 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Media Strip */}
+        {compareMode && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Columns2 size={18} className="text-emerald-400" />
+                Compare: {langToLanguageName(compareLang)}
+              </h2>
+            </div>
+            <div className="glass glass-card p-0 overflow-hidden h-[600px] flex flex-col border border-emerald-500/20">
+              <div className="bg-emerald-500/5 border-b border-emerald-500/10 py-2 px-4 text-xs text-text-muted font-mono flex items-center justify-between">
+                <span>Entries: {compareResults.length}</span>
+                <span>{compareRawBlock.length} chars</span>
+              </div>
+              <div className="flex-1 p-6 overflow-auto text-sm font-mono leading-relaxed">
+                {compareLoading ? (
+                  <div className="h-full flex items-center justify-center text-text-muted gap-2">
+                    <Loader2 className="animate-spin" size={24} />
+                    <span>Fetching comparison...</span>
+                  </div>
+                ) : compareResults.length > 0 ? (
+                  highlightYaml(formatYaml({ entries: compareResults }))
+                ) : (
+                  <span className="text-text-muted">No comparison results. The term may not exist in {langToLanguageName(compareLang)}.</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {debugMode && decoderMatches.length > 0 && (
+          <section className="lg:col-span-full">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Bug size={18} className="text-amber-400" />
+              Decoder Matches (Entry {selectedEntryIdx + 1})
+            </h2>
+            <div className="glass glass-card p-4 overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-white/10 text-text-muted">
+                    <th className="py-2 px-3">Template</th>
+                    <th className="py-2 px-3">Raw</th>
+                    <th className="py-2 px-3">Fields Produced</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {decoderMatches.map((m, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                      onClick={() => setHighlightedTemplate(m.raw.slice(0, 40))}
+                    >
+                      <td className="py-2 px-3 font-mono text-blue-400">{`{{${m.templateName}}}`}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-text-secondary max-w-xs truncate">{m.raw}</td>
+                      <td className="py-2 px-3">
+                        {m.fieldsProduced.map((f) => (
+                          <span key={f} className="inline-block bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded mr-1 mb-1">{f}</span>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {results.some(r => r.wikidata?.media?.thumbnail) && (
-          <section className="lg:col-span-2">
+          <section className="lg:col-span-full">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <ImageIcon size={18} className="text-emerald-400" />
               Wikidata Media
@@ -254,11 +468,7 @@ const App: React.FC = () => {
                   transition={{ delay: i * 0.1 }}
                   className="glass glass-card p-2 w-full sm:w-64"
                 >
-                  <img
-                    src={r.wikidata.media.thumbnail}
-                    alt={r.form}
-                    className="w-full h-48 object-cover rounded-lg mb-2"
-                  />
+                  <img src={r.wikidata.media.thumbnail} alt={r.form} className="w-full h-48 object-cover rounded-lg mb-2" />
                   <div className="p-2">
                     <p className="text-sm font-medium mb-1">{r.form}</p>
                     <p className="text-xs text-text-muted truncate">{r.wikidata.media.P18}</p>
@@ -270,16 +480,15 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="mt-16 pt-8 border-t border-white/5 text-center text-text-muted text-xs">
-        <p>© 2026 WiktionaryFetch Project. Deterministic Extraction Engine.</p>
+        <p>&copy; 2026 WiktionaryFetch Project. Deterministic Extraction Engine.</p>
       </footer>
     </div>
   );
 };
 
 const langToLanguageName = (lang: string) => {
-  const map: any = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
+  const map: Record<string, string> = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
   return map[lang] || 'Greek';
 };
 
