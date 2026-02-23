@@ -37,7 +37,7 @@ The project has evolved from a standalone prototype into a modular TypeScript li
     - `registry.ts`: The `DecoderRegistry` and PoS mapping logic.
     - `parser.ts`: Robust wikitext and template parsing.
     - `api.ts`: MediaWiki and Wikidata client abstraction.
-- **`web/` (React Frontend):** A premium React/Vite dashboard for visual verification.
+- **`webapp/` (React Frontend):** A premium React/Vite dashboard for visual verification.
     - Glassmorphism design with Tailwind CSS.
     - Real-time YAML preview and image gallery.
 - **`docs/`:** Formal specifications, deep-dive research, and the project roadmap.
@@ -58,9 +58,9 @@ npm run build
 ```
 
 ### 💻 Running the Web Frontend
-The React application is located in the `web/` directory:
+The React application is located in the `webapp/` directory:
 ```bash
-cd web
+cd webapp
 npm install
 npm run dev
 ```

@@ -193,12 +193,13 @@ The project provides a production-grade modular implementation:
 
 - **Core Engine:** Located in `/src/`. A TypeScript library exported via `index.ts`.
 - **Registry:** Decoders are centrally managed in `registry.ts`.
-- **Graphical Client:** A React (Vite) application in `/web/` serves as the primary visual verification tool, featuring real-time YAML preview and Wikidata media integration.
+- **Graphical Client:** A React (Vite) application in `/webapp/` serves as the primary visual verification tool, featuring real-time YAML preview and Wikidata media integration.
 
 ---
 
 **Artifacts current as of v1.0 Alpha:**
 - `src/index.ts`: Orchestration entry point.
-- `web/src/App.tsx`: React frontend implementation.
+- `webapp/src/App.tsx`: React frontend implementation.
 - This specification document.
+
 
