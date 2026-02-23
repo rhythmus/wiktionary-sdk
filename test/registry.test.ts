@@ -73,6 +73,41 @@ describe("DecoderRegistry", () => {
     expect(hyph).toBeDefined();
     expect(hyph.syllables).toEqual(["γρά", "φω"]);
   });
+
+  it("extracts derived/related terms and descendants from {{l}}/{{link}} sections", () => {
+    const wikitext = `{{el-verb}}
+# to write
+====Derived terms====
+* {{l|el|αντιγράφω|gloss=to copy}}
+* {{link|el|γραφή}}
+====Related terms====
+* {{l|el|γράφημα}}
+====Descendants====
+* {{l|en|graph|gloss=to write}}`;
+    const ctx = makeCtx(wikitext);
+    const result = registry.decodeAll(ctx);
+    const entry = (result as any).entry;
+    expect(entry.derived_terms).toBeDefined();
+    expect(entry.derived_terms.raw_text).toContain("{{l|el|αντιγράφω");
+    expect(entry.derived_terms.items).toHaveLength(2);
+    expect(entry.derived_terms.items[0]).toEqual({
+      term: "αντιγράφω",
+      lang: "el",
+      gloss: "to copy",
+      template: "l",
+      raw: "{{l|el|αντιγράφω|gloss=to copy}}",
+    });
+    expect(entry.derived_terms.items[1].term).toBe("γραφή");
+    expect(entry.derived_terms.items[1].template).toBe("link");
+    expect(entry.related_terms.items).toHaveLength(1);
+    expect(entry.related_terms.items[0].term).toBe("γράφημα");
+    expect(entry.descendants.items).toHaveLength(1);
+    expect(entry.descendants.items[0]).toMatchObject({
+      term: "graph",
+      lang: "en",
+      gloss: "to write",
+    });
+  });
 });
 
 describe("FORM_OF_TEMPLATES", () => {

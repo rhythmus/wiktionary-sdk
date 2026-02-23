@@ -77,6 +77,7 @@ const App: React.FC = () => {
   const [highlightedTemplate, setHighlightedTemplate] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
   const [selectedEntryIdx, setSelectedEntryIdx] = useState(0);
+  const [debugEvents, setDebugEvents] = useState<any[][]>([]);
 
   const [compareMode, setCompareMode] = useState(false);
   const [compareLang, setCompareLang] = useState<WikiLang>('grc');
@@ -96,10 +97,12 @@ const App: React.FC = () => {
         query: query.trim(),
         lang,
         preferredPos: prefPos || undefined,
-        enrich
+        enrich,
+        debugDecoders: debugMode
       });
       setResults(res.entries);
       setRawBlock(res.rawLanguageBlock);
+      setDebugEvents(res.debug ?? []);
       if (res.notes.length > 0 && res.entries.length === 0) {
         setError(res.notes[0]);
       }
@@ -143,9 +146,24 @@ const App: React.FC = () => {
 
   const decoderMatches = useMemo(() => {
     if (!debugMode || results.length === 0) return [];
+    const events = debugEvents[selectedEntryIdx] ?? debugEvents[0];
+    if (events && events.length > 0) {
+      const out: DecoderMatch[] = [];
+      for (const e of events) {
+        const tpls = e.matchedTemplates ?? [];
+        if (tpls.length === 0) {
+          out.push({ decoderId: e.decoderId, templateName: e.decoderId, raw: '', fieldsProduced: e.fieldsProduced ?? [] });
+        } else {
+          for (const t of tpls) {
+            out.push({ decoderId: e.decoderId, templateName: t.name, raw: t.raw, fieldsProduced: e.fieldsProduced ?? [] });
+          }
+        }
+      }
+      return out;
+    }
     const entry = results[selectedEntryIdx] || results[0];
     return extractDecoderMatches(entry);
-  }, [debugMode, results, selectedEntryIdx]);
+  }, [debugMode, results, selectedEntryIdx, debugEvents]);
 
   const renderWikitext = (text: string) => {
     if (!text) return <span className="text-text-muted">No wikitext loaded.</span>;
@@ -225,7 +243,10 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setDebugMode(!debugMode)}
+            onClick={() => {
+              setDebugMode(!debugMode);
+              if (query.trim()) setTimeout(() => handleSearch(), 0);
+            }}
             className={`p-2 rounded-full transition-colors ${debugMode ? 'bg-amber-500/20 text-amber-400' : 'glass hover:bg-white/10'}`}
             title="Toggle Debugger Mode"
           >
@@ -426,6 +447,7 @@ const App: React.FC = () => {
               <table className="w-full text-sm text-left">
                 <thead>
                   <tr className="border-b border-white/10 text-text-muted">
+                    <th className="py-2 px-3">Decoder</th>
                     <th className="py-2 px-3">Template</th>
                     <th className="py-2 px-3">Raw</th>
                     <th className="py-2 px-3">Fields Produced</th>
@@ -436,9 +458,10 @@ const App: React.FC = () => {
                     <tr
                       key={i}
                       className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
-                      onClick={() => setHighlightedTemplate(m.raw.slice(0, 40))}
+                      onClick={() => m.raw && setHighlightedTemplate(m.raw.slice(0, 40))}
                     >
-                      <td className="py-2 px-3 font-mono text-blue-400">{`{{${m.templateName}}}`}</td>
+                      <td className="py-2 px-3 font-mono text-amber-400">{m.decoderId}</td>
+                      <td className="py-2 px-3 font-mono text-blue-400">{m.templateName ? `{{${m.templateName}}}` : '-'}</td>
                       <td className="py-2 px-3 font-mono text-xs text-text-secondary max-w-xs truncate">{m.raw}</td>
                       <td className="py-2 px-3">
                         {m.fieldsProduced.map((f) => (

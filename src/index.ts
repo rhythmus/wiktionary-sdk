@@ -3,6 +3,7 @@ import type {
     FetchResult,
     Entry,
     DecodeContext,
+    DecoderDebugEvent,
 } from "./types";
 import { SCHEMA_VERSION } from "./types";
 
@@ -29,17 +30,49 @@ import { uniq, deepMerge, commonsThumbUrl } from "./utils";
  * @param options.enrich - Whether to fetch Wikidata enrichment (default `true`)
  * @returns A {@link FetchResult} containing normalized entries and raw wikitext
  */
-export async function fetchWiktionary({
+function lemmaKey(lang: WikiLang, lemma: string) {
+    return `${lang}:${lemma}`;
+}
+
+export async function fetchWiktionary(
+    opts: {
+        query: string;
+        lang: WikiLang;
+        preferredPos?: string;
+        enrich?: boolean;
+        debugDecoders?: boolean;
+    }
+): Promise<FetchResult> {
+    const visited = new Set<string>();
+    return fetchWiktionaryRecursive({ ...opts, _visited: visited });
+}
+
+async function fetchWiktionaryRecursive({
     query,
     lang,
     preferredPos,
     enrich = true,
+    debugDecoders = false,
+    _visited,
 }: {
     query: string;
     lang: WikiLang;
     preferredPos?: string;
     enrich?: boolean;
+    debugDecoders?: boolean;
+    _visited: Set<string>;
 }): Promise<FetchResult> {
+    const key = lemmaKey(lang, query);
+    if (_visited.has(key)) {
+        return {
+            schema_version: SCHEMA_VERSION,
+            rawLanguageBlock: "",
+            entries: [],
+            notes: [`Cycle detected: ${query} already visited.`],
+        };
+    }
+    _visited.add(key);
+
     const qPage = await fetchWikitextEnWiktionary(query);
     if (!qPage.exists) {
         return {
@@ -72,10 +105,11 @@ export async function fetchWiktionary({
 
     const etyms = splitEtymologiesAndPOS(langBlock);
     let entries: Entry[] = [];
+    const allDebugEvents: DecoderDebugEvent[][] = [];
 
     for (const e of etyms) {
         for (const pb of e.posBlocks) {
-            const templates = parseTemplates(pb.wikitext);
+            const templates = parseTemplates(pb.wikitext, true) as any[]; // always withLocation for templates_all
             const lines = pb.wikitext.split("\n");
             const entryType = guessEntryTypeFromTemplates(templates);
 
@@ -91,7 +125,8 @@ export async function fetchWiktionary({
                 lines,
             };
 
-            const patch: any = registry.decodeAll(ctx);
+            const result = registry.decodeAll(ctx, { debug: debugDecoders });
+            const patch: any = typeof result === "object" && "patch" in result ? result.patch : result;
             const id = `${lang}:${qPage.title}#E${e.idx}#${slug(pb.posHeading)}#${entryType}`;
 
             const base: Entry = {
@@ -116,6 +151,15 @@ export async function fetchWiktionary({
 
             deepMerge(base, patch.entry || {});
 
+            if (debugDecoders && typeof result === "object" && "debug" in result && result.debug) {
+                allDebugEvents.push(result.debug);
+            }
+            base.templates_all = templates.map((t: any) => ({
+                name: t.name,
+                raw: t.raw,
+                params: t.params,
+                ...(t.start != null && { start: t.start, end: t.end, line: t.line }),
+            }));
 
             if (!base.part_of_speech) {
                 const mapped = mapHeadingToPos(pb.posHeading);
@@ -127,27 +171,56 @@ export async function fetchWiktionary({
         }
     }
 
-    // Lemma resolution
-    const lemmaRequests: string[] = [];
+    // Lemma resolution with cycle protection
+    const lemmaRequests: Array<{ lemma: string; triggeredBy: string }> = [];
     for (const ent of entries) {
         const lemma = ent.form_of?.lemma;
         const lemmaLang = ent.form_of?.lang ?? lang;
         if (ent.type === "INFLECTED_FORM" && lemma && lemmaLang === lang) {
-            lemmaRequests.push(lemma);
+            const key = lemmaKey(lang, lemma);
+            if (!_visited.has(key)) {
+                lemmaRequests.push({ lemma, triggeredBy: ent.id });
+            }
         }
     }
-    const uniqueLemmas = uniq(lemmaRequests);
+    const seen = new Set<string>();
+    const uniqueRequests = lemmaRequests.filter((r) => {
+        if (seen.has(r.lemma)) return false;
+        seen.add(r.lemma);
+        return true;
+    });
 
     const lemmaEntries: Entry[] = [];
-    for (const lemma of uniqueLemmas) {
-        const res = await fetchWiktionary({ query: lemma, lang, preferredPos, enrich });
+    const triggerMap = new Map<string, string>();
+    for (const { lemma, triggeredBy } of uniqueRequests) {
+        triggerMap.set(lemma, triggeredBy);
+    }
+    const fetchPromises = uniqueRequests.map(async ({ lemma }) => {
+        const res = await fetchWiktionaryRecursive({
+            query: lemma,
+            lang,
+            preferredPos,
+            enrich,
+            debugDecoders,
+            _visited,
+        });
         let cands = res.entries.filter((e) => e.type === "LEXEME");
         cands.sort(
             (a, b) =>
                 preferredPosSortKey(a.part_of_speech || "", preferredPos) -
                 preferredPosSortKey(b.part_of_speech || "", preferredPos)
         );
-        if (cands[0]) lemmaEntries.push(cands[0]);
+        return cands[0] ? { lemma, entry: cands[0] } : null;
+    });
+    const resolved = await Promise.all(fetchPromises);
+    for (const r of resolved) {
+        if (r) {
+            const triggeredBy = triggerMap.get(r.lemma);
+            if (triggeredBy) {
+                (r.entry as any).lemma_triggered_by_entry_id = triggeredBy;
+            }
+            lemmaEntries.push(r.entry);
+        }
     }
 
     // Wikidata enrichment
@@ -190,7 +263,11 @@ export async function fetchWiktionary({
         }
     }
 
-    return { schema_version: SCHEMA_VERSION, rawLanguageBlock: langBlock, entries: merged, notes: [] };
+    const out: FetchResult = { schema_version: SCHEMA_VERSION, rawLanguageBlock: langBlock, entries: merged, notes: [] };
+    if (debugDecoders && allDebugEvents.length > 0) {
+        out.debug = allDebugEvents.concat(Array(lemmaEntries.length).fill([]));
+    }
+    return out;
 }
 
 function guessEntryTypeFromTemplates(templates: any[]) {

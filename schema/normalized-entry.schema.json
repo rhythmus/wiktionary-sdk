@@ -124,6 +124,19 @@
       },
       "additionalProperties": false
     },
+    "StoredTemplateInstance": {
+      "type": "object",
+      "required": ["name", "raw", "params"],
+      "properties": {
+        "name": { "type": "string" },
+        "raw": { "type": "string" },
+        "params": { "$ref": "#/$defs/TemplateParams" },
+        "start": { "type": "integer", "description": "Character offset in posBlockWikitext" },
+        "end": { "type": "integer", "description": "Character offset in posBlockWikitext" },
+        "line": { "type": "integer", "description": "1-based line number" }
+      },
+      "additionalProperties": false
+    },
     "FormOf": {
       "type": "object",
       "required": ["template", "lang", "tags", "named"],
@@ -187,12 +200,20 @@
             "items": { "$ref": "#/$defs/StoredTemplate" }
           }
         },
+        "templates_all": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StoredTemplateInstance" },
+          "description": "Templates in document order with optional location metadata"
+        },
         "senses": {
           "type": "array",
           "items": { "$ref": "#/$defs/Sense" }
         },
         "semantic_relations": { "$ref": "#/$defs/SemanticRelations" },
         "etymology": { "$ref": "#/$defs/EtymologyData" },
+        "derived_terms": { "$ref": "#/$defs/SectionWithLinks" },
+        "related_terms": { "$ref": "#/$defs/SectionWithLinks" },
+        "descendants": { "$ref": "#/$defs/SectionWithLinks" },
         "usage_notes": {
           "type": "array",
           "items": { "type": "string" }
@@ -217,6 +238,7 @@
       "properties": {
         "id": { "type": "string", "description": "Unique sense ID, e.g. 'S1', 'S1.1'" },
         "gloss": { "type": "string" },
+        "gloss_raw": { "type": "string", "description": "Exact text after #/## before stripping" },
         "examples": {
           "type": "array",
           "items": { "type": "string" }
@@ -269,6 +291,31 @@
           "items": { "$ref": "#/$defs/EtymologyLink" }
         },
         "raw_text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "SectionLinkItem": {
+      "type": "object",
+      "required": ["term", "lang", "template", "raw"],
+      "properties": {
+        "term": { "type": "string" },
+        "lang": { "type": "string" },
+        "gloss": { "type": "string" },
+        "alt": { "type": "string" },
+        "template": { "type": "string" },
+        "raw": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "SectionWithLinks": {
+      "type": "object",
+      "required": ["raw_text", "items"],
+      "properties": {
+        "raw_text": { "type": "string", "description": "Verbatim section content" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SectionLinkItem" }
+        }
       },
       "additionalProperties": false
     }

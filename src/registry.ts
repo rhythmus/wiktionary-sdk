@@ -1,4 +1,4 @@
-import type { DecodeContext, TemplateDecoder, Sense, SemanticRelation, EtymologyLink } from "./types";
+import type { DecodeContext, TemplateDecoder, Sense, SemanticRelation, EtymologyLink, DecoderDebugEvent, SectionLinkItem, SectionWithLinks } from "./types";
 import { deepMerge } from "./utils";
 import { parseTemplates } from "./parser";
 
@@ -8,13 +8,53 @@ export class DecoderRegistry {
     register(decoder: TemplateDecoder) {
         this.decoders.push(decoder);
     }
-    decodeAll(ctx: DecodeContext) {
+    decodeAll(ctx: DecodeContext, options?: { debug?: boolean }): { patch: any; debug?: DecoderDebugEvent[] } {
         const patches: any[] = [];
+        const debugEvents: DecoderDebugEvent[] = [];
         for (const d of this.decoders) {
-            if (d.matches(ctx)) patches.push(d.decode(ctx));
+            if (!d.matches(ctx)) continue;
+            const patch = d.decode(ctx);
+            patches.push(patch);
+            if (options?.debug) {
+                const entryPatch = patch?.entry ?? {};
+                const fieldsProduced = Object.keys(entryPatch).filter((k) => k !== "templates");
+                const matchedTemplates = ctx.templates
+                    .filter((t) => decoderMatchesTemplate(d, t, ctx))
+                    .map((t) => ({ raw: t.raw, name: t.name }));
+                if (matchedTemplates.length > 0 || fieldsProduced.length > 0) {
+                    debugEvents.push({
+                        decoderId: d.id,
+                        matchedTemplates,
+                        fieldsProduced: fieldsProduced.length > 0 ? fieldsProduced : ["templates"],
+                    });
+                }
+            }
         }
-        return mergePatches(patches);
+        const merged = mergePatches(patches);
+        if (options?.debug) {
+            return { patch: merged, debug: debugEvents };
+        }
+        return merged as any;
     }
+    getDecoders(): TemplateDecoder[] {
+        return [...this.decoders];
+    }
+    /** All template names declared as handled by registered decoders. */
+    getHandledTemplates(): Set<string> {
+        const out = new Set<string>();
+        for (const d of this.decoders) {
+            for (const t of d.handlesTemplates ?? []) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+}
+
+function decoderMatchesTemplate(d: TemplateDecoder, t: { name: string }, ctx: DecodeContext): boolean {
+    if (d.handlesTemplates) return d.handlesTemplates.includes(t.name);
+    const singleTplCtx = { ...ctx, templates: [t as any], posBlockWikitext: ctx.posBlockWikitext };
+    return d.matches(singleTplCtx);
 }
 
 function mergePatches(patches: any[]) {
@@ -45,6 +85,7 @@ export const registry = new DecoderRegistry();
 /** --- Core: store raw template calls (always) --- **/
 registry.register({
     id: "store-raw-templates",
+    handlesTemplates: [], // matches all via matches()
     matches: (_ctx) => true,
     decode: (ctx) => {
         const store: any = { entry: { templates: {} } };
@@ -59,6 +100,7 @@ registry.register({
 /** --- Headword templates --- **/
 registry.register({
     id: "ipa",
+    handlesTemplates: ["IPA"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "IPA"),
     decode: (ctx) => {
         const t = ctx.templates.find((t) => t.name === "IPA");
@@ -71,6 +113,7 @@ registry.register({
 
 registry.register({
     id: "hyphenation",
+    handlesTemplates: ["hyphenation"],
     matches: (ctx) => ctx.lines.some((l) => l.trim().startsWith("{{hyphenation|")),
     decode: (ctx) => {
         const line = ctx.lines.find((l) => l.trim().startsWith("{{hyphenation|"));
@@ -86,48 +129,56 @@ registry.register({
 
 registry.register({
     id: "el-adj-head",
+    handlesTemplates: ["el-adj"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-adj"),
     decode: (_ctx) => ({ entry: { part_of_speech: "adjective" } }),
 });
 
 registry.register({
     id: "el-noun-head",
+    handlesTemplates: ["el-noun"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-noun"),
     decode: (_ctx) => ({ entry: { part_of_speech: "noun" } }),
 });
 
 registry.register({
     id: "el-verb-head",
+    handlesTemplates: ["el-verb"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-verb"),
     decode: (_ctx) => ({ entry: { part_of_speech: "verb" } }),
 });
 
 registry.register({
     id: "el-pron-head",
+    handlesTemplates: ["el-pron"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-pron"),
     decode: (_ctx) => ({ entry: { part_of_speech: "pronoun" } }),
 });
 
 registry.register({
     id: "el-numeral-head",
+    handlesTemplates: ["el-numeral"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-numeral"),
     decode: (_ctx) => ({ entry: { part_of_speech: "numeral" } }),
 });
 
 registry.register({
     id: "el-participle-head",
+    handlesTemplates: ["el-part"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-part"),
     decode: (_ctx) => ({ entry: { part_of_speech: "participle" } }),
 });
 
 registry.register({
     id: "el-adv-head",
+    handlesTemplates: ["el-adv"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-adv"),
     decode: (_ctx) => ({ entry: { part_of_speech: "adverb" } }),
 });
 
 registry.register({
     id: "el-art-head",
+    handlesTemplates: ["el-art", "el-art-def", "el-art-indef"],
     matches: (ctx) =>
         ctx.templates.some(
             (t) =>
@@ -141,6 +192,7 @@ registry.register({
 /** --- Form-of / lemma resolution triggers --- **/
 registry.register({
     id: "form-of",
+    handlesTemplates: [...FORM_OF_TEMPLATES],
     matches: (ctx) => ctx.templates.some((t) => FORM_OF_TEMPLATES.has(t.name)),
     decode: (ctx) => {
         const t = ctx.templates.find((t) => FORM_OF_TEMPLATES.has(t.name));
@@ -207,6 +259,7 @@ function parseTranslationsFromBlock(wikitext: string) {
 
 registry.register({
     id: "translations",
+    handlesTemplates: ["t", "t+", "t-simple", "tt", "tt+"],
     matches: (ctx) => ctx.posBlockWikitext.includes("==Translations=="),
     decode: (ctx) => {
         const parts = ctx.posBlockWikitext.split("\n");
@@ -239,8 +292,9 @@ function parseSenses(lines: string[]): Sense[] {
         const defMatch = line.match(/^#\s+(.+)$/);
         if (defMatch) {
             counter++;
-            const gloss = stripWikiMarkup(defMatch[1]);
-            senses.push({ id: `S${counter}`, gloss });
+            const raw = defMatch[1];
+            const gloss = stripWikiMarkup(raw);
+            senses.push({ id: `S${counter}`, gloss, gloss_raw: raw });
             continue;
         }
 
@@ -249,9 +303,11 @@ function parseSenses(lines: string[]): Sense[] {
             const parent = senses[senses.length - 1];
             if (!parent.subsenses) parent.subsenses = [];
             const subId = `${parent.id}.${parent.subsenses.length + 1}`;
+            const raw = subDefMatch[1];
             parent.subsenses.push({
                 id: subId,
-                gloss: stripWikiMarkup(subDefMatch[1]),
+                gloss: stripWikiMarkup(raw),
+                gloss_raw: raw,
             });
             continue;
         }
@@ -278,6 +334,7 @@ function stripWikiMarkup(text: string): string {
 
 registry.register({
     id: "senses",
+    handlesTemplates: [],
     matches: (ctx) => ctx.lines.some((l) => /^#\s+/.test(l)),
     decode: (ctx) => {
         const senses = parseSenses(ctx.lines);
@@ -297,6 +354,7 @@ const RELATION_TEMPLATES: Record<string, keyof import("./types").SemanticRelatio
 
 registry.register({
     id: "semantic-relations",
+    handlesTemplates: ["syn", "ant", "hyper", "hypo"],
     matches: (ctx) =>
         ctx.templates.some((t) => Object.keys(RELATION_TEMPLATES).includes(t.name)),
     decode: (ctx) => {
@@ -332,6 +390,7 @@ const ETYMOLOGY_TEMPLATES = new Set(["inh", "der", "bor", "cog", "inherited", "d
 
 registry.register({
     id: "etymology",
+    handlesTemplates: [...ETYMOLOGY_TEMPLATES],
     matches: (ctx) => ctx.templates.some((t) => ETYMOLOGY_TEMPLATES.has(t.name)),
     decode: (ctx) => {
         const links: EtymologyLink[] = [];
@@ -360,6 +419,7 @@ registry.register({
 
 registry.register({
     id: "el-ipa",
+    handlesTemplates: ["el-IPA"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "el-IPA"),
     decode: (ctx) => {
         const t = ctx.templates.find((t) => t.name === "el-IPA");
@@ -372,6 +432,7 @@ registry.register({
 
 registry.register({
     id: "audio",
+    handlesTemplates: ["audio"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "audio"),
     decode: (ctx) => {
         const t = ctx.templates.find((t) => t.name === "audio");
@@ -382,10 +443,67 @@ registry.register({
     },
 });
 
+/** --- Phase 7.1: Section decoders for l/link (Derived/Related/Descendants) --- **/
+
+const SECTION_LINK_HEADERS = ["Derived terms", "Related terms", "Descendants"] as const;
+const SECTION_LINK_FIELDS = ["derived_terms", "related_terms", "descendants"] as const;
+
+function extractSectionByLevel4(wikitext: string, headerName: string): { raw: string } | null {
+    const re = new RegExp(`^====\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*====\\s*$`, "m");
+    const m = re.exec(wikitext);
+    if (!m) return null;
+    const start = m.index + m[0].length;
+    const after = wikitext.slice(start);
+    const next = after.search(/^====/m);
+    const raw = next === -1 ? after : after.slice(0, next);
+    return { raw: raw.trim() };
+}
+
+function parseSectionLinkTemplates(wikitext: string): SectionLinkItem[] {
+    const items: SectionLinkItem[] = [];
+    const tpls = parseTemplates(wikitext);
+    for (const t of tpls) {
+        if (t.name !== "l" && t.name !== "link") continue;
+        const pos = t.params.positional ?? [];
+        const lang = pos[0];
+        const term = pos[1];
+        if (!lang || !term) continue;
+        const named = t.params.named ?? {};
+        const gloss = named.gloss ?? named.t ?? pos[3] ?? undefined;
+        const alt = named.alt ?? pos[2] ?? undefined;
+        items.push({ term, lang, gloss, alt, template: t.name, raw: t.raw });
+    }
+    return items;
+}
+
+registry.register({
+    id: "section-links",
+    handlesTemplates: ["l", "link"],
+    matches: (ctx) => {
+        const txt = ctx.posBlockWikitext;
+        return SECTION_LINK_HEADERS.some((h) => txt.includes(`====${h}====`));
+    },
+    decode: (ctx) => {
+        const patch: any = { entry: {} };
+        for (let i = 0; i < SECTION_LINK_HEADERS.length; i++) {
+            const header = SECTION_LINK_HEADERS[i];
+            const field = SECTION_LINK_FIELDS[i];
+            const section = extractSectionByLevel4(ctx.posBlockWikitext, header);
+            if (!section || !section.raw) continue;
+            const items = parseSectionLinkTemplates(section.raw);
+            if (items.length === 0) continue;
+            patch.entry[field] = { raw_text: section.raw, items } as SectionWithLinks;
+        }
+        if (Object.keys(patch.entry).length === 0) return {};
+        return patch;
+    },
+});
+
 /** --- Phase 2.5: Usage notes --- **/
 
 registry.register({
     id: "usage-notes",
+    handlesTemplates: [],
     matches: (ctx) => ctx.posBlockWikitext.includes("===Usage notes==="),
     decode: (ctx) => {
         const parts = ctx.posBlockWikitext.split("\n");

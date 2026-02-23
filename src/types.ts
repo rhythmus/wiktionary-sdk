@@ -40,6 +40,7 @@ export interface WikidataEnrichment {
 export interface Sense {
   id: string;
   gloss: string;
+  gloss_raw?: string;
   examples?: string[];
   subsenses?: Sense[];
 }
@@ -69,6 +70,22 @@ export interface EtymologyLink {
 export interface EtymologyData {
   links?: EtymologyLink[];
   raw_text?: string;
+}
+
+/** Single item from {{l}}/{{link}} in Derived/Related/Descendants sections. */
+export interface SectionLinkItem {
+  term: string;
+  lang: string;
+  gloss?: string;
+  alt?: string;
+  template: string;
+  raw: string;
+}
+
+/** Section with structured items and verbatim raw text. */
+export interface SectionWithLinks {
+  raw_text: string;
+  items: SectionLinkItem[];
 }
 
 /**
@@ -114,13 +131,35 @@ export interface Entry {
   senses?: Sense[];
   semantic_relations?: SemanticRelations;
   etymology?: EtymologyData;
+  /** From {{l}}/{{link}} in ====Derived terms==== section. */
+  derived_terms?: SectionWithLinks;
+  /** From {{l}}/{{link}} in ====Related terms==== section. */
+  related_terms?: SectionWithLinks;
+  /** From {{l}}/{{link}} in ====Descendants==== section. */
+  descendants?: SectionWithLinks;
   usage_notes?: string[];
   wikidata?: WikidataEnrichment;
   resolved_for_query?: string;
+  /** When this lemma was resolved for an inflected form, the entry id that triggered it */
+  lemma_triggered_by_entry_id?: string;
   preferred?: boolean;
   source: {
     wiktionary: WiktionarySource;
   };
+  templates_all?: Array<{
+    name: string;
+    raw: string;
+    params: { positional: string[]; named: Record<string, string> };
+    start?: number;
+    end?: number;
+    line?: number;
+  }>;
+}
+
+export interface DecoderDebugEvent {
+  decoderId: string;
+  matchedTemplates: Array<{ raw: string; name: string }>;
+  fieldsProduced: string[];
 }
 
 /** Top-level result returned by {@link fetchWiktionary}. */
@@ -129,6 +168,8 @@ export interface FetchResult {
   rawLanguageBlock: string;
   entries: Entry[];
   notes: string[];
+  /** Present when debugDecoders option is true. debug[i] corresponds to entries[i]. */
+  debug?: DecoderDebugEvent[][];
 }
 
 export interface TemplateCall {
@@ -167,6 +208,7 @@ export interface DecodeContext {
 
 export interface TemplateDecoder {
   id: string;
+  handlesTemplates?: string[];
   matches(ctx: DecodeContext): boolean;
   decode(ctx: DecodeContext): any;
 }

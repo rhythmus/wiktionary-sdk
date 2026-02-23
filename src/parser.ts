@@ -77,8 +77,14 @@ export function splitEtymologiesAndPOS(langBlock: string) {
 
 /** -------------------- Template Parsing -------------------- **/
 
-export function parseTemplates(wikitext: string): TemplateCall[] {
-    const out: TemplateCall[] = [];
+export interface TemplateCallWithLocation extends TemplateCall {
+    start?: number;
+    end?: number;
+    line?: number;
+}
+
+export function parseTemplates(wikitext: string, withLocation = false): TemplateCall[] | TemplateCallWithLocation[] {
+    const out: (TemplateCall | TemplateCallWithLocation)[] = [];
     let i = 0;
     while (i < wikitext.length) {
         const start = wikitext.indexOf("{{", i);
@@ -108,10 +114,18 @@ export function parseTemplates(wikitext: string): TemplateCall[] {
         const raw = wikitext.slice(start, j);
         const inner = raw.slice(2, -2);
         const tpl = parseTemplateInner(inner);
-        if (tpl) out.push({ ...tpl, raw });
+        if (tpl) {
+            const base = { ...tpl, raw };
+            if (withLocation) {
+                const line = wikitext.slice(0, start).split("\n").length;
+                (out as TemplateCallWithLocation[]).push({ ...base, start, end: j, line });
+            } else {
+                out.push(base);
+            }
+        }
         i = j;
     }
-    return out;
+    return out as TemplateCall[] | TemplateCallWithLocation[];
 }
 
 /**
