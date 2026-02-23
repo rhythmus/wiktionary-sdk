@@ -4,6 +4,7 @@ import type {
     Entry,
     DecodeContext,
 } from "./types";
+import { SCHEMA_VERSION } from "./types";
 
 import {
     fetchWikitextEnWiktionary,
@@ -42,15 +43,25 @@ export async function fetchWiktionary({
     const qPage = await fetchWikitextEnWiktionary(query);
     if (!qPage.exists) {
         return {
+            schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
             entries: [],
             notes: [`No page found for ${query} on en.wiktionary.org (after redirects).`],
         };
     }
     const languageName = langToLanguageName(lang);
+    if (languageName === null) {
+        return {
+            schema_version: SCHEMA_VERSION,
+            rawLanguageBlock: "",
+            entries: [],
+            notes: [`Unknown language code: ${lang}. No language section searched.`],
+        };
+    }
     const langBlock = extractLanguageSection(qPage.wikitext, languageName);
     if (!langBlock) {
         return {
+            schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
             entries: [],
             notes: [
@@ -179,7 +190,7 @@ export async function fetchWiktionary({
         }
     }
 
-    return { rawLanguageBlock: langBlock, entries: merged, notes: [] };
+    return { schema_version: SCHEMA_VERSION, rawLanguageBlock: langBlock, entries: merged, notes: [] };
 }
 
 function guessEntryTypeFromTemplates(templates: any[]) {

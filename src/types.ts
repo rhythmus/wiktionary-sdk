@@ -4,8 +4,8 @@ export const SCHEMA_VERSION = "1.0.0";
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
 export type WikiLang = "el" | "grc" | "en" | "nl" | "de" | "fr" | string;
 
-/** Discriminator for the kind of dictionary entry. */
-export type EntryType = "LEXEME" | "INFLECTED_FORM" | "FORM_OF" | string;
+/** Discriminator for the kind of dictionary entry. Matches schema enum. */
+export type EntryType = "LEXEME" | "INFLECTED_FORM" | "FORM_OF";
 
 export interface Pronunciation {
   IPA?: string;
@@ -94,7 +94,11 @@ export interface Entry {
     named: Record<string, string>;
   };
   translations?: Record<string, Array<{
-    gloss: string;
+    term: string;
+    gloss?: string;
+    transliteration?: string;
+    gender?: string;
+    alt?: string;
     sense: string | null;
     template: string;
     raw: string;
@@ -121,6 +125,7 @@ export interface Entry {
 
 /** Top-level result returned by {@link fetchWiktionary}. */
 export interface FetchResult {
+  schema_version: string;
   rawLanguageBlock: string;
   entries: Entry[];
   notes: string[];

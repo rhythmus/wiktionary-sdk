@@ -42,8 +42,9 @@ function makeLexemeEntry(overrides?: Partial<Entry>): Entry {
 }
 
 describe("JSON Schema validation", () => {
-  it("validates a minimal FetchResult", () => {
+  it("validates a minimal FetchResult with schema_version", () => {
     const result: FetchResult = {
+      schema_version: "1.0.0",
       rawLanguageBlock: "==Greek==\nsome content",
       entries: [makeLexemeEntry()],
       notes: [],
@@ -51,10 +52,12 @@ describe("JSON Schema validation", () => {
     const valid = validate(result);
     if (!valid) console.error(validate.errors);
     expect(valid).toBe(true);
+    expect(result.schema_version).toBe("1.0.0");
   });
 
   it("validates an entry with pronunciation", () => {
     const result: FetchResult = {
+      schema_version: "1.0.0",
       rawLanguageBlock: "==Greek==",
       entries: [makeLexemeEntry({ pronunciation: { IPA: "/ˈɣra.fo/" } })],
       notes: [],
@@ -74,6 +77,7 @@ describe("JSON Schema validation", () => {
       },
     });
     const result: FetchResult = {
+      schema_version: "1.0.0",
       rawLanguageBlock: "==Greek==",
       entries: [entry],
       notes: [],
@@ -83,6 +87,7 @@ describe("JSON Schema validation", () => {
 
   it("rejects an entry missing required fields", () => {
     const bad = {
+      schema_version: "1.0.0",
       rawLanguageBlock: "",
       entries: [{ id: "x" }],
       notes: [],

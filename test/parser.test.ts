@@ -151,8 +151,8 @@ describe("langToLanguageName", () => {
     expect(langToLanguageName("en")).toBe("English");
   });
 
-  it("falls back to Greek for unknown codes", () => {
-    expect(langToLanguageName("xx")).toBe("Greek");
+  it("returns null for unknown codes", () => {
+    expect(langToLanguageName("xx")).toBeNull();
   });
 });
 
@@ -165,6 +165,15 @@ describe("splitPipesPreservingLinks", () => {
     expect(splitPipesPreservingLinks("[[link|display]]|other")).toEqual([
       "[[link|display]]",
       "other",
+    ]);
+  });
+
+  it("preserves pipes inside nested templates", () => {
+    expect(splitPipesPreservingLinks("a|b|g={{g|m}}|c")).toEqual([
+      "a",
+      "b",
+      "g={{g|m}}",
+      "c",
     ]);
   });
 });

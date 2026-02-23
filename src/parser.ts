@@ -114,10 +114,15 @@ export function parseTemplates(wikitext: string): TemplateCall[] {
     return out;
 }
 
+/**
+ * Splits on | only when both depthLink and depthTpl are 0.
+ * Preserves pipes inside [[...]] and {{...}}.
+ */
 export function splitPipesPreservingLinks(s: string) {
     const parts: string[] = [];
     let cur = "";
     let depthLink = 0;
+    let depthTpl = 0;
     for (let i = 0; i < s.length; i++) {
         const ch = s[i];
         const next2 = s.slice(i, i + 2);
@@ -133,7 +138,19 @@ export function splitPipesPreservingLinks(s: string) {
             i++;
             continue;
         }
-        if (ch === "|" && depthLink === 0) {
+        if (next2 === "{{") {
+            depthTpl++;
+            cur += next2;
+            i++;
+            continue;
+        }
+        if (next2 === "}}" && depthTpl > 0) {
+            depthTpl--;
+            cur += next2;
+            i++;
+            continue;
+        }
+        if (ch === "|" && depthLink === 0 && depthTpl === 0) {
             parts.push(cur);
             cur = "";
             continue;
@@ -189,12 +206,12 @@ export function mapHeadingToPos(heading: string) {
     return map[h] || null;
 }
 
-export function langToLanguageName(lang: WikiLang) {
+export function langToLanguageName(lang: WikiLang): string | null {
     if (lang === "el") return "Greek";
     if (lang === "grc") return "Ancient Greek";
     if (lang === "en") return "English";
     if (lang === "nl") return "Dutch";
     if (lang === "de") return "German";
     if (lang === "fr") return "French";
-    return "Greek";
+    return null;
 }
