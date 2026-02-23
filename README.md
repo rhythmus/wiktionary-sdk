@@ -15,7 +15,9 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 
 ### 🧠 Extraction Engine
 
-- **Brace-aware Wikitext parser** that correctly handles arbitrarily nested `{{...}}` template structures — standard regex is insufficient for Wikitext.
+- **Brace-aware template extraction** that handles nested `{{...}}` blocks —
+  standard regex is insufficient for Wikitext. (See `docs/ROADMAP.md` for
+  post-v1.0 hardening of parameter splitting for nested templates.)
 - **Registry of Template Decoders** — a decentralized, pure-function architecture where each supported template family has its own decoder. Adding support for a new template means registering one function; no changes to the parser or orchestrator.
 - **Sense-level structuring** — definition lines (`#`, `##`, `#:`) are parsed into structured `Sense` objects with unique IDs, nested subsenses, and usage examples. Wiki markup is stripped from glosses.
 - **Semantic relations** — `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}` templates are decoded into structured synonym, antonym, hypernym, and hyponym lists with optional qualifiers and sense IDs.
@@ -65,7 +67,7 @@ wiktionary-fetch/
 ├── VERSIONING.md             # Output schema versioning policy
 └── docs/
     ├── wiktionary-fetch-spec.md   # Formal technical specification
-    └── ROADMAP.md                 # Multi-phase evolution plan (all phases complete)
+    └── ROADMAP.md                 # Post-v1.0 staged implementation roadmap
 ```
 
 ## 🚀 Getting Started
@@ -154,3 +156,16 @@ Use `npm run introspect` to discover templates in the wild that do not yet have 
 ## 📋 Output Schema Versioning
 
 See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps for breaking changes, MINOR for additive fields, PATCH for documentation-only fixes.
+
+## 🧭 Roadmap (post-v1.0)
+
+`docs/ROADMAP.md` is the living post‑v1.0 plan. The key themes are:
+
+- **Parser correctness hardening**: fully brace-aware parameter splitting for
+  nested templates (no more silent mis-parses).
+- **Translation shape correctness**: expose explicitly provided translation
+  fields (`term`, `tr=`, `g=`, etc.) without inference.
+- **Ground-truth traceability**: registry-driven decoder debug events and
+  ordered template storage with location metadata for click-to-source.
+- **Packaging reliability**: ensure the published npm package ships runnable
+  CLI/server artifacts (not only TypeScript entrypoints).
