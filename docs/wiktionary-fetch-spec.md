@@ -187,8 +187,18 @@ For adjectives, the category lists the declension template ecosystem (63 templat
 - No generation of linguistic data not present in sources.
 - All results are traceable back to raw template parameters.
 
+## 11. Implementation Reference
+
+The project provides a production-grade modular implementation:
+
+- **Core Engine:** Located in `/src/`. A TypeScript library exported via `index.ts`.
+- **Registry:** Decoders are centrally managed in `registry.ts`.
+- **Graphical Client:** A React (Vite) application in `/web/` serves as the primary visual verification tool, featuring real-time YAML preview and Wikidata media integration.
+
 ---
 
-**Artifacts included in this deliverable:**
-- `wiktionary-fetch.html`: a self-contained demo implementing this architecture.
-- This specification document (Markdown + PDF).
+**Artifacts current as of v1.0 Alpha:**
+- `src/index.ts`: Orchestration entry point.
+- `web/src/App.tsx`: React frontend implementation.
+- This specification document.
+
