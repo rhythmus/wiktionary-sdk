@@ -1,5 +1,10 @@
+/** Current version of the normalized output schema. See VERSIONING.md. */
+export const SCHEMA_VERSION = "1.0.0";
+
+/** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
 export type WikiLang = "el" | "grc" | "en" | "nl" | "de" | "fr" | string;
 
+/** Discriminator for the kind of dictionary entry. */
 export type EntryType = "LEXEME" | "INFLECTED_FORM" | "FORM_OF" | string;
 
 export interface Pronunciation {
@@ -32,6 +37,44 @@ export interface WikidataEnrichment {
   };
 }
 
+export interface Sense {
+  id: string;
+  gloss: string;
+  examples?: string[];
+  subsenses?: Sense[];
+}
+
+export interface SemanticRelation {
+  term: string;
+  sense_id?: string;
+  qualifier?: string;
+}
+
+export interface SemanticRelations {
+  synonyms?: SemanticRelation[];
+  antonyms?: SemanticRelation[];
+  hypernyms?: SemanticRelation[];
+  hyponyms?: SemanticRelation[];
+}
+
+export interface EtymologyLink {
+  template: string;
+  source_lang: string;
+  source_lang_name?: string;
+  term?: string;
+  gloss?: string;
+  raw: string;
+}
+
+export interface EtymologyData {
+  links?: EtymologyLink[];
+  raw_text?: string;
+}
+
+/**
+ * A single normalized dictionary entry produced by the extraction pipeline.
+ * Each entry is fully traceable to its source wikitext section.
+ */
 export interface Entry {
   id: string;
   language: WikiLang;
@@ -64,6 +107,10 @@ export interface Entry {
     };
     raw: string;
   }>>;
+  senses?: Sense[];
+  semantic_relations?: SemanticRelations;
+  etymology?: EtymologyData;
+  usage_notes?: string[];
   wikidata?: WikidataEnrichment;
   resolved_for_query?: string;
   preferred?: boolean;
@@ -72,6 +119,7 @@ export interface Entry {
   };
 }
 
+/** Top-level result returned by {@link fetchWiktionary}. */
 export interface FetchResult {
   rawLanguageBlock: string;
   entries: Entry[];
