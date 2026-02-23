@@ -1,0 +1,22 @@
+{
+  "name": "wiktionary-fetch",
+  "version": "1.0.0",
+  "description": "Source-faithful Wiktionary and Wikidata extraction library.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "wiktionary",
+    "wikidata",
+    "lexicography",
+    "greek"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
