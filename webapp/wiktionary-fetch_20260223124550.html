@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Wiktionary Fetch – Full Engine</title>
+
+<style>
+:root{
+ --bg:#0b0f17;
+ --panel:#101827;
+ --text:#e6eaf2;
+ --line:#22304a;
+}
+
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui;}
+header{padding:16px;border-bottom:1px solid var(--line);}
+input{width:60%;padding:8px;background:#111827;border:1px solid var(--line);color:white;border-radius:6px;}
+button{padding:8px 12px;margin-left:6px;background:#1f2937;color:white;border:1px solid var(--line);border-radius:6px;cursor:pointer;}
+main{display:flex;height:calc(100vh - 70px);}
+.pane{flex:1;padding:12px;overflow:auto;border-right:1px solid var(--line);}
+.pane:last-child{border-right:none;}
+pre{background:#0f172a;padding:12px;border-radius:8px;font-size:12px;line-height:1.3;overflow:auto;}
+pre.yaml{font-family:ui-monospace,Menlo,Consolas,monospace;}
+
+.yaml-key{color:#7dd3fc;font-weight:600;}
+.yaml-string{color:#86efac;}
+.yaml-number{color:#fbbf24;}
+.yaml-bool{color:#f472b6;}
+.yaml-dash{color:#94a3b8;}
+</style>
+</head>
+<body>
+
+<header>
+<input id="q" placeholder="Try: έγραψε, έγραψα, γράφω, σπίτι"/>
+<button onclick="run()">Search</button>
+</header>
+
+<main>
+<div class="pane">
+<h3>Raw Wikitext</h3>
+<pre id="raw">—</pre>
+</div>
+<div class="pane">
+<h3>Normalized YAML</h3>
+<pre id="yaml" class="yaml">—</pre>
+</div>
+</main>
+
+<script>
+const API="https://en.wiktionary.org/w/api.php";
+
+async function fetchSection(title){
+ const u=new URL(API);
+ u.searchParams.set("action","parse");
+ u.searchParams.set("page",title);
+ u.searchParams.set("prop","wikitext");
+ u.searchParams.set("format","json");
+ u.searchParams.set("origin","*");
+ const r=await fetch(u);
+ const j=await r.json();
+ return j.parse?.wikitext["*"]||"";
+}
+
+function extractDefinitions(wt){
+ return wt.split("\n")
+  .filter(l=>l.startsWith("# ")&&!l.startsWith("##"))
+  .map(l=>l.replace(/^# /,"").trim());
+}
+
+function detectInflection(wt){
+ const m=wt.match(/\{\{infl of\|el\|([^|]+)\|([^}]*)\}\}/);
+ if(!m) return null;
+ return {
+  lemma:m[1],
+  rawTags:m[2].split("|").filter(Boolean)
+ };
+}
+
+function normalize(term,wt){
+ const infl=detectInflection(wt);
+ if(infl){
+  return {
+   type:"INFLECTED_FORM",
+   form:term,
+   lemma:infl.lemma,
+   tags:infl.rawTags
+  };
+ }
+ return {
+  type:"LEXEME",
+  form:term,
+  definitions:extractDefinitions(wt)
+ };
+}
+
+function yamlDump(value, indent=0){
+ const sp=" ".repeat(indent);
+ const next=indent+1;
+
+ if(value===null||value===undefined) return "null";
+ if(typeof value==="number"||typeof value==="boolean") return String(value);
+
+ if(typeof value==="string"){
+  if(!value.length) return '""';
+  if(/^[a-zA-Z0-9_\-]+$/.test(value)) return value;
+  return JSON.stringify(value);
+ }
+
+ if(Array.isArray(value)){
+  if(!value.length) return "[]";
+  if(value.length<=4 && value.every(isScalar)){
+   return `[${value.map(v=>yamlDump(v)).join(", ")}]`;
+  }
+  return value.map(v=>{
+   if(isScalar(v)) return `${sp}- ${yamlDump(v)}`;
+   return `${sp}-\n${yamlDump(v,next)}`;
+  }).join("\n");
+ }
+
+ if(typeof value==="object"){
+  const keys=Object.keys(value);
+  return keys.map(k=>{
+   const v=value[k];
+   if(isScalar(v)) return `${sp}${k}: ${yamlDump(v)}`;
+   return `${sp}${k}:\n${yamlDump(v,next)}`;
+  }).join("\n");
+ }
+
+ return JSON.stringify(value);
+}
+
+function isScalar(v){
+ return v===null||typeof v==="string"||typeof v==="number"||typeof v==="boolean";
+}
+
+function highlightYaml(y){
+ return y
+  .replace(/^(\s*)(- )/gm,'$1<span class="yaml-dash">-</span> ')
+  .replace(/^(\s*)([a-zA-Z0-9_]+):/gm,'$1<span class="yaml-key">$2</span>:')
+  .replace(/"([^"]*)"/g,'"<span class="yaml-string">$1</span>"')
+  .replace(/\b(true|false|null)\b/g,'<span class="yaml-bool">$1</span>')
+  .replace(/\b\d+(\.\d+)?\b/g,'<span class="yaml-number">$&</span>');
+}
+
+async function run(){
+ const term=document.getElementById("q").value.trim();
+ if(!term) return;
+
+ document.getElementById("raw").textContent="Loading...";
+ document.getElementById("yaml").textContent="Loading...";
+
+ try{
+  const wt=await fetchSection(term);
+  document.getElementById("raw").textContent=wt;
+
+  const normalized=normalize(term,wt);
+  const yaml=yamlDump(normalized);
+  document.getElementById("yaml").innerHTML=highlightYaml(yaml);
+
+ }catch(e){
+  document.getElementById("raw").textContent=e.toString();
+  document.getElementById("yaml").textContent=e.toString();
+ }
+}
+
+document.getElementById("q").value="έγραψε";
+run();
+</script>
+
+</body>
+</html>

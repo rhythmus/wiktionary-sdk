@@ -1,0 +1,24 @@
+# https://en.wiktionary.org/wiki/%CE%AD%CE%B3%CF%81%CE%B1%CF%88%CE%B5
+# https://en.wiktionary.org/w/rest.php/v1/page/%CE%AD%CE%B3%CF%81%CE%B1%CF%88%CE%B5
+
+entry:
+  type: "INFLECTED_FORM"
+  form: "έγραψε"
+  IPA: "/ˈeɣrapse/"
+  hyphenation: "έ-γρα-ψε"
+
+  lemma: "γράφω"
+  part_of_speech: "verb"
+  inflection:
+    person: 3
+    number: "singular"
+    voice: "active"
+    mood: "indicative"
+    tense: "aorist"
+  morphology:
+    augment: "έ-"
+    stem: "γραψ-"
+    ending: "-ε"
+  usage:
+    - el: "Έγραψε ένα γράμμα."
+      en: "He/she wrote a letter."

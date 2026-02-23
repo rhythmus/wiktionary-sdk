@@ -1,0 +1,43 @@
+# https://en.wiktionary.org/wiki/%CE%B3%CF%81%CE%AC%CF%86%CF%89#Greek
+
+entry:
+
+  id: "el:γράφω"
+  language: "el"
+
+  type: "LEXEME"
+  form: "γράφω"
+
+  pronunciation:
+    IPA: "/ˈɣra.fo/"
+  
+  hyphenation: "γρά‧φω"
+
+  part_of_speech: "verb"
+  class: "verb.act.ω"
+  voice_type: "active"
+
+  morphology:
+    present_stem: "γραφ-"
+    aorist_stem: "γραψ-"
+    augment: "έ-"
+    ending: "-ω"
+
+  paradigm:
+    present_1sg: "γράφω"
+    aorist_1sg: "έγραψα"
+    imperfect_3sg: "έγραφε"
+    passive_present: "γράφομαι"
+    passive_aorist: "γράφτηκα"
+
+  translations:
+    en:
+      - gloss: "to write"
+      - gloss: "to record"
+      - gloss: "to issue (a ticket)"
+
+  derivations:
+    - "γραφή"
+    - "γράμμα"
+    - "γραφικός"
+    - "συγγραφέας"
