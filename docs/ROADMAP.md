@@ -4,7 +4,7 @@ This document outlines the detailed, staged evolution of the WiktionaryFetch eng
 
 ---
 
-## 🏛️ Phase 1: DX, Quality & Observability [COMPLETED]
+## 🏛️ Phase 1: DX, Quality & Observability
 **Goal**: Stabilize the existing engine and provide developers with tools to debug and verify extraction logic deterministically.
 
 ### 1.1 Developer Inspector UI
@@ -14,6 +14,16 @@ This document outlines the detailed, staged evolution of the WiktionaryFetch eng
 ### 1.2 Library Modularization
 - **Status**: **DONE** (Core logic extracted into `/src`).
 - **Details**: Tree-shakeable TypeScript modules for API, Parser, Registry, and Utils.
+
+### 1.3 JSON Schema & Versioning
+- **Task**: Formalize the `NormalizedEntry` output using JSON Schema.
+- **Details**: Define strict types for POS, features (person, number, etc.), and source metadata. Implement semantic versioning for the output format.
+- **AI Instruction**: Generate TypeScript interfaces directly from the JSON Schema to ensure a single source of truth.
+
+### 1.4 Gold Standard Test Suite
+- **Task**: Create a regression suite containing canonical Greek test cases (e.g., *γράφω*, *έγραψα*, *καλός*, *άνθρωπος*).
+- **Details**: Ensure no future change reintroduces heuristics or breaks existing template mapping.
+- **Technology**: Vitest / Playwright for end-to-end extraction verification.
 
 ---
 
@@ -84,15 +94,11 @@ This document outlines the detailed, staged evolution of the WiktionaryFetch eng
 ## ⚖️ Phase 5: Quality & Engineering Excellence
 **Goal**: Ensure the library is robust, documented, and easy to maintain.
 
-### 5.1 Gold Standard Test Suite
-- **Task**: Regression testing against 100+ canonical "complex" entries.
-- **Technology**: Vitest / Playwright for end-to-end extraction verification.
-
-### 5.2 Automated API Documentation
+### 5.1 Automated API Documentation
 - **Task**: Generate TypeDoc outputs for the core library.
 - **Details**: Host a searchable documentation site for library consumers.
 
-### 5.3 Benchmarking & Optimization
+### 5.2 Benchmarking & Optimization
 - **Task**: Performance audit of the brace-aware parser.
 - **Goal**: Ensure sub-10ms parsing time for large entries (e.g., high-frequency verbs).
 
