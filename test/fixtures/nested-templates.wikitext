@@ -1,0 +1,9 @@
+==Greek==
+===Verb===
+{{el-verb}}
+
+# test
+
+====Translations====
+* {{t|el|en|write|tr=rait|g=v}}
+* {{t|el|fr|écrire|alt=écrire|gloss=to write}}

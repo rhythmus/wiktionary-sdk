@@ -1,0 +1,22 @@
+==Greek==
+===Etymology===
+From {{inh|el|grc|γράφω|t=to write}}.
+
+===Verb===
+{{el-verb}}
+{{inh|el|grc|γράφω|t=to write}}
+{{el-IPA|γράφω}}
+{{hyphenation|γρά|φω}}
+
+# to [[write]]
+## to write by hand
+## to type
+#: He writes every day.
+# to [[record|record]] something
+
+{{syn|el|σημειώνω|καταγράφω|q=formal}}
+{{ant|el|σβήνω}}
+
+====Translations====
+* English: {{t|el|en|write}}
+* French: {{t|el|fr|écrire|g=m}}

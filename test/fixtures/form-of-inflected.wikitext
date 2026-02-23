@@ -1,0 +1,3 @@
+==Greek==
+===Verb===
+{{inflection of|el|γράφω||1|s|pres|ind|act}}

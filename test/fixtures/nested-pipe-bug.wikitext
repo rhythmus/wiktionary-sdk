@@ -1,0 +1,6 @@
+==Greek==
+===Verb===
+{{el-verb}}
+
+# test
+{{t|el|fr|écrire|g={{g|m}}}}

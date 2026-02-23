@@ -1,0 +1,9 @@
+==Greek==
+===Verb===
+{{el-verb}}
+
+# to write
+
+====Translations====
+* (sense: transitive): {{t|el|en|write|g=v}}, {{t|el|de|schreiben}}
+* (sense: intransitive): {{t+|el|fr|écrire|g=m|tr=ekʁiʁ}}
