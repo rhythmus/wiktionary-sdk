@@ -21,6 +21,11 @@ Return:
 
 The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`), versioned per `VERSIONING.md`.
 
+**Roadmap note (non-normative):** this document specifies v1.0 behavior and
+data contracts. For planned post‑v1.0 hardening (parser correctness, improved
+traceability, packaging reliability, translation-shape refinements), see
+`docs/ROADMAP.md`.
+
 ## 2. Data Sources
 
 ### 2.1 Wiktionary (primary)
@@ -173,13 +178,18 @@ The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Sc
 
 ### 4.3 Template extraction
 
-A brace-aware parser (`src/parser.ts`) extracts all `{{...}}` blocks, correctly handling nesting:
+A brace-aware parser (`src/parser.ts`) extracts `{{...}}` blocks and captures
+their verbatim `raw` wikitext, including nested templates.
 
 - Returns `TemplateCall`:
   - `name`
   - `params.positional[]`
   - `params.named{}`
   - `raw` (verbatim)
+
+**Implementation note (non-normative):** parameter splitting is currently
+link-aware (pipes inside `[[...]]` are preserved). Fully brace-aware parameter
+splitting for nested templates is tracked as post‑v1.0 work in `docs/ROADMAP.md`.
 
 ### 4.4 Definition line parsing
 
@@ -313,3 +323,19 @@ The `/webapp` is not just a demo; it is a **Developer Inspector**.
 - `cli/index.ts`: CLI tool.
 - `server.ts`: HTTP API wrapper.
 - This specification document.
+
+## 13. Post-v1.0 roadmap (non-normative)
+
+This section is informational only; it does not change v1.0 requirements.
+For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
+
+Priorities:
+
+- **Parser correctness**: fully brace-aware template parameter splitting to
+  avoid silent mis-parses with nested templates.
+- **Translation shape correctness**: expose explicitly provided translation
+  fields (e.g. `term`, `tr=`, `g=`, `alt=`) without inference.
+- **Traceability and debugging**: make decoder matches ground-truth (registry
+  debug events) and preserve ordered template instances with location metadata.
+- **Distribution hardening**: ensure published npm installs ship runnable CLI
+  and server entrypoints (not TypeScript-only bins).
