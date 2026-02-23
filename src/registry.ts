@@ -1,4 +1,4 @@
-import type { DecodeContext, TemplateDecoder } from "./types";
+import type { DecodeContext, TemplateDecoder, Sense, SemanticRelation, EtymologyLink } from "./types";
 import { deepMerge } from "./utils";
 import { parseTemplates } from "./parser";
 
@@ -219,5 +219,183 @@ registry.register({
         const tr = parseTranslationsFromBlock(buf.join("\n"));
         if (Object.keys(tr).length === 0) return {};
         return { entry: { translations: tr } };
+    },
+});
+
+/** --- Phase 2.1: Sense-level structuring --- **/
+
+function parseSenses(lines: string[]): Sense[] {
+    const senses: Sense[] = [];
+    let counter = 0;
+
+    for (const line of lines) {
+        const defMatch = line.match(/^#\s+(.+)$/);
+        if (defMatch) {
+            counter++;
+            const gloss = stripWikiMarkup(defMatch[1]);
+            senses.push({ id: `S${counter}`, gloss });
+            continue;
+        }
+
+        const subDefMatch = line.match(/^##\s+(.+)$/);
+        if (subDefMatch && senses.length > 0) {
+            const parent = senses[senses.length - 1];
+            if (!parent.subsenses) parent.subsenses = [];
+            const subId = `${parent.id}.${parent.subsenses.length + 1}`;
+            parent.subsenses.push({
+                id: subId,
+                gloss: stripWikiMarkup(subDefMatch[1]),
+            });
+            continue;
+        }
+
+        const exMatch = line.match(/^#:\s*(.+)$/);
+        if (exMatch && senses.length > 0) {
+            const parent = senses[senses.length - 1];
+            if (!parent.examples) parent.examples = [];
+            parent.examples.push(stripWikiMarkup(exMatch[1]));
+        }
+    }
+
+    return senses;
+}
+
+function stripWikiMarkup(text: string): string {
+    return text
+        .replace(/\[\[([^\]|]*\|)?([^\]]*)\]\]/g, "$2")
+        .replace(/'''([^']+)'''/g, "$1")
+        .replace(/''([^']+)''/g, "$1")
+        .replace(/\{\{[^}]*\}\}/g, "")
+        .trim();
+}
+
+registry.register({
+    id: "senses",
+    matches: (ctx) => ctx.lines.some((l) => /^#\s+/.test(l)),
+    decode: (ctx) => {
+        const senses = parseSenses(ctx.lines);
+        if (senses.length === 0) return {};
+        return { entry: { senses } };
+    },
+});
+
+/** --- Phase 2.2: Semantic relations --- **/
+
+const RELATION_TEMPLATES: Record<string, keyof import("./types").SemanticRelations> = {
+    syn: "synonyms",
+    ant: "antonyms",
+    hyper: "hypernyms",
+    hypo: "hyponyms",
+};
+
+registry.register({
+    id: "semantic-relations",
+    matches: (ctx) =>
+        ctx.templates.some((t) => Object.keys(RELATION_TEMPLATES).includes(t.name)),
+    decode: (ctx) => {
+        const relations: import("./types").SemanticRelations = {};
+        for (const t of ctx.templates) {
+            const key = RELATION_TEMPLATES[t.name];
+            if (!key) continue;
+            const pos = t.params.positional ?? [];
+            const lang = pos[0];
+            if (!lang) continue;
+            const terms = pos.slice(1).filter(Boolean);
+            const qualifier = t.params.named?.["q"] || undefined;
+            const senseId = t.params.named?.["id"] || undefined;
+            if (!relations[key]) relations[key] = [];
+            for (const term of terms) {
+                relations[key]!.push({ term, sense_id: senseId, qualifier });
+            }
+        }
+        if (
+            !relations.synonyms?.length &&
+            !relations.antonyms?.length &&
+            !relations.hypernyms?.length &&
+            !relations.hyponyms?.length
+        )
+            return {};
+        return { entry: { semantic_relations: relations } };
+    },
+});
+
+/** --- Phase 2.3: Structured etymology & cognates --- **/
+
+const ETYMOLOGY_TEMPLATES = new Set(["inh", "der", "bor", "cog", "inherited", "derived", "borrowed", "cognate"]);
+
+registry.register({
+    id: "etymology",
+    matches: (ctx) => ctx.templates.some((t) => ETYMOLOGY_TEMPLATES.has(t.name)),
+    decode: (ctx) => {
+        const links: EtymologyLink[] = [];
+        for (const t of ctx.templates) {
+            if (!ETYMOLOGY_TEMPLATES.has(t.name)) continue;
+            const pos = t.params.positional ?? [];
+            // {{inh|<target>|<source>|<term>}}, {{cog|<source>|<term>}}
+            const isCog = t.name === "cog" || t.name === "cognate";
+            const sourceLang = isCog ? (pos[0] ?? "") : (pos[1] ?? "");
+            const term = isCog ? (pos[1] || undefined) : (pos[2] || undefined);
+            const gloss = t.params.named?.["t"] || t.params.named?.["gloss"] || (isCog ? pos[2] : pos[3]) || undefined;
+            links.push({
+                template: t.name,
+                source_lang: sourceLang,
+                term,
+                gloss,
+                raw: t.raw,
+            });
+        }
+        if (links.length === 0) return {};
+        return { entry: { etymology: { links } } };
+    },
+});
+
+/** --- Phase 2.4: Advanced pronunciation (el-IPA, audio) --- **/
+
+registry.register({
+    id: "el-ipa",
+    matches: (ctx) => ctx.templates.some((t) => t.name === "el-IPA"),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => t.name === "el-IPA");
+        if (!t) return {};
+        const ipa = t.params.positional[0] || undefined;
+        if (!ipa) return {};
+        return { entry: { pronunciation: { IPA: ipa } } };
+    },
+});
+
+registry.register({
+    id: "audio",
+    matches: (ctx) => ctx.templates.some((t) => t.name === "audio"),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => t.name === "audio");
+        if (!t) return {};
+        const file = t.params.positional[1] || t.params.positional[0] || undefined;
+        if (!file) return {};
+        return { entry: { pronunciation: { audio: file } } };
+    },
+});
+
+/** --- Phase 2.5: Usage notes --- **/
+
+registry.register({
+    id: "usage-notes",
+    matches: (ctx) => ctx.posBlockWikitext.includes("===Usage notes==="),
+    decode: (ctx) => {
+        const parts = ctx.posBlockWikitext.split("\n");
+        let inNotes = false;
+        const notes: string[] = [];
+        for (const line of parts) {
+            if (/^===+\s*Usage notes\s*===+\s*$/.test(line)) {
+                inNotes = true;
+                continue;
+            }
+            if (inNotes && /^===/.test(line)) break;
+            if (inNotes) {
+                const trimmed = line.replace(/^\*\s*/, "").trim();
+                if (trimmed) notes.push(trimmed);
+            }
+        }
+        if (notes.length === 0) return {};
+        return { entry: { usage_notes: notes } };
     },
 });
