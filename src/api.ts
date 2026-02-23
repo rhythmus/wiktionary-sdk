@@ -1,16 +1,31 @@
-// import type { WikiLang } from "./types";
+import { getRateLimiter } from "./rate-limiter";
+import { getCache } from "./cache";
 
 export async function mwFetchJson(origin: string, params: Record<string, string>) {
+    const limiter = getRateLimiter();
+    await limiter.throttle();
+
     const u = new URL(origin);
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
     const res = await fetch(u.toString(), {
-        headers: { accept: "application/json" },
+        headers: limiter.getHeaders(),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     return await res.json();
 }
 
 export async function fetchWikitextEnWiktionary(title: string) {
+    const cacheKey = `wikt:${title}`;
+    const cache = getCache();
+    const cached = await cache.get<{
+        exists: boolean;
+        title: string;
+        wikitext: string;
+        pageprops: Record<string, any>;
+        pageid: number | null;
+    }>(cacheKey);
+    if (cached) return cached;
+
     const origin = "https://en.wiktionary.org/w/api.php";
     const j = await mwFetchJson(origin, {
         action: "query",
@@ -28,16 +43,23 @@ export async function fetchWikitextEnWiktionary(title: string) {
     const pageprops = page?.pageprops ?? {};
     const exists = !page?.missing;
     const normalizedTitle = page?.title ?? title;
-    return {
+    const result = {
         exists,
         title: normalizedTitle,
         wikitext,
         pageprops,
         pageid: page?.pageid ?? null,
     };
+    if (exists) await cache.set(cacheKey, result);
+    return result;
 }
 
 export async function fetchWikidataEntity(qid: string) {
+    const cacheKey = `wd:${qid}`;
+    const cache = getCache();
+    const cached = await cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const origin = "https://www.wikidata.org/w/api.php";
     const j = await mwFetchJson(origin, {
         action: "wbgetentities",
@@ -48,5 +70,7 @@ export async function fetchWikidataEntity(qid: string) {
         props: "labels|descriptions|claims|sitelinks",
     });
     const ent = j?.entities?.[qid];
-    return ent ?? null;
+    const result = ent ?? null;
+    if (result) await cache.set(cacheKey, result);
+    return result;
 }
