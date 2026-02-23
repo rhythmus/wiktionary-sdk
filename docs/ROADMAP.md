@@ -1,173 +1,288 @@
-# WiktionaryFetch: Exhaustive Implementation Roadmap
+# WiktionaryFetch: Implementation Roadmap (post-v1.0)
 
-This document outlines the detailed, staged evolution of the WiktionaryFetch engine, transitioning from a v1.0 Alpha to a production-grade, 100% coverage extraction ecosystem for Greek lexicographic data.
+This roadmap proposes the next implementation stages for the
+`wiktionary-fetch` ecosystem.
 
----
+## Principles (non-negotiable)
 
-## 🏛️ Phase 1: DX, Quality & Observability
-**Goal**: Stabilize the existing engine and provide developers with tools to debug and verify extraction logic deterministically.
+- **Extraction, not inference**: only extract what is explicitly present in
+  Wikitext/template parameters.
+- **Traceability**: every structured field must be traceable to a source
+  template, line, or section; store verbatim raw text alongside decoded data
+  when practical.
+- **Registry-first**: mapping/decoding logic lives in `src/registry.ts`, not in
+  the parser or orchestration layer.
 
-### 1.1 Developer Inspector UI
-- **Status**: **DONE** (Implemented as a premium React dashboard in `/webapp`).
-- **Details**: Real-time inspection of matched decoders, extracted fields, and raw wikitext.
+## Recommended execution order (this document order)
 
-### 1.2 Library Modularization
-- **Status**: **DONE** (Core logic extracted into `/src`).
-- **Details**: Tree-shakeable TypeScript modules for API, Parser, Registry, and Utils.
-
-### 1.3 JSON Schema & Versioning
-- **Status**: **DONE**.
-- **Delivered**:
-    - `schema/normalized-entry.schema.json` — formal JSON Schema (draft-07) describing the full output shape: `Entry`, `FetchResult`, `Pronunciation`, `Hyphenation`, `WiktionarySource`, `WikidataEnrichment`, `FormOf`, `TranslationItem`, `StoredTemplate`, plus forward-compatible Phase 2 definitions (`Sense`, `SemanticRelations`, `EtymologyData`).
-    - `VERSIONING.md` — documents semantic versioning policy for the output format (MAJOR/MINOR/PATCH) with a changelog.
-    - `SCHEMA_VERSION` constant exported from `src/types.ts` (currently `"1.0.0"`).
-
-### 1.4 Gold Standard Test Suite
-- **Status**: **DONE**.
-- **Delivered**:
-    - Vitest test runner configured at repo root (`vitest.config.ts`, `npm run test`).
-    - 62 tests across 6 test files, all passing:
-        - `test/parser.test.ts` — 17 unit tests for template parsing, language section extraction, etymology/POS splitting, heading mapping, pipe splitting.
-        - `test/registry.test.ts` — 10 tests for decoder registry behaviour (raw template storage, IPA, headword templates, form-of, hyphenation).
-        - `test/schema.test.ts` — 4 JSON Schema validation tests using AJV (valid FetchResult, pronunciation, inflected form, rejection of incomplete data).
-        - `test/phase2.test.ts` — 18 tests covering senses, semantic relations, etymology, pronunciation, and usage notes decoders.
-        - `test/phase3.test.ts` — 11 tests for MemoryCache, TieredCache, and RateLimiter.
-        - `test/bench.test.ts` — 2 performance assertion tests (sub-10ms parser, sub-1ms section extraction).
+**Stage 0 → Stage 1 → Stage 4 → Stage 3 → Stage 8 → Stage 5 → Stage 6 → Stage 2 → Stage 7**
 
 ---
 
-## 🧠 Phase 2: Semantic & Linguistic Depth
-**Goal**: Extract deeper structural meaning from entries without crossing into linguistic inference.
+## Stage 0 — Baseline + safety rails
 
-### 2.1 Sense-Level Structuring
-- **Status**: **DONE**.
-- **Delivered**: `parseSenses()` function and `senses` decoder in `src/registry.ts`. Parses `#` lines into `Sense` objects with unique IDs (`S1`, `S2`, ...), `##` lines into nested `subsenses` (`S1.1`, `S1.2`, ...), and `#:` lines into `examples`. Wiki markup (`[[links]]`, `'''bold'''`, `''italic''`, templates) is stripped from glosses. New `Sense` interface added to `src/types.ts`.
+### 0.1 Fixture-based integration tests (no network)
 
-### 2.2 Semantic Relations
-- **Status**: **DONE**.
-- **Delivered**: Decoder in `src/registry.ts` for `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}` templates. Outputs structured `SemanticRelations` object with `synonyms`, `antonyms`, `hypernyms`, `hyponyms` arrays. Each relation captures `term`, optional `sense_id`, and optional `qualifier`. New `SemanticRelation` and `SemanticRelations` interfaces in `src/types.ts`.
+- **Goal**: lock in behavior and catch regressions without API calls.
+- **Work**:
+  - Add `test/fixtures/*.wikitext` with representative real-world constructs:
+    - nested templates inside templates
+    - templates with `[[link|text]]` pipes
+    - translations lines with multiple templates and qualifiers
+    - senses containing markup/templates
+    - hyphenation, etymology templates, form-of triggers
+  - Add `test/integration.test.ts` that runs `extractLanguageSection`,
+    `splitEtymologiesAndPOS`, `parseTemplates`, and registry decoding against
+    fixtures.
+- **Acceptance**:
+  - All fixtures parse deterministically.
+  - At least one test would fail under the current nested-template pipe-split
+    behavior (to prove the test actually guards a bug).
 
-### 2.3 Structured Etymology & Cognates
-- **Status**: **DONE**.
-- **Delivered**: Decoder for `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` (and their long-form aliases `inherited`, `derived`, `borrowed`, `cognate`). Correctly handles the parameter offset between `cog` (source lang at pos[0]) and the others (target lang at pos[0], source lang at pos[1]). Captures `source_lang`, `term`, `gloss` (from `t=` named param or positional), and `raw`. New `EtymologyLink` and `EtymologyData` interfaces in `src/types.ts`.
+### 0.2 Always emit `schema_version`
 
-### 2.4 Advanced Pronunciation (IPA/Audio)
-- **Status**: **DONE**.
-- **Delivered**: Two new decoders alongside the existing `IPA` decoder:
-    - `el-ipa` — decodes `{{el-IPA}}` template (Greek-specific pronunciation).
-    - `audio` — decodes `{{audio}}` template, extracting the audio filename.
-
-### 2.5 Usage Notes & Inflection Notes
-- **Status**: **DONE**.
-- **Delivered**: Decoder that locates `===Usage notes===` sections in the POS block wikitext, extracts bullet-pointed or plain text lines, and stores them as `usage_notes: string[]` on the `Entry`. Stops at the next section heading. New `usage_notes` field in `Entry` interface.
-
----
-
-## 🚀 Phase 3: Total Coverage & Scalability
-**Goal**: Move from selective template support to exhaustive coverage and production reliability.
-
-### 3.1 Template Introspection Engine (Auto-Discovery)
-- **Status**: **DONE**.
-- **Delivered**: `tools/template-introspect.ts` — a standalone script (runnable via `npm run introspect`) that:
-    - Crawls `Category:Greek headword-line templates` and `Category:Greek inflection-table templates` on en.wiktionary.org via the MediaWiki API.
-    - Cross-references discovered templates against the registered decoders in the registry.
-    - Produces a **Missing Decoder Report** in markdown or JSON format, showing coverage percentage and listing all missing templates.
-    - Supports `--category <name>` and `--json` flags.
-
-### 3.2 Production Caching Layer
-- **Status**: **DONE**.
-- **Delivered**: `src/cache.ts` implementing a multi-tier cache architecture:
-    - `MemoryCache` — L1 in-memory cache with TTL-based expiration.
-    - `CacheAdapter` interface — pluggable contract for L2 (IndexedDB, SQLite) and L3 (Redis) backends.
-    - `TieredCache` — orchestrator that tries L1 -> L2 -> L3 on reads and writes to all tiers, with automatic promotion of L2/L3 hits into L1.
-    - `getCache()` / `configureCache()` — global singleton management.
-    - Integrated into `src/api.ts`: both `fetchWikitextEnWiktionary()` and `fetchWikidataEntity()` now cache successful responses automatically.
-
-### 3.3 Rate Limiting & Proxy Management
-- **Status**: **DONE**.
-- **Delivered**: `src/rate-limiter.ts` implementing:
-    - Request throttling with configurable minimum interval (default 100ms / 10 req/s per Wikimedia guidelines).
-    - Custom `User-Agent` header (`WiktionaryFetch/1.0`).
-    - Optional `proxyUrl` configuration for high-volume batch processing.
-    - `getRateLimiter()` / `configureRateLimiter()` — global singleton management.
-    - Integrated into `mwFetchJson()` in `src/api.ts`: every API request is throttled and uses the configured User-Agent.
+- **Files**: `src/index.ts`, `src/types.ts`, `schema/normalized-entry.schema.json`,
+  `test/schema.test.ts`
+- **Work**:
+  - Add `schema_version: SCHEMA_VERSION` to the top-level `FetchResult`.
+  - Update schema + tests accordingly.
+- **Schema impact**: **MINOR** (additive; optional field) or keep it required
+  (then it’s a **MAJOR** for existing consumers). Prefer **MINOR** by making
+  it optional in schema first, then consider requiring it in a future major.
+- **Acceptance**:
+  - Schema validation tests pass with `schema_version` present.
 
 ---
 
-## 🌐 Phase 4: Multi-Client & Distribution
-**Goal**: Broaden the reach of the engine through diverse consumption patterns.
+## Stage 1 — Parser correctness (highest leverage)
 
-### 4.1 CLI Tool (`cli/`)
-- **Status**: **DONE**.
-- **Delivered**: `cli/index.ts` — a full-featured CLI (runnable via `npm run cli` or `npx tsx cli/index.ts`):
-    - `wiktionary-fetch <term> --lang=el --format=yaml` — single-term lookup.
-    - `--batch <file>` — batch processing from CSV (one term per line) or JSON array files.
-    - `--output <file>` — write results to file instead of stdout.
-    - `--pos`, `--no-enrich`, `--format json|yaml` — all engine options exposed.
-    - `--help` — full usage documentation.
+### 1.1 Brace-aware pipe splitting in template parsing
 
-### 4.2 NPM Package Distribution
-- **Status**: **DONE**.
-- **Delivered**: Dual ESM/CJS build pipeline:
-    - `tsconfig.json` — ESM output to `dist/esm/`.
-    - `tsconfig.cjs.json` — CJS output to `dist/cjs/`.
-    - `package.json` `exports` field with proper condition ordering (`types` -> `import` -> `require`).
-    - `files` whitelist (`dist`, `schema`, `VERSIONING.md`) for clean publishing.
-    - `npm run build` compiles both targets.
+- **Problem**: `src/parser.ts` only prevents splitting on `|` inside `[[...]]`,
+  not inside nested `{{...}}`, causing silent mis-parses in real templates.
+- **Files**: `src/parser.ts`, tests + fixtures
+- **Work**:
+  - Replace `splitPipesPreservingLinks()` with a single-pass splitter that
+    tracks:
+    - `depthLink` for `[[...]]`
+    - `depthTpl` for `{{...}}`
+  - Only split on `|` when `depthLink === 0 && depthTpl === 0`.
+- **Acceptance**:
+  - `parseTemplates()` returns correct `TemplateCall.params` for nested cases
+    proven by fixtures.
 
-### 4.3 Containerization
-- **Status**: **DONE**.
-- **Delivered**:
-    - `server.ts` — lightweight HTTP API wrapper using Node.js built-in `http` module (no Express dependency). Endpoints: `GET /api/fetch?query=...&lang=...&format=...`, `GET /api/health`. CORS enabled.
-    - `Dockerfile` — multi-stage build on `node:22-alpine` (builder stage compiles TypeScript, production stage copies only `dist/` and `schema/`).
-    - `.dockerignore` — excludes `node_modules`, `webapp`, `docs`, `test`, etc.
-    - `npm run serve` — runs the API server locally via tsx.
+### 1.2 Remove “unknown language defaults to Greek”
 
----
-
-## ⚖️ Phase 5: Quality & Engineering Excellence
-**Goal**: Ensure the library is robust, documented, and easy to maintain.
-
-### 5.1 Automated API Documentation
-- **Status**: **DONE**.
-- **Delivered**: TypeDoc installed and configured. JSDoc comments added to key exported functions and interfaces (`fetchWiktionary`, `Entry`, `FetchResult`, `SCHEMA_VERSION`). `npm run docs` generates static HTML documentation to `docs/api/`.
-
-### 5.2 Benchmarking & Optimization
-- **Status**: **DONE**.
-- **Delivered**:
-    - `test/bench.bench.ts` — Vitest benchmark file (`npm run bench`) with benchmarks for `parseTemplates`, `extractLanguageSection`, and `splitEtymologiesAndPOS` on large (5x repeated) realistic wikitext.
-    - `test/bench.test.ts` — performance assertion tests: parser averages under 10ms per run on large entries (100 iterations), language section extraction averages under 1ms (1000 iterations). Both assertions pass.
+- **Problem**: `langToLanguageName()` returns `"Greek"` for unknown codes,
+  causing incorrect extraction without telling the caller.
+- **Files**: `src/parser.ts`, `src/index.ts`, tests
+- **Work**:
+  - Change `langToLanguageName(lang)` to return `null` for unknown codes.
+  - In `fetchWiktionary()`, if language name is unknown:
+    - return `{ rawLanguageBlock: "", entries: [], notes: [...] }`
+  - Optional: allow `fetchWiktionary({ languageHeaderName?: string })` override
+    for advanced use.
+- **Acceptance**:
+  - `lang=it` does not search `==Greek==` and yields a clear note.
 
 ---
 
-## 🎨 Phase 6: Webapp Polish & Evolution
-**Goal**: Make the visual verification tool more powerful for linguistic research.
+## Stage 4 — Translations correctness (explicit-only, structurally right)
 
-### 6.1 Interactive Template Inspector
-- **Status**: **DONE**.
-- **Delivered**: In `webapp/src/App.tsx`:
-    - **Click-to-source**: Clicking any YAML key or template name in the right pane highlights all matching lines in the raw wikitext pane (amber highlight with left border).
-    - **Debugger Mode**: Toggle via the bug icon in the header. When active, shows a table below the main panes listing every decoder match for the selected entry — template name, raw wikitext, and which output fields it produced. Clicking a row highlights the corresponding template in the wikitext pane.
-    - **Entry selector**: Dropdown to switch between entries when multiple are returned.
-    - Highlight can be dismissed via an X button.
+### 4.1 Correct translation item semantics and extract explicit params
 
-### 6.2 Comparison View
-- **Status**: **DONE**.
-- **Delivered**: In `webapp/src/App.tsx`:
-    - **Toggle**: Columns icon in the header enables comparison mode.
-    - **Language selector**: Additional dropdown appears to pick a comparison language (filtered to exclude the primary language).
-    - **Third pane**: Layout shifts to 3-column grid; the third pane shows the normalized YAML output for the same term in the comparison language, with a distinct emerald-accented border.
-    - Both the primary and comparison fetch run in parallel on search.
+- **Problem**:
+  - For `{{t|lang|term|...}}`, `pos[1]` is typically the translation **term**,
+    but current code stores it as `gloss`.
+  - Common explicit parameters (`t=`, `tr=`, `g=`, `alt=`) are not extracted.
+- **Files**: `src/registry.ts`, `src/types.ts`, `schema/normalized-entry.schema.json`,
+  tests + fixtures
+- **Work**:
+  - Extend `TranslationItem` to include explicit fields:
+    - `term` (from positional)
+    - `gloss?` (from explicit `t=` / `gloss=` where present; do not infer)
+    - `transliteration?` (from `tr=`)
+    - `gender?` (from `g=`)
+    - `alt?` (from `alt=`)
+  - Keep legacy fields for compatibility where needed, but document that
+    `term` is authoritative.
+- **Schema impact**: **MINOR** (additive fields on `TranslationItem`).
+- **Acceptance**:
+  - Fixtures show `term` populated correctly and optional fields present only
+    when explicitly provided.
 
 ---
 
-## 📜 Instructions for Developers
+## Stage 3 — Ground-truth traceability + debugger truth
 
-### Core Principles
-- **No Scraped HTML**: If the data isn't in the Wikitext/API, it doesn't exist for this engine.
-- **No Linguistic Inference**: We extract *what is there*, not what *should be there*.
-- **Traceability**: Every field in the `NormalizedEntry` must lead back to a source line or template.
+### 3.1 Registry-driven decoder debug events (stop UI guessing)
 
-### For AI Agents
-- **Decoder Registry**: Always check `registry.ts` before adding new mapping logic. Keep decoders atomic.
-- **Strict Typing**: Update `types.ts` before implementing new features to ensure contract consistency.
+- **Problem**: `webapp/src/App.tsx` infers “decoder matches” from template names
+  and hardcoded heuristics, which can be wrong and can’t attribute output to
+  specific decoders reliably.
+- **Files**: `src/registry.ts`, `src/index.ts`, `src/types.ts`, `webapp/src/App.tsx`
+- **Work**:
+  - Extend registry decoding to support debug mode:
+    - `decodeAll(ctx, { debug: true }) → { patch, debug: DecoderDebugEvent[] }`
+  - Each event includes:
+    - `decoderId`
+    - `matchedTemplates` (instances, ideally with raw + location)
+    - `fieldsProduced` (top-level field paths written by the decoder)
+  - Thread `debugDecoders?: boolean` through `fetchWiktionary()`.
+  - Update webapp to render returned debug events instead of inferring them.
+- **Schema impact**: ideally none (keep debug out of normalized output by
+  default, or attach under an optional `debug` field gated by an option).
+- **Acceptance**:
+  - UI shows exact decoder IDs and matched template instances for the selected
+    entry.
+
+### 3.2 Preserve template ordering + location metadata
+
+- **Problem**: `Entry.templates` groups by name, losing:
+  - template order
+  - where the template occurred (line/offset), making click-to-source brittle.
+- **Files**: `src/parser.ts`, `src/types.ts`, `src/index.ts`, schema, webapp
+- **Work**:
+  - Extend template parsing to optionally include:
+    - `start`, `end` (character offsets in block)
+    - `line` (1-based line number within `posBlockWikitext`)
+  - Add `Entry.templates_all?: StoredTemplateInstance[]` preserving order, each
+    with `{ name, raw, params, start?, end?, line? }`.
+  - Keep `Entry.templates` for backwards compatibility and fast lookup.
+- **Schema impact**: **MINOR** (add optional `templates_all`).
+- **Acceptance**:
+  - Webapp highlighting can target exact line/offset (no substring heuristics).
+
+---
+
+## Stage 8 — Packaging & distribution hardening (npm/CLI/server)
+
+### 8.1 Make CLI/server runnable from published installs
+
+- **Problem**:
+  - `package.json` `bin` points to `cli/index.ts`, but `npm run build` only
+    compiles `src/**/*`. A published package won’t ship runnable JS for the CLI
+    unless the consumer also has `tsx` and TS sources.
+  - `server.ts` is also not compiled into `dist/`.
+- **Files**: `package.json`, `tsconfig.json`, build scripts, possibly file moves
+- **Work**:
+  - Compile `cli/index.ts` and `server.ts` into `dist/` as part of build.
+  - Point `bin.wiktionary-fetch` to built JS (CJS or ESM, whichever is most
+    reliable for Node CLI execution).
+  - Ensure `files` includes the built CLI/server artifacts.
+  - (Optional) add smoke tests that run the built CLI on a fixture.
+- **Acceptance**:
+  - `npm pack` contains runnable CLI/server JS.
+  - Global install exposes a working `wiktionary-fetch` command without `tsx`.
+
+### 8.2 Cache key normalization for redirects
+
+- **Problem**: cache is keyed by the requested title only, missing hits when
+  redirects normalize the title.
+- **Files**: `src/api.ts`
+- **Work**:
+  - After fetch, store under both:
+    - `wikt:${requestedTitle}`
+    - `wikt:${normalizedTitle}`
+  - Do not change the returned `title` behavior (keep it normalized).
+- **Acceptance**:
+  - Redirect lookups hit cache on subsequent requests regardless of the input
+    spelling/casing.
+
+### 8.3 Align TypeScript types with schema
+
+- **Problem**: `EntryType` allows arbitrary `string`, while schema enumerates.
+- **Files**: `src/types.ts`, schema, tests
+- **Work**:
+  - Tighten `EntryType` to match the schema enum (or explicitly decide to make
+    schema extensible and document the policy).
+- **Acceptance**:
+  - TS types and schema are consistent; schema tests enforce the contract.
+
+---
+
+## Stage 5 — Lemma resolution robustness + performance
+
+### 5.1 Cycle protection and explicit linkage metadata
+
+- **Files**: `src/index.ts`, tests
+- **Work**:
+  - Track visited lemma requests per `(lang, lemma)` to prevent cycles and
+    redundant work.
+  - Parallelize lemma fetch initiation (rate limiting still enforces etiquette).
+  - Record explicit metadata about which `Entry` / which form-of template
+    triggered lemma resolution.
+- **Acceptance**:
+  - No infinite loops on pathological pages.
+  - Batch runs complete faster and deterministically.
+  - Linkage metadata is explicit and traceable.
+
+---
+
+## Stage 6 — Introspection engine becomes exact (no probe hacks)
+
+### 6.1 Declare decoder coverage explicitly in the registry
+
+- **Problem**: `tools/template-introspect.ts` uses a probe list + “did decoding
+  produce a patch?” which can under/overcount coverage.
+- **Files**: `src/registry.ts`, `tools/template-introspect.ts`
+- **Work**:
+  - Extend `TemplateDecoder` with optional declared metadata, e.g.:
+    - `handlesTemplates?: string[]`
+  - Export registry metadata for introspection tooling.
+  - Compare discovered category templates to declared handled templates.
+- **Acceptance**:
+  - Coverage report is stable, explainable, and does not depend on dummy decode
+    outcomes.
+
+### 6.2 Expand coverage measurement beyond categories (optional)
+
+- **Files**: `tools/template-introspect.ts`
+- **Work**:
+  - Add an optional mode that samples real Greek entries and reports:
+    - templates encountered
+    - templates decoded (by declared coverage)
+    - “top missing templates by frequency”
+- **Acceptance**:
+  - Report can prioritize decoder work using observed frequency, not just
+    category membership.
+
+---
+
+## Stage 2 — “Source-faithful” text handling improvements
+
+### 2.1 Store both raw and stripped sense glosses; make stripping brace-aware
+
+- **Problem**: `stripWikiMarkup()` is regex-based and can mis-handle nested
+  templates/markup, removing unintended text.
+- **Files**: `src/registry.ts`, `src/types.ts`, schema, tests
+- **Work**:
+  - Add `Sense.gloss_raw` containing the exact text after `#` / `##`.
+  - Keep `Sense.gloss` as a derived, brace-aware stripped form.
+  - Implement stripping with brace-aware scanning (not regex), then link/format
+    stripping as a second pass.
+- **Schema impact**: **MINOR** (add `gloss_raw`).
+- **Acceptance**:
+  - Fixtures demonstrate stable stripping without deleting adjacent content.
+  - `gloss_raw` always matches the source line content (minus the list marker).
+
+---
+
+## Stage 7 — Broaden explicit extraction to additional section families
+
+### 7.1 Add section decoders for explicit list templates (no heuristics)
+
+- **Goal**: extract more structured data from explicit templates in sections
+  like Derived terms / Related terms / Descendants (only what’s explicitly
+  templated).
+- **Files**: `src/registry.ts`, `src/types.ts`, schema, tests + fixtures
+- **Work**:
+  - Add decoders for the templates that appear in fixtures (e.g. `{{l}}`,
+    `{{link}}`, etc.).
+  - Store both:
+    - structured extracted items
+    - verbatim section raw text for forensic traceability
+- **Schema impact**: likely **MINOR** (new optional fields).
+- **Acceptance**:
+  - New fields appear only when explicitly present in Wikitext.
+  - Raw section text is retained alongside structured extraction.
