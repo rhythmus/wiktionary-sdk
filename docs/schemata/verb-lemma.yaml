@@ -1,43 +1,53 @@
-# https://en.wiktionary.org/wiki/%CE%B3%CF%81%CE%AC%CF%86%CF%89#Greek
+# Example output for γράφω (Normalized Layer)
+# Reflects source-faithful extraction without linguistic inference.
 
-entry:
+id: "el:γράφω#E1#verb#LEXEME"
+language: "el"
+query: "γράφω"
+type: "LEXEME"
+form: "γράφω"
+etymology_index: 1
+part_of_speech_heading: "Verb"
+part_of_speech: "verb"
 
-  id: "el:γράφω"
-  language: "el"
+pronunciation:
+  IPA: "/ˈɣra.fo/"
 
-  type: "LEXEME"
-  form: "γράφω"
+hyphenation:
+  syllables: ["γρά", "φω"]
+  raw: "{{hyphenation|el|γρά|φω}}"
 
-  pronunciation:
-    IPA: "/ˈɣra.fo/"
-  
-  hyphenation: "γρά‧φω"
+source:
+  wiktionary:
+    site: "en.wiktionary.org"
+    title: "γράφω"
+    language_section: "Greek"
+    etymology_index: 1
+    pos_heading: "Verb"
 
-  part_of_speech: "verb"
-  class: "verb.act.ω"
-  voice_type: "active"
+wikidata:
+  qid: "Q11773095"
+  labels: { en: { value: "γράφω", language: "en" } }
+  media:
+    P18: "Greek_handwriting.jpg"
+    thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/..."
 
-  morphology:
-    present_stem: "γραφ-"
-    aorist_stem: "γραψ-"
-    augment: "έ-"
-    ending: "-ω"
+translations:
+  en:
+    - gloss: "to write"
+      sense: "to form letters"
+      template: "t+"
+      raw: "{{t+|en|to write}}"
+  nl:
+    - gloss: "schrijven"
+      template: "t+"
+      raw: "{{t+|nl|schrijven}}"
 
-  paradigm:
-    present_1sg: "γράφω"
-    aorist_1sg: "έγραψα"
-    imperfect_3sg: "έγραφε"
-    passive_present: "γράφομαι"
-    passive_aorist: "γράφτηκα"
-
-  translations:
-    en:
-      - gloss: "to write"
-      - gloss: "to record"
-      - gloss: "to issue (a ticket)"
-
-  derivations:
-    - "γραφή"
-    - "γράμμα"
-    - "γραφικός"
-    - "συγγραφέας"
+templates:
+  el-verb:
+    - params:
+        positional: ["γράφω", "aor", "έγραψα", "ppp", "γραμμένος"]
+      raw: "{{el-verb|γράφω|aor=έγραψα|ppp=γραμμένος}}"
+  IPA:
+    - params: { positional: ["el", "/ˈɣra.fo/"] }
+      raw: "{{IPA|el|/ˈɣra.fo/}}"

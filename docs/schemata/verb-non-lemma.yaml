@@ -1,24 +1,35 @@
-# https://en.wiktionary.org/wiki/%CE%AD%CE%B3%CF%81%CE%B1%CF%88%CE%B5
-# https://en.wiktionary.org/w/rest.php/v1/page/%CE%AD%CE%B3%CF%81%CE%B1%CF%88%CE%B5
+# Example output for έγραψε (Normalized Layer)
+# Reflects source-faithful extraction with lemma resolution.
 
-entry:
-  type: "INFLECTED_FORM"
-  form: "έγραψε"
-  IPA: "/ˈeɣrapse/"
-  hyphenation: "έ-γρα-ψε"
+id: "el:έγραψε#E1#verb#INFLECTED_FORM"
+language: "el"
+query: "έγραψε"
+type: "INFLECTED_FORM"
+form: "έγραψε"
+etymology_index: 1
+part_of_speech_heading: "Verb"
+part_of_speech: "verb"
 
+source:
+  wiktionary:
+    site: "en.wiktionary.org"
+    title: "έγραψε"
+    language_section: "Greek"
+    etymology_index: 1
+    pos_heading: "Verb"
+
+form_of:
+  template: "infl of"
   lemma: "γράφω"
-  part_of_speech: "verb"
-  inflection:
-    person: 3
-    number: "singular"
-    voice: "active"
-    mood: "indicative"
-    tense: "aorist"
-  morphology:
-    augment: "έ-"
-    stem: "γραψ-"
-    ending: "-ε"
-  usage:
-    - el: "Έγραψε ένα γράμμα."
-      en: "He/she wrote a letter."
+  lang: "el"
+  tags: ["3", "s", "past", "act", "ind"]
+  named: {}
+
+# Resolved lemma LEXEME included in results array
+resolved_for_query: "έγραψε"
+
+templates:
+  infl of:
+    - params:
+        positional: ["el", "γράφω", "3", "s", "past", "act", "ind"]
+      raw: "{{infl of|el|γράφω||3|s|past|act|ind}}"
