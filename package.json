@@ -18,7 +18,7 @@
     "VERSIONING.md"
   ],
   "bin": {
-    "wiktionary-fetch": "./cli/index.ts"
+    "wiktionary-fetch": "./dist/cjs/cli/index.js"
   },
   "scripts": {
     "build": "tsc && tsc -p tsconfig.cjs.json",
@@ -27,7 +27,7 @@
     "test:watch": "vitest",
     "cli": "tsx cli/index.ts",
     "introspect": "tsx tools/template-introspect.ts",
-    "serve": "tsx server.ts",
+    "serve": "node dist/cjs/server.js",
     "docs": "typedoc --out docs/api --entryPoints src/index.ts src/types.ts src/cache.ts src/rate-limiter.ts --tsconfig tsconfig.json",
     "bench": "vitest bench"
   },
@@ -41,6 +41,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.3.0",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "tsx": "^4.21.0",

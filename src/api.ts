@@ -50,7 +50,12 @@ export async function fetchWikitextEnWiktionary(title: string) {
         pageprops,
         pageid: page?.pageid ?? null,
     };
-    if (exists) await cache.set(cacheKey, result);
+    if (exists) {
+        await cache.set(cacheKey, result);
+        if (normalizedTitle !== title) {
+            await cache.set(`wikt:${normalizedTitle}`, result);
+        }
+    }
     return result;
 }
 
