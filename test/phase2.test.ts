@@ -54,6 +54,24 @@ describe("Phase 2.1: Sense-level structuring", () => {
     const result = registry.decodeAll(ctx);
     expect((result as any).entry.senses[0].gloss).toBe("to produce a written work");
   });
+
+  it("brace-aware stripping: [[link]] does not duplicate text", () => {
+    const ctx = makeCtx("# to [[write]]");
+    const result = registry.decodeAll(ctx);
+    expect((result as any).entry.senses[0].gloss).toBe("to write");
+  });
+
+  it("brace-aware stripping: [[link|display]] uses display only", () => {
+    const ctx = makeCtx("# [[make|produce]]");
+    const result = registry.decodeAll(ctx);
+    expect((result as any).entry.senses[0].gloss).toBe("produce");
+  });
+
+  it("brace-aware stripping: nested templates removed correctly", () => {
+    const ctx = makeCtx("# word {{t|el|fr|écrire|g={{g|m}}}}");
+    const result = registry.decodeAll(ctx);
+    expect((result as any).entry.senses[0].gloss).toBe("word");
+  });
 });
 
 describe("Phase 2.2: Semantic relations", () => {

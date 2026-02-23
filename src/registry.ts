@@ -323,13 +323,71 @@ function parseSenses(lines: string[]): Sense[] {
     return senses;
 }
 
+/**
+ * Brace-aware wiki markup stripper. Handles nested [[links]], {{templates}},
+ * '''bold''', ''italic'' without regex-induced duplication or mis-parsing.
+ * [[link|display]] → display; [[link]] → link; {{...}} → removed.
+ */
 function stripWikiMarkup(text: string): string {
-    return text
-        .replace(/\[\[([^\]|]*\|)?([^\]]*)\]\]/g, "$2")
-        .replace(/'''([^']+)'''/g, "$1")
-        .replace(/''([^']+)''/g, "$1")
-        .replace(/\{\{[^}]*\}\}/g, "")
-        .trim();
+    const out: string[] = [];
+    let i = 0;
+    while (i < text.length) {
+        if (text.startsWith("[[", i)) {
+            const end = findMatching(text, i + 2, "[[", "]]");
+            if (end !== -1) {
+                const inner = text.slice(i + 2, end);
+                const pipeIdx = inner.indexOf("|");
+                const display = pipeIdx >= 0 ? inner.slice(pipeIdx + 1) : inner;
+                out.push(stripWikiMarkup(display));
+                i = end + 2;
+                continue;
+            }
+        }
+        if (text.startsWith("{{", i)) {
+            const end = findMatching(text, i + 2, "{{", "}}");
+            if (end !== -1) {
+                i = end + 2;
+                continue;
+            }
+        }
+        if (text.startsWith("'''", i)) {
+            const end = text.indexOf("'''", i + 3);
+            if (end !== -1) {
+                out.push(text.slice(i + 3, end));
+                i = end + 3;
+                continue;
+            }
+        }
+        if (text.startsWith("''", i) && !text.startsWith("'''", i)) {
+            const end = text.indexOf("''", i + 2);
+            if (end !== -1) {
+                out.push(text.slice(i + 2, end));
+                i = end + 2;
+                continue;
+            }
+        }
+        out.push(text[i]);
+        i++;
+    }
+    return out.join("").trim();
+}
+
+function findMatching(text: string, start: number, open: string, close: string): number {
+    let depth = 1;
+    let j = start;
+    while (j < text.length) {
+        if (text.startsWith(open, j)) {
+            depth++;
+            j += open.length;
+        } else if (text.startsWith(close, j)) {
+            depth--;
+            if (depth === 0) return j;
+            j += close.length;
+        } else {
+            j++;
+        }
+    }
+    return -1;
 }
 
 registry.register({
