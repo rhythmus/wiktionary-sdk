@@ -4,33 +4,15 @@ WiktionaryFetch is a specialized tool for the **deterministic and source-faithfu
 
 The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, and future Node packages).
 
-It aims to provide a clean, normalized representation of word data (JSON/YAML) directly from the English Wiktionary's wikitext, optionally enriched with Wikidata and Wikimedia Commons media.
+## 🏛️ Design Philosophy
 
-## 🎯 Goals
-
-- **Source-Faithful Extraction:** Extracts verbatim wikitext and template data without making linguistic inferences (no paradigm completion or stem guessing).
-- **Canonical Parsing Surface:** Uses the **English Wiktionary** (`en.wiktionary.org`) as the primary data source. This is a deliberate choice as `en` provides more consistent structure and broader Greek coverage than `el.wiktionary.org`.
-- **Traceability:** Every piece of extracted data is traceable back to its source template or wikitext block.
-- **Normalized Representation:** Converts complex wikitext blocks into a consistent schema for Lexemes and Inflected Forms.
-
-## 🏗️ Architecture & Pipeline
-
-The system follows a multi-layered approach to handle the transition from raw web data to deep linguistic analysis:
-
-1.  **Wiktionary Raw Layer:** Fetches wikitext via the MediaWiki Action/REST API.
-2.  **Normalized Layer:** Parses structural templates (e.g., `{{el-form-of-verb}}`, `{{el-verb}}`) into a consistent `NormalizedEntry` format.
-3.  **Deep Morphology Layer:** (Optional/Future) Extends the normalized data with calculated fields like augment segmentation and stem alternation logic.
-
-## ✨ Key Features
-
-- **Registry-Based Decoders:** Uses a modular architecture of pure decoders to handle specific template families.
-- **Template-First Strategy:** Focuses on extracting "invariants"—machine-readable template parameters—rather than fragile screen-scraping of HTML.
-- **Lemma Resolution:** Automatically detects "form-of" templates (e.g., `{infl of|...}`) to link inflected forms back to their lemma lexemes.
-
-- **Multi-Source Enrichment:** Optionally fetches Wikidata labels, descriptions, and sitelinks, as well as Wikimedia Commons thumbnails (via P18).
-- **Template Coverage Strategy:** Focuses on total coverage of templates used in Greek entries through automated discovery of template categories.
+1.  **Extraction, Not Inference**: We extract *what is actually there*. By avoiding linguistic heuristics, we ensure the data is 100% faithful to the source, making it a reliable foundation for higher-level morphology engines.
+2.  **Registry-Based Modularity**: Instead of a monolithic parser, a decentralized **Registry of Template Decoders** allows for rapid expansion and total traceability.
+3.  **Traceability First**: Every piece of normalized data links back to its specific source template and verbatim wikitext.
+4.  **Developer-Centric Verification**: A premium React dashboard provides instant visual confirmation of extraction quality through real-time YAML and media previews.
 
 ## 🏗️ Architecture & Project Structure
+
 
 The project has evolved from a standalone prototype into a modular TypeScript library with a modern React frontend.
 

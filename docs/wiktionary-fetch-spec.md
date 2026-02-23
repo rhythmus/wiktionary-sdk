@@ -195,11 +195,33 @@ The project provides a production-grade modular implementation:
 - **Registry:** Decoders are centrally managed in `registry.ts`.
 - **Graphical Client:** A React (Vite) application in `/webapp/` serves as the primary visual verification tool, featuring real-time YAML preview and Wikidata media integration.
 
+## 12. Design Rationale
+
+### 12.1 Modular Engine vs. Integrated App
+The project is deliberately split into a core engine (`/src`) and a presentation layer (`/webapp`). This separation ensures that the core extraction logic remains **platform-agnostic**, enabling future CLI, mobile, or backend service integrations without refactoring the parsing pipeline.
+
+### 12.2 Registry-Based Decoder Architecture
+Instead of a monolithic parser, the system uses a **Registry of Template Decoders**.
+- **Extensibility:** New templates can be supported by simply registering a new decoder.
+- **Traceability:** Each field in the normalized output can be traced back to the specific decoder and source parameters that produced it.
+- **Safety:** Decoders are pure functions that operate on isolated `DecodeContext`, preventing side-effects and ensuring deterministic results.
+
+### 12.3 Source-Faithful Extraction ("No Heuristics")
+The library follows a strict **"Extraction, not Inference"** policy.
+- **Why?** Linguistic data on Wiktionary is often incomplete or inconsistent. By only extracting explicit parameters, we avoid the risk of generating incorrect paradigms or stem guesses.
+- **Handover:** This specialized focus makes the library a perfect "Layer 1" for higher-level linguistic engines that *do* perform morphology generation.
+
+### 12.4 Graphical Client as a Verification Tool
+The `/webapp` is not just a demo; it is a **Developer Inspector**.
+- **Transparency:** The glassmorphism UI provides high-end visual feedback, making complex nested structures (YAML) and media (Wikidata) easy to verify at a glance.
+- **Real-Time Feedback:** Vite ensures that as the engine evolves, developers can immediately see the effect on extraction quality.
+
 ---
 
 **Artifacts current as of v1.0 Alpha:**
 - `src/index.ts`: Orchestration entry point.
 - `webapp/src/App.tsx`: React frontend implementation.
 - This specification document.
+
 
 
