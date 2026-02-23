@@ -182,12 +182,19 @@ function parseTranslationsFromBlock(wikitext: string) {
             )
                 continue;
             const pos = t.params.positional || [];
-            const lang = pos[0];
-            const gloss = pos[1];
-            if (!lang || !gloss) continue;
+            const named = t.params.named ?? {};
+            // {{t|target_lang|source_lang|term|...}} — pos[1]=translation lang, pos[2]=term
+            const lang = pos[1] ?? pos[0];
+            const term = pos[2] ?? pos[1];
+            if (!lang || !term) continue;
             if (!out[lang]) out[lang] = [];
+            const gloss = named.t ?? named.gloss;
             out[lang].push({
-                gloss,
+                term,
+                ...(gloss && { gloss }),
+                ...(named.tr && { transliteration: named.tr }),
+                ...(named.g && { gender: named.g }),
+                ...(named.alt && { alt: named.alt }),
                 sense: currentSense || null,
                 template: t.name,
                 raw: t.raw,

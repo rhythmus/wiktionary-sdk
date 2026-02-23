@@ -144,9 +144,13 @@
     },
     "TranslationItem": {
       "type": "object",
-      "required": ["gloss", "sense", "template", "raw", "params"],
+      "required": ["term", "sense", "template", "raw", "params"],
       "properties": {
-        "gloss": { "type": "string" },
+        "term": { "type": "string", "description": "The translation term (authoritative)" },
+        "gloss": { "type": "string", "description": "From explicit t= or gloss= only" },
+        "transliteration": { "type": "string", "description": "From tr=" },
+        "gender": { "type": "string", "description": "From g=" },
+        "alt": { "type": "string", "description": "From alt=" },
         "sense": { "type": ["string", "null"] },
         "template": { "type": "string" },
         "raw": { "type": "string" },
