@@ -1,0 +1,9 @@
+node_modules
+dist
+webapp/node_modules
+webapp/dist
+.git
+docs
+test
+tools
+*.md

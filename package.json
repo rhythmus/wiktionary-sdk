@@ -2,11 +2,34 @@
   "name": "wiktionary-fetch",
   "version": "1.0.0",
   "description": "Source-faithful Wiktionary and Wikidata extraction library.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schema",
+    "VERSIONING.md"
+  ],
+  "bin": {
+    "wiktionary-fetch": "./cli/index.ts"
+  },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
+    "build": "tsc && tsc -p tsconfig.cjs.json",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cli": "tsx cli/index.ts",
+    "introspect": "tsx tools/template-introspect.ts",
+    "serve": "tsx server.ts",
+    "docs": "typedoc --out docs/api --entryPoints src/index.ts src/types.ts src/cache.ts src/rate-limiter.ts --tsconfig tsconfig.json",
+    "bench": "vitest bench"
   },
   "keywords": [
     "wiktionary",
@@ -17,6 +40,15 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "@types/js-yaml": "^4.0.9",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1",
+    "tsx": "^4.21.0",
+    "typedoc": "^0.28.17",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1"
   }
 }

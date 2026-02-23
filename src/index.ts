@@ -19,6 +19,15 @@ import {
 import { registry, FORM_OF_TEMPLATES } from "./registry";
 import { uniq, deepMerge, commonsThumbUrl } from "./utils";
 
+/**
+ * Fetches and normalizes a Wiktionary entry.
+ *
+ * @param options.query - The term to look up (e.g. `"γράφω"`)
+ * @param options.lang - BCP-47 language code (e.g. `"el"`)
+ * @param options.preferredPos - Optional POS filter for disambiguation
+ * @param options.enrich - Whether to fetch Wikidata enrichment (default `true`)
+ * @returns A {@link FetchResult} containing normalized entries and raw wikitext
+ */
 export async function fetchWiktionary({
     query,
     lang,

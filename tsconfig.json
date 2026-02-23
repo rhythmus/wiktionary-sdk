@@ -8,7 +8,7 @@
             "DOM"
         ],
         "declaration": true,
-        "outDir": "./dist",
+        "outDir": "./dist/esm",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
