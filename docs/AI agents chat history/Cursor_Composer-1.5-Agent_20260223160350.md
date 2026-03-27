@@ -93,7 +93,7 @@ Summary of what was done:
 - Marked Stages 0.1, 0.2, 1.1, 1.2, 4.1, 8.1, 8.2, 8.3 as DONE
 - Added “Delivered” sections for each with implementation notes
 
-**wiktionary-fetch-spec.md**
+**wiktionary-sdk-spec.md**
 - Documented `schema_version` in `FetchResult`
 - Described brace-aware parameter splitting (pipes inside `[[...]]` and `{{...}}`)
 - Documented unknown language behavior (`null` for unknown codes, early return)
@@ -116,7 +116,7 @@ Summary of what was done:
 2. **feat: add schema_version, brace-aware pipe splitting, fix unknown language (Stage 0.2, 1.1, 1.2)** — `src/parser.ts`, `src/index.ts`, `src/types.ts`, `test/parser.test.ts`, `test/schema.test.ts`
 3. **feat: correct translation item semantics (Stage 4.1)** — `src/registry.ts`, `schema/normalized-entry.schema.json`, `test/integration.test.ts`
 4. **feat: packaging and distribution hardening (Stage 8.1, 8.2, 8.3)** — `package.json`, `package-lock.json`, `tsconfig.json`, `src/api.ts`
-5. **docs: update README, spec, and ROADMAP to reflect post-v1.0 changes** — `README.md`, `docs/ROADMAP.md`, `docs/wiktionary-fetch-spec.md`
+5. **docs: update README, spec, and ROADMAP to reflect post-v1.0 changes** — `README.md`, `docs/ROADMAP.md`, `docs/wiktionary-sdk-spec.md`
 
 All 68 tests pass and the build succeeds.
 
@@ -185,7 +185,7 @@ Summary of changes:
 
 ## Documentation updates
 
-**Spec (`docs/wiktionary-fetch-spec.md`):**
+**Spec (`docs/wiktionary-sdk-spec.md`):**
 - Documented `FetchResult.debug`, `Entry.templates_all`, `lemma_triggered_by_entry_id`, `Sense.gloss_raw`
 - Added section 3.6 (Section link lists) for `derived_terms`, `related_terms`, `descendants`
 - Added section 3.8 (Lemma resolution and cycle protection)
@@ -212,7 +212,7 @@ Summary of changes:
    - File: `tools/template-introspect.ts`
 
 3. **`docs: update README, spec, and ROADMAP for implemented stages`**  
-   - Files: `README.md`, `docs/wiktionary-fetch-spec.md`, `docs/ROADMAP.md`
+   - Files: `README.md`, `docs/wiktionary-sdk-spec.md`, `docs/ROADMAP.md`
 
 All 69 tests pass.
 
@@ -301,7 +301,7 @@ Summary of changes:
 
 ## Documentation updates
 
-**Spec (`docs/wiktionary-fetch-spec.md`):**
+**Spec (`docs/wiktionary-sdk-spec.md`):**
 - Added design rationale **12.9 Brace-Aware Gloss Stripping**: rationale for depth-based scanning vs regex, handling of nested structures, and processing order (`'''` before `''`).
 
 **ROADMAP (`docs/ROADMAP.md`):**
@@ -318,7 +318,7 @@ Summary of changes:
    - Implements brace-aware stripping and adds tests.
 
 2. **`docs: update README, spec, and ROADMAP for Stage 2.1 completion`**  
-   - Files: `README.md`, `docs/wiktionary-fetch-spec.md`, `docs/ROADMAP.md`  
+   - Files: `README.md`, `docs/wiktionary-sdk-spec.md`, `docs/ROADMAP.md`  
    - Updates documentation and rationale.
 
 ---
@@ -392,7 +392,7 @@ Updated the preamble example with these changes:
 
 1. **IN section**
    - Corrected the library call to `fetchWiktionary({ query: "γράφω", lang: "el" })` (no `format`; that’s for the CLI).
-   - Added the CLI usage: `wiktionary-fetch γράφω --lang el --format yaml`.
+   - Added the CLI usage: `wiktionary-sdk γράφω --lang el --format yaml`.
 
 2. **OUT section**
    - Replaced the placeholder with a real YAML example for γράφω, including:

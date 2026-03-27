@@ -8,7 +8,7 @@
 
 const DEFAULT_MIN_INTERVAL_MS = 100;
 const DEFAULT_USER_AGENT =
-  "WiktionaryFetch/1.0 (https://github.com/woutersoudan/wiktionary-fetch; wiktionary-fetch@example.com)";
+  "Wiktionary SDK/1.0 (https://github.com/woutersoudan/wiktionary-fetch; wiktionary-fetch@example.com)";
 
 export interface RateLimiterConfig {
   minIntervalMs?: number;

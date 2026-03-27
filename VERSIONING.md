@@ -1,6 +1,6 @@
 # Output Schema Versioning
 
-WiktionaryFetch output follows **Semantic Versioning 2.0.0** for its normalized JSON/YAML schema.
+Wiktionary SDK output follows **Semantic Versioning 2.0.0** for its normalized JSON/YAML schema.
 
 ## Current Version
 

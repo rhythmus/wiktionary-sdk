@@ -1,5 +1,5 @@
 /**
- * Lightweight HTTP API wrapper for the WiktionaryFetch engine.
+ * Lightweight HTTP API wrapper for the Wiktionary SDK engine.
  *
  * GET /api/fetch?query=<term>&lang=<code>&pos=<pos>&enrich=<bool>&format=<yaml|json>
  * GET /api/health
@@ -9,7 +9,7 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import { fetchWiktionary } from "./src/index";
+import { wiktionary } from "./src/index";
 import type { WikiLang } from "./src/types";
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -34,7 +34,7 @@ async function handleFetch(url: URL, res: ServerResponse): Promise<void> {
   }
 
   try {
-    const result = await fetchWiktionary({
+    const result = await wiktionary({
       query,
       lang,
       preferredPos: pos,
@@ -85,7 +85,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 });
 
 server.listen(PORT, () => {
-  console.log(`WiktionaryFetch API server running on http://localhost:${PORT}`);
+  console.log(`Wiktionary SDK API server running on http://localhost:${PORT}`);
   console.log(`  GET /api/fetch?query=γράφω&lang=el`);
   console.log(`  GET /api/health`);
 });

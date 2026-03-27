@@ -190,9 +190,9 @@ Based on your FULL above analysis and list of suggestions, please draft a detail
   - **Problem**: `bin` points to TypeScript (`cli/index.ts`) but the build only outputs `src/**/*`. Consumers won’t have compiled CLI/server JS.
   - **Work**:
     - Compile `cli/index.ts` and `server.ts` to `dist/` (either by extending `tsconfig.include` or adding dedicated build steps).
-    - Point `bin.wiktionary-fetch` to built JS (e.g. `dist/esm/cli/index.js` or `dist/cjs/cli/index.js`).
+    - Point `bin.wiktionary-sdk` to built JS (e.g. `dist/esm/cli/index.js` or `dist/cjs/cli/index.js`).
     - Ensure published `files` include the built CLI/server.
-  - **Acceptance**: `npm i -g wiktionary-fetch` provides a working `wiktionary-fetch` command without `tsx`.
+  - **Acceptance**: `npm i -g wiktionary-sdk` provides a working `wiktionary-sdk` command without `tsx`.
 
 - **Cache key normalization** (`src/api.ts`)
   - **Work**:
@@ -238,11 +238,11 @@ We've done quite a bit of work; let us update the documentation and then commit.
 
 **Cursor**
 
-I’ll first inspect what’s changed since the latest commit (status + diffs + recent log). Then I’ll update `README.md` and `docs/wiktionary-fetch-spec.md` to accurately reflect the current state and the new roadmap (with rationale/design choices). Finally I’ll split the work into a few cohesive doc-only commits and commit them in order following `AGENTS.md`.
+I’ll first inspect what’s changed since the latest commit (status + diffs + recent log). Then I’ll update `README.md` and `docs/wiktionary-sdk-spec.md` to accurately reflect the current state and the new roadmap (with rationale/design choices). Finally I’ll split the work into a few cohesive doc-only commits and commit them in order following `AGENTS.md`.
 
-I see only `docs/ROADMAP.md` has changed so far. Next I’ll update `README.md` and `docs/wiktionary-fetch-spec.md` so they accurately reflect the new **post‑v1.0** roadmap and the rationale/design principles behind it. After that, I’ll split the doc updates into a few cohesive commits and commit them in order.
+I see only `docs/ROADMAP.md` has changed so far. Next I’ll update `README.md` and `docs/wiktionary-sdk-spec.md` so they accurately reflect the new **post‑v1.0** roadmap and the rationale/design principles behind it. After that, I’ll split the doc updates into a few cohesive commits and commit them in order.
 
-I’m going to make the docs consistent and source-faithful: update `README.md` and `docs/wiktionary-fetch-spec.md` to (a) reference the new post‑v1.0 roadmap, (b) clarify the current parser’s guarantees vs planned fixes, and (c) document rationale/design choices as non‑normative guidance. Then I’ll split into 3 doc-only commits: ROADMAP, spec, README.
+I’m going to make the docs consistent and source-faithful: update `README.md` and `docs/wiktionary-sdk-spec.md` to (a) reference the new post‑v1.0 roadmap, (b) clarify the current parser’s guarantees vs planned fixes, and (c) document rationale/design choices as non‑normative guidance. Then I’ll split into 3 doc-only commits: ROADMAP, spec, README.
 
 Great — the roadmap rewrite is now committed. Next I’ll commit the spec updates (non‑normative roadmap notes + clarified parser guarantees), then the README updates (accurate parser wording + roadmap pointer), keeping each commit cohesive and doc-only.
 
@@ -250,7 +250,7 @@ Great — the roadmap rewrite is now committed. Next I’ll commit the spec upda
 
 ### Documentation updates
 - **`docs/ROADMAP.md`**: replaced with the full **post‑v1.0 staged implementation roadmap**, including principles, rationale, and acceptance criteria.
-- **`docs/wiktionary-fetch-spec.md`**: added **non‑normative roadmap references**, clarified current template extraction guarantees, and pointed future hardening work to the roadmap.
+- **`docs/wiktionary-sdk-spec.md`**: added **non‑normative roadmap references**, clarified current template extraction guarantees, and pointed future hardening work to the roadmap.
 - **`README.md`**: made the parser claim more precise, updated the docs tree description, and added a short **post‑v1.0 roadmap** section.
 
 ### Commits (cohesive, sizeable, doc-only)

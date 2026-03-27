@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/woutersoudan/wiktionary-fetch/schema/normalized-entry.schema.json",
-  "title": "WiktionaryFetch Normalized Output",
+  "title": "Wiktionary SDK Normalized Output",
   "description": "JSON Schema for the wiktionary-fetch engine output (FetchResult and Entry types).",
   "type": "object",
   "$defs": {

@@ -162,7 +162,7 @@ export interface DecoderDebugEvent {
   fieldsProduced: string[];
 }
 
-/** Top-level result returned by {@link fetchWiktionary}. */
+/** Top-level result returned by {@link wiktionary}. */
 export interface FetchResult {
   schema_version: string;
   rawLanguageBlock: string;
