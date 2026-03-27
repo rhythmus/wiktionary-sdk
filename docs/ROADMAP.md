@@ -1,7 +1,7 @@
-# WiktionaryFetch: Implementation Roadmap (post-v1.0)
+# Wiktionary SDK: Implementation Roadmap (post-v1.0)
 
 This roadmap proposes the next implementation stages for the
-`wiktionary-fetch` ecosystem.
+`wiktionary-sdk` ecosystem.
 
 ## Principles (non-negotiable)
 

@@ -1,4 +1,4 @@
-# WiktionaryFetch — Formal Specification (v1.0)
+# Wiktionary SDK — Formal Specification (v1.0)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -21,10 +21,9 @@ Return:
 
 The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`), versioned per `VERSIONING.md`.
 
-**Roadmap note (non-normative):** this document specifies v1.0 behavior and
-data contracts. For planned post‑v1.0 hardening (parser correctness, improved
-traceability, packaging reliability, translation-shape refinements), see
-`docs/ROADMAP.md`.
+**Roadmap note (non-normative):** this document specifies v1.1 behavior and
+data contracts. For planned post‑v1.1 hardening and further template coverage, 
+see `docs/ROADMAP.md`.
 
 ## 2. Data Sources
 
@@ -58,7 +57,7 @@ Used only if `pageprops.wikibase_item` is present.
 All API requests are subject to:
 
 - **Rate limiting**: configurable throttle, default 100ms minimum interval (10 req/s) per Wikimedia guidelines. Managed by `src/rate-limiter.ts`.
-- **User-Agent**: custom header identifying the tool (`WiktionaryFetch/1.0`).
+- **User-Agent**: custom header identifying the tool (`Wiktionary SDK/1.0`).
 - **Caching**: multi-tier cache (`src/cache.ts`) prevents redundant requests. L1 in-memory with TTL, L2/L3 pluggable for persistent and shared storage.
 
 ## 3. Outputs
@@ -201,9 +200,31 @@ derived_terms:
 
 The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The schema version (`1.0.0`) follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
 
-### 3.8 Lemma resolution and cycle protection
+### 3.9 Convenience API & High-Level Wrappers
 
-When an `INFLECTED_FORM` entry references a lemma, the engine fetches that lemma recursively. To prevent infinite loops on pathological pages (e.g. circular form-of chains), a visited set tracks `(lang, lemma)` pairs. If a lemma is already visited, the fetch returns early with a cycle note. Resolved lemma entries carry `lemma_triggered_by_entry_id` indicating which entry triggered their resolution. **Design choice:** explicit linkage over implicit; no silent deduplication.
+The SDK provides a high-level functional layer above the raw `FetchResult` to simplify common lexicographical queries.
+
+| Wrapper | Type | Rationale |
+|---------|------|-----------|
+| `lemma(q, l)` | string | Resolves inflections to canonical lemmas. |
+| `ipa(q, l)` | string | Returns primary IPA transcription. |
+| `pronounce(q, l)` | string | Returns absolute audio URI (Commons). |
+| `synonyms(q, l)` | string[] | List of synonyms. |
+| `etymology(q, l)` | object | Structured lineage tree. |
+| `translate(q, l, t)` | string[] | Gloss-mode translation. |
+| `stem(q, l)` | WordStems | Logical stems extracted from templates. |
+| `conjugate(q, c, l)`| string[] | DOM-parsed verbal paradigm forms. |
+| `decline(q, c, l)` | string[] | DOM-parsed nominal paradigm forms. |
+| `morphology(q, l)` | object | Inferred grammar from existing templates. |
+
+### 3.10 Morphology Engine and Smart Defaults
+
+The `conjugate()` and `decline()` functions implement a **Smart Override** strategy:
+1.  **Inference**: `morphology(query)` is called to determine the inherent grammar of the input word (e.g., "έγραψες" → 2nd person singular past).
+2.  **Merging**: User-provided criteria (e.g., `{ number: "plural" }`) are merged over the inherent grammar.
+3.  **Execution**: The engine resolves the final coordinate (e.g., 2nd person *plural* past) via DOM parsing.
+
+**Rationale**: This allows for shorthand usage like `conjugate("έγραψες", { number: "plural" })` resulting in "γράψατε", which matches human intuition for language manipulation.
 
 ## 4. Parsing Pipeline
 
@@ -333,13 +354,15 @@ The engine is available through multiple interfaces:
 |-----------|----------|-------------|
 | TypeScript library | `src/` | Core engine, importable as ESM or CJS (`dist/esm/`, `dist/cjs/`) |
 | React webapp | `webapp/` | Interactive inspector with debugger mode and comparison view |
-| CLI | `dist/cjs/cli/index.js` | Built from `cli/index.ts`; `npm run build` compiles it. `bin` points to built JS. |
+| CLI | `dist/cjs/cli/index.js` | Built from `cli/index.ts`. Supports standard AST dumps and explicit wrapper execution via `--extract`. |
 | HTTP API | `dist/cjs/server.js` | Built from `server.ts`. `npm run serve` runs built server. |
 | Docker | `Dockerfile` | Multi-stage Alpine build for containerized deployment |
 
 **Packaging:** Published npm installs ship runnable CLI and server. No `tsx` or
 TypeScript sources required for consumers. Cache keys normalize redirects:
 `wikt:${requestedTitle}` and `wikt:${normalizedTitle}` both store the result.
+**Browser Support:** All API calls use `origin: "*"` to support native browser
+execution within the Webapp's API Playground.
 
 ## 12. Design Rationale
 
@@ -424,3 +447,13 @@ For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
   from `{{l}}`/`{{link}}` in `====Derived terms====`, etc.
 - **Sample mode**: `--sample N` flag on template-introspect samples real Greek entries and
   reports top missing templates by frequency.
+
+**Completed (v1.1 SDK Evolution):**
+
+- **Morphology Engine**: Implement `conjugate()`, `decline()`, `stem()`, and `morphology()`
+  wrappers.
+- **High-Level Strategy**: Smart defaults for paradigm generation (inherent grammar discovery).
+- **Convenience API**: 17 explicit wrappers for semantic, phonetic, and ontological data.
+- **CLI Router**: Dynamic command extraction via `--extract` and parameter passing via `--props`.
+- **API Playground**: Interactive visualizer in Webapp for direct SDK exploration.
+- **CORS Support**: Added `origin: "*"` to all MediaWiki API calls for browser feasibility.
