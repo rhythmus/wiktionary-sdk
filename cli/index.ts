@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 
 /**
- * WiktionaryFetch CLI
+ * Wiktionary SDK CLI
  *
  * Usage:
- *   wiktionary-fetch <term> [options]
- *   wiktionary-fetch --batch <file> [options]
+ *   wiktionary-sdk <term> [options]
+ *   wiktionary-sdk --batch <file> [options]
  *
  * Options:
  *   --lang, -l       Language code (default: el)
  *   --format, -f     Output format: yaml | json (default: yaml)
  *   --pos, -p        Preferred part of speech filter
  *   --no-enrich      Skip Wikidata enrichment
+ *   --extract, -x    Extract specific data using convenience wrapper APIs
+ *   --target, -t     Target language (used for translate, wikipediaLink)
+ *   --props          JSON object string to pass criteria/options
  *   --batch, -b      Path to a CSV or JSON file with terms to process
  *   --output, -o     Output file path (default: stdout)
  *   --help, -h       Show this help message
  */
 
-import { fetchWiktionary } from "../src/index";
+import { wiktionary } from "../src/index";
+import * as SDK from "../src/index";
 import type { WikiLang, FetchResult } from "../src/types";
 import { readFileSync, writeFileSync } from "fs";
 
@@ -27,6 +31,9 @@ interface CliOptions {
   format: "yaml" | "json";
   preferredPos?: string;
   enrich: boolean;
+  extract?: string;
+  targetLang?: string;
+  props?: any;
   batchFile?: string;
   outputFile?: string;
 }
@@ -60,6 +67,17 @@ function parseArgs(argv: string[]): CliOptions {
       opts.preferredPos = args[++i];
     } else if (arg === "--no-enrich") {
       opts.enrich = false;
+    } else if (arg === "--extract" || arg === "-x") {
+      opts.extract = args[++i];
+    } else if (arg === "--target" || arg === "-t") {
+      opts.targetLang = args[++i];
+    } else if (arg === "--props") {
+      try {
+        opts.props = JSON.parse(args[++i]);
+      } catch (err) {
+        console.error("Invalid JSON passed to --props");
+        process.exit(1);
+      }
     } else if (arg === "--batch" || arg === "-b") {
       opts.batchFile = args[++i];
     } else if (arg === "--output" || arg === "-o") {
@@ -75,11 +93,11 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printHelp(): void {
   console.log(`
-WiktionaryFetch CLI — Deterministic Wiktionary Extraction
+Wiktionary SDK CLI — Deterministic Wiktionary Extraction
 
 Usage:
-  wiktionary-fetch <term> [options]
-  wiktionary-fetch --batch <file> [options]
+  wiktionary-sdk <term> [options]
+  wiktionary-sdk --batch <file> [options]
 
 Arguments:
   <term>             One or more terms to look up
@@ -89,14 +107,19 @@ Options:
   --format, -f <fmt> Output format: yaml | json (default: yaml)
   --pos, -p <pos>    Preferred part of speech
   --no-enrich        Skip Wikidata enrichment
+  --extract, -x <fn> Call specific explicit function (e.g. stem, conjugate, ipa, synonyms)
+  --target, -t <lng> Output target language for translation functions
+  --props <json>     JSON payload for nested options/criteria (e.g. conjugate criteria)
   --batch, -b <file> Batch file (one term per line, or JSON array)
   --output, -o <file> Write output to file instead of stdout
   --help, -h         Show this help
 
 Examples:
-  wiktionary-fetch γράφω
-  wiktionary-fetch γράφω --lang el --format json
-  wiktionary-fetch --batch terms.txt --format yaml --output results.yaml
+  wiktionary-sdk γράφω
+  wiktionary-sdk έγραψε --extract translate --target nl
+  wiktionary-sdk έγραψες --extract conjugate --props '{"number":"plural"}'
+  wiktionary-sdk γράφω --lang el --format json
+  wiktionary-sdk --batch terms.txt --format yaml --output results.yaml
 `);
 }
 
@@ -145,12 +168,33 @@ async function main(): Promise<void> {
 
   for (const term of terms) {
     try {
-      const result = await fetchWiktionary({
-        query: term,
-        lang: opts.lang,
-        preferredPos: opts.preferredPos,
-        enrich: opts.enrich,
-      });
+      let result;
+      
+      if (opts.extract) {
+          const wrapper = (SDK as any)[opts.extract];
+          if (!wrapper || typeof wrapper !== "function") {
+              throw new Error(`Wrapper function '${opts.extract}' does not exist.`);
+          }
+          if (["translate"].includes(opts.extract)) {
+              result = await wrapper(term, opts.lang, opts.targetLang, opts.props);
+          } else if (["wikipediaLink"].includes(opts.extract)) {
+              result = await wrapper(term, opts.lang, opts.targetLang);
+          } else if (["conjugate", "decline"].includes(opts.extract)) {
+              result = await wrapper(term, opts.props || {}, opts.lang);
+          } else if (["hyphenate"].includes(opts.extract)) {
+              result = await wrapper(term, opts.lang, opts.props);
+          } else {
+              result = await wrapper(term, opts.lang);
+          }
+      } else {
+          result = await wiktionary({
+            query: term,
+            lang: opts.lang,
+            preferredPos: opts.preferredPos,
+            enrich: opts.enrich,
+          });
+      }
+      
       allResults.push(result);
 
       if (!opts.outputFile) {
