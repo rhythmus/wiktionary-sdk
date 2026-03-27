@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Globe, ChevronRight, Image as ImageIcon, Loader2, AlertCircle, Github, Languages, Bug, Columns2, X } from 'lucide-react';
+import { Search, Globe, ChevronRight, Image as ImageIcon, Loader2, AlertCircle, Github, Languages, Bug, Columns2, X, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import yaml from 'js-yaml';
-import { fetchWiktionary } from '@engine/index';
+import { wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms, etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms, derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image, partOfSpeech, usageNotes, translate } from '@engine/index';
 import type { Entry, WikiLang } from '@engine/types';
+
+const API_METHODS: Record<string, any> = { lemma, ipa, pronounce, hyphenate, synonyms, antonyms, etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms, derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image, partOfSpeech, usageNotes, translate };
 
 const LANGUAGES = [
   { value: 'el', label: 'Greek', flag: '\u{1F1EC}\u{1F1F7}' },
@@ -85,6 +87,38 @@ const App: React.FC = () => {
   const [compareRawBlock, setCompareRawBlock] = useState('');
   const [compareLoading, setCompareLoading] = useState(false);
 
+  const [apiMethod, setApiMethod] = useState<string>('stem');
+  const [apiProps, setApiProps] = useState<string>('');
+  const [apiResult, setApiResult] = useState<any>({ __uninitialized: true });
+  const [apiLoading, setApiLoading] = useState(false);
+
+  const handleApiExecute = useCallback(async () => {
+    setApiLoading(true);
+    try {
+      let propsObj = undefined;
+      if (apiProps.trim()) {
+        try {
+            propsObj = JSON.parse(apiProps);
+        } catch (err) {
+            setApiResult({ error: "Invalid JSON format for Props" });
+            setApiLoading(false);
+            return;
+        }
+      }
+      
+      const fn = API_METHODS[apiMethod];
+      let res;
+      if (["conjugate", "decline"].includes(apiMethod)) res = await fn(query, propsObj || {}, lang);
+      else if (["translate", "wikipediaLink"].includes(apiMethod)) res = await fn(query, lang, propsObj?.target, propsObj);
+      else if (["hyphenate"].includes(apiMethod)) res = await fn(query, lang, propsObj);
+      else res = await fn(query, lang);
+      setApiResult(res);
+    } catch (e: any) {
+      setApiResult({ error: e.message });
+    }
+    setApiLoading(false);
+  }, [apiMethod, apiProps, query, lang]);
+
   const handleSearch = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim()) return;
@@ -93,7 +127,7 @@ const App: React.FC = () => {
     setError(null);
     setSelectedEntryIdx(0);
     try {
-      const res = await fetchWiktionary({
+      const res = await wiktionary({
         query: query.trim(),
         lang,
         preferredPos: prefPos || undefined,
@@ -110,7 +144,7 @@ const App: React.FC = () => {
       if (compareMode) {
         setCompareLoading(true);
         try {
-          const cRes = await fetchWiktionary({
+          const cRes = await wiktionary({
             query: query.trim(),
             lang: compareLang,
             preferredPos: prefPos || undefined,
@@ -135,6 +169,13 @@ const App: React.FC = () => {
   useEffect(() => {
     handleSearch();
   }, []);
+
+  useEffect(() => {
+    // Re-run API execution if query changes successfully and API explorer result exists
+    if (results.length > 0 && query.trim()) {
+        handleApiExecute();
+    }
+  }, [results]);
 
   const formatYaml = (data: any) => {
     try {
@@ -237,7 +278,7 @@ const App: React.FC = () => {
       <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-1">
-            WiktionaryFetch
+            Wiktionary SDK
           </h1>
           <p className="text-text-secondary text-sm">Deterministic Greek Lexicographic Extraction</p>
         </div>
@@ -501,10 +542,72 @@ const App: React.FC = () => {
             </div>
           </section>
         )}
+
+        <section className="lg:col-span-full mt-8">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Terminal size={18} className="text-fuchsia-400" />
+                Live API Playground
+            </h2>
+            <div className="glass glass-card p-4 sm:p-6 flex flex-col items-start gap-4 border border-fuchsia-500/20">
+                <div className="flex flex-col sm:flex-row gap-4 w-full">
+                    <div className="flex-1 flex flex-col gap-2">
+                        <label className="text-xs text-text-muted">Target Wrapper</label>
+                        <select
+                            value={apiMethod}
+                            onChange={(e) => setApiMethod(e.target.value)}
+                            className="w-full bg-bg-color/50 border border-fuchsia-500/30 rounded-xl py-2 px-3 outline-none focus:border-fuchsia-500/80 transition-colors text-white text-sm"
+                        >
+                            {Object.keys(API_METHODS).sort().map((m) => (
+                                <option key={m} value={m}>{m}()</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex-[2] flex flex-col gap-2">
+                        <label className="text-xs text-text-muted">Props / Criteria (JSON Object String)</label>
+                        <input
+                            type="text"
+                            value={apiProps}
+                            onChange={(e) => setApiProps(e.target.value)}
+                            placeholder='e.g. {"number": "plural"}'
+                            className="font-mono text-sm w-full bg-bg-color/50 border border-white/10 rounded-xl py-2 px-3 outline-none focus:border-fuchsia-500/50 transition-colors text-white"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-2 justify-end">
+                        <button
+                            onClick={handleApiExecute}
+                            disabled={apiLoading}
+                            className="bg-fuchsia-600/20 hover:bg-fuchsia-500/40 text-fuchsia-400 border border-fuchsia-500/50 disabled:bg-fuchsia-900/10 disabled:cursor-not-allowed font-medium rounded-xl px-6 py-2 transition-all flex items-center gap-2 whitespace-nowrap"
+                        >
+                            {apiLoading ? <Loader2 className="animate-spin" size={16} /> : <Terminal size={16} />}
+                            {apiLoading ? 'Exec' : 'Execute'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="w-full bg-black/40 border border-white/5 rounded-xl mt-4 max-h-[400px] overflow-auto flex flex-col">
+                    <div className="bg-white/5 border-b border-white/10 py-1.5 px-3 text-xs text-text-muted font-mono flex gap-2">
+                        <span className="text-fuchsia-400">sdk.{apiMethod}("{query}"{apiProps ? `, ${apiProps}` : ''})</span>
+                    </div>
+                    <pre className="p-4 text-sm font-mono leading-loose text-text-secondary select-text overflow-x-auto">
+                        {apiResult && apiResult.__uninitialized ? (
+                            <span className="text-text-muted opacity-50">// Output will render here</span>
+                        ) : typeof apiResult === 'undefined' ? (
+                            <span className="text-amber-500">undefined</span>
+                        ) : apiResult === null ? (
+                            <span className="text-amber-500">null</span>
+                        ) : typeof apiResult === 'string' ? (
+                            <span className="text-emerald-300">"{apiResult}"</span>
+                        ) : (
+                            JSON.stringify(apiResult, null, 2)
+                        )}
+                    </pre>
+                </div>
+            </div>
+        </section>
       </main>
 
       <footer className="mt-16 pt-8 border-t border-white/5 text-center text-text-muted text-xs">
-        <p>&copy; 2026 WiktionaryFetch Project. Deterministic Extraction Engine.</p>
+        <p>&copy; 2026 Wiktionary SDK Project. Deterministic Extraction Engine.</p>
       </footer>
     </div>
   );

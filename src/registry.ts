@@ -1,4 +1,4 @@
-import type { DecodeContext, TemplateDecoder, Sense, SemanticRelation, EtymologyLink, DecoderDebugEvent, SectionLinkItem, SectionWithLinks } from "./types";
+import type { DecodeContext, TemplateDecoder, Sense, EtymologyLink, DecoderDebugEvent, SectionLinkItem, SectionWithLinks } from "./types";
 import { deepMerge } from "./utils";
 import { parseTemplates } from "./parser";
 
@@ -328,7 +328,7 @@ function parseSenses(lines: string[]): Sense[] {
  * '''bold''', ''italic'' without regex-induced duplication or mis-parsing.
  * [[link|display]] → display; [[link]] → link; {{...}} → removed.
  */
-function stripWikiMarkup(text: string): string {
+export function stripWikiMarkup(text: string): string {
     const out: string[] = [];
     let i = 0;
     while (i < text.length) {
