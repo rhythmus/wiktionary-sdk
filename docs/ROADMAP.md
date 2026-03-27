@@ -15,5 +15,10 @@ This roadmap proposes the next implementation stages for the
 
 ---
 
-**All planned stages (0–8) are complete.** This document is retained for
+**Stage 9: Morphological API & Technical Documentation (Delivered)**
+- Implementation of `conjugate()`, `decline()`, `stem()`, and `morphology()`.
+- Added technical deep-dive documentation into Scribunto/Lua runtime.
+- Formalized project rebranding to **Wiktionary SDK**.
+
+**All planned stages (0–9) are complete.** This document is retained for
 reference. Future work can be added here as new stages.

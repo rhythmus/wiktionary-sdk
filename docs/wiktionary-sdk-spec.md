@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v1.0)
+# Wiktionary SDK — Formal Specification (v1.1)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -216,6 +216,22 @@ The SDK provides a high-level functional layer above the raw `FetchResult` to si
 | `conjugate(q, c, l)`| string[] | DOM-parsed verbal paradigm forms. |
 | `decline(q, c, l)` | string[] | DOM-parsed nominal paradigm forms. |
 | `morphology(q, l)` | object | Inferred grammar from existing templates. |
+| `inflect(q, c, l)`  | string[] | (Internal) High-level coordinate extraction. |
+
+### 3.11 Morphological Extraction Methodology (The "Scribunto" Exception)
+
+To fulfill the primary goal of providing accurate conjugation and declension paradigms, the SDK implements a specialized **"Morphology through Execution"** strategy. 
+
+#### 3.11.1 The Scribunto/Lua Runtime
+Many Wiktionary languages (e.g., Finnish, Modern Greek, German) utilize the **Scribunto** MediaWiki extension to run **Lua** scripts server-side. These scripts compute thousands of morphological permutations on-the-fly, which are not stored as static text.
+
+#### 3.11.2 Extraction Pipeline: `action=parse`
+1. **Template Capture**: The SDK isolates the declarative morphology template (e.g., `{{el-conjug-1st}}`).
+2. **Expansion**: The raw template is sent to the MediaWiki `action=parse` API endpoint.
+3. **DOM Dissection**: The SDK receives the rendered HTML and uses `node-html-parser` to structurally traverse the generated `.inflection-table`.
+4. **Coordinate Mapping**: Grammatical keys (e.g., `person: "3", number: "singular"`) are mapped to the intersecting table cells to retrieve the literal form.
+
+**Rationale**: This ensures absolute parity with the human-facing website without the SDK needing to maintain its own linguistic rule engine. This constitutes the project's single documented exception to the _"No HTML Scraping"_ rule.
 
 ### 3.10 Morphology Engine and Smart Defaults
 
