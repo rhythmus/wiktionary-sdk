@@ -1,18 +1,37 @@
-# 📖 WiktionaryFetch
+# 📖 Wiktionary SDK
 
-WiktionaryFetch is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries**.
+Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries**.
 
 The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).
 
-**In** (library or CLI):
+## 🚀 Quick Start: Programmatic vs. CLI
+
+The SDK features a strict separation between programmatic usage inside Node.js applications and powerful data-piping capabilities via the terminal.
+
+### 1. Programmatic Initialization (Node.js/TypeScript)
+You can invoke the primary engine to receive the complete, normalized YAML/JSON Abstract Syntax Tree (AST):
 
 ```typescript
-import { fetchWiktionary } from "wiktionary-fetch";
-const result = await fetchWiktionary({ query: "γράφω", lang: "el" });
+import { wiktionary } from "wiktionary-sdk";
+
+// Fetch full normalized AST
+const result = await wiktionary({ query: "γράφω", lang: "el" });
+console.log(result.entries[0].senses);
 ```
 
+### 2. CLI Execution (DevOps pipelines)
+You can execute exactly the same core engine natively from your shell. By default, it dumps the entire requested schema:
+
 ```bash
-wiktionary-fetch γράφω --lang el --format yaml
+# Dump the AST to standard out formatted in YAML
+wiktionary-sdk γράφω --lang el --format yaml
+```
+
+> **New in v1.0!** You can also evaluate our 17 convenience wrappers entirely from the CLI using the `--extract` flag:
+```bash
+wiktionary-sdk γράφω --extract stem --format json
+wiktionary-sdk έγραψε --extract translate --target en
+wiktionary-sdk έγραψες --extract conjugate --props '{"number":"plural", "tense": "past"}'
 ```
 
 **Out** (normalized entries):
@@ -58,6 +77,114 @@ entries:
 
 ## ✨ Features & Capabilities
 
+### 🧰 Convenience API
+Beyond the low-level `wiktionary` engine, the library provides high-level convenience wrappers to extract exact data points easily:
+
+```typescript
+import { lemma, synonyms, hypernyms, ipa, pronounce, hyphenate, etymology, translate, wikidataQid, wikipediaLink, image } from "wiktionary-sdk";
+
+// 1. Resolve inflected forms directly to their dictionary lemma
+await lemma("έγραψε", "el"); // "γράφω"
+await lemma("γράφω", "el"); // "γράφω"
+
+// 2. Fetch specific semantic relations directly 
+await synonyms("έγραψε", "el"); // ["σημειώνω", "καταγράφω"]
+await antonyms("έγραψε", "el"); // ["σβήνω"]
+await hypernyms("μήλο", "el"); // ["φρούτο"]
+await hyponyms("φρούτο", "el"); // ["μήλο", "μπανάνα"]
+await derivedTerms("έγραψε", "el"); // ["συγγραφέας", … ]
+await relatedTerms("έγραψε", "el"); // ["γραπτός"]
+
+// 3. Get precise phonetic transcription and Wikipedia audio URIs
+await ipa("έγραψε", "el"); // "ˈe.ɣrap.se" (also aliased as phonetic())
+await pronounce("έγραψε", "el"); // "https://upload.wikimedia.org/wikipedia/commons/x/xx/egrapse.ogg"
+
+// 4. Format hyphenation natively or as arrays
+await hyphenate("έγραψε", "el"); // "έ-γρα-ψε"
+await hyphenate("έγραψε", "el", { separator: "‧" }); // "έ‧γρα‧ψε"
+await hyphenate("έγραψε", "el", { format: "array" }); // ["έ", "γρα", "ψε"]
+
+// 6. Get structured etymology lineage (auto-resolves Wiktionary language macros!)
+await etymology("έγραψε", "el");
+/*
+{
+  1: { lang: "grc", form: "γράφω" },
+...
+}
+*/
+
+// 7. Access Wikidata Entity Ontology (For Nouns/Concepts)
+await wikidataQid("μήλο", "el"); // "Q89" (Apple)
+await image("μήλο", "el"); // "https://upload.wikimedia.org/.../apple.jpeg"
+await wikipediaLink("μήλο", "el", "en"); // "https://en.wikipedia.org/wiki/Apple"
+
+// 8. Query 1-to-1 translations natively (gloss mode)
+await translate("έγραψε", "el", "nl"); 
+// ["schrijven"]
+
+// 9. Fetch full native prose definitions from foreign domains! (senses mode)
+await translate("έγραψε", "el", "fr", { mode: "senses" });
+// ["écrire", "dessiner"]
+
+// 10. Extract linguistic annotations and notes
+await partOfSpeech("έγραψε", "el"); // "verb"
+await usageNotes("μήλο", "el"); // ["In colloquial contexts..."]
+
+// 9. Extract inherent grammar from any inflected form!
+await morphology("έγραψες");
+/*
+{
+  person: "2",
+  number: "singular",
+  tense: "past",
+  aspect: "perfective",
+  mood: "indicative",
+  voice: "active"
+}
+*/
+
+// 10. Conjugate verbs dynamically (Uses DOM parsing on the MediaWiki API)
+// Automatically merges overrides into the inherent grammar of the query word!
+await conjugate("έγραψες", {
+    number: "plural", 
+}); 
+// ["γράψατε"] (Inherits past perfective indicative active from "έγραψες")
+
+// 11. Decline nominals dynamically (Nouns and Adjectives)
+// Extract targeted cases and numbers dynamically via DOM parsing
+await decline("άνθρωπος", {
+    case: "genitive",
+    number: "plural"
+});
+// ["ανθρώπων"]
+
+// 12. Extract native word stems mathematically mapped inside declarative Wiktionary templates!
+await stem("έγραψα");
+/*
+{
+  "verb": {
+    "present": [ "γράφ" ],
+    "imperfect": [ "έγραφ" ],
+    "dependent": [ "γράψ" ],
+    ...
+  },
+  "aliases": [ "γράφ", "έγραφ", "γράψ", "γραφ", "γραφτ", "έγραψ" ]
+}
+*/
+await stem("άνθρωπος")
+/*
+{
+  "nominals": [ "άνθρωπ", "ανθρώπ" ],
+  "aliases": [ "άνθρωπ", "ανθρώπ" ]
+  "aliases": [ "άνθρωπ", "ανθρώπ" ]
+}
+*/
+```
+
+> [!WARNING]
+> **Architectural Rationale: The `conjugate()` and `decline()` Exception**
+> To support fully inflected paradigm generation (`conjugate()` and `decline()`), the library makes a strict temporary exception to its core _"No HTML Scraping"_ rule. Because Wiktionary uses dynamic Lua module architectures for inflection rendering that are entirely inaccessible via JSON text dumps, we call the MediaWiki `expandtemplates` API to execute Wiktionary's Lua scripts server-side, and then deploy highly localized DOM-parsing against the resulting payload to extract exact grammatical criteria. Conversely, the `stem()` function relies purely on mathematical indexing across parameterized source tags, preserving our explicit 100% data-faithfulness baseline.
+
 ### 🧠 Extraction Engine
 
 - **Brace-aware template extraction** that handles nested `{{...}}` blocks —
@@ -85,15 +212,21 @@ entries:
 
 ### 🌐 Interfaces
 
-- 🖥️ **React webapp** — glassmorphism dashboard with real-time YAML preview, Wikidata media gallery, interactive click-to-source template inspector, debugger mode (shows which decoder matched which template), entry selector, and cross-language comparison view.
-- 💻 **CLI** — `wiktionary-fetch <term> --lang=el --format=yaml` with batch CSV/JSON processing, file output, and all engine options exposed. Built to `dist/cjs/cli/index.js`; `npm run build` compiles it. `npm run cli` uses `tsx` for development.
-- 🔌 **HTTP API** — lightweight Node.js server with `GET /api/fetch` and `GET /api/health`, CORS enabled, Docker-ready. `npm run serve` runs the built server (`dist/cjs/server.js`).
+- 🖥️ **React Webapp Dashboard** — A dynamic glassmorphism interface featuring:
+  - **Live API Playground**: Programmatically execute any SDK convenience wrapper (like `conjugate` or `stem`) directly via dropdown against an active query, viewing JSON returns right in the browser!
+  - **Debugger Mode**: Shows exactly which internal decoder matched which regex template structure.
+  - **Cross-Language Comparison**: Side-by-side AST view for translating forms.
+- 💻 **CLI Router (`wiktionary-sdk`)** — Access the engine via standard I/O:
+  - Standard payload dumping (`--lang=el --format=yaml`)
+  - Batch CSV/JSON processing (`--batch list.txt`)
+  - Extended API Endpoint execution via explicit router flags (`--extract`, `--target`, `--props`)
+- 🔌 **HTTP API Server** — Lightweight Node.js server with `GET /api/fetch` and `GET /api/health`, CORS enabled, Docker-ready.
 - 📦 **NPM package** — dual ESM/CJS build for library consumers, with TypeDoc-generated API documentation.
 
 ## 🏗️ Architecture & Project Structure
 
 ```
-wiktionary-fetch/
+wiktionary-sdk/
 ├── src/                      # Core engine (TypeScript library)
 │   ├── types.ts              # Formal schema, interfaces, SCHEMA_VERSION
 │   ├── registry.ts           # DecoderRegistry + all template decoders
@@ -112,7 +245,7 @@ wiktionary-fetch/
 ├── Dockerfile                # Container build
 ├── VERSIONING.md             # Output schema versioning policy
 └── docs/
-    ├── wiktionary-fetch-spec.md   # Formal technical specification
+    ├── wiktionary-sdk-spec.md   # Formal technical specification
     └── ROADMAP.md                 # Post-v1.0 staged implementation roadmap
 ```
 
@@ -136,11 +269,19 @@ npm install
 npm run dev
 ```
 
-### 💻 Using the CLI
+### 💻 Using the CLI Pipeline
 ```bash
-npm run cli -- γράφω --lang el --format yaml
-npm run cli -- --batch terms.txt --output results.yaml
-npm run cli -- --help
+# Standard Output
+npx wiktionary-sdk γράφω --lang el --format yaml
+
+# Pipeline execution: Array mappings 
+npx wiktionary-sdk έγραψε --extract synonyms --format json | jq '.[0]'
+
+# Pipeline execution: Complex API parameters
+npx wiktionary-sdk άνθρωπος --extract decline --props '{"case":"genitive", "number":"plural"}' 
+
+# Batch input handling
+npx wiktionary-sdk --batch terms.txt --output results.yaml
 ```
 
 ### 🔌 Running the API Server
@@ -171,8 +312,8 @@ npm run introspect -- --sample 50   # sample 50 Greek entries, top missing by fr
 
 ### 🐳 Docker
 ```bash
-docker build -t wiktionary-fetch .
-docker run -p 3000:3000 wiktionary-fetch
+docker build -t wiktionary-sdk .
+docker run -p 3000:3000 wiktionary-sdk
 ```
 
 ## 📊 Data Model

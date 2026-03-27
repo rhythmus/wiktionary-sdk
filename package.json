@@ -1,5 +1,5 @@
 {
-  "name": "wiktionary-fetch",
+  "name": "wiktionary-sdk",
   "version": "1.0.0",
   "description": "Source-faithful Wiktionary and Wikidata extraction library.",
   "main": "dist/cjs/index.js",
@@ -18,7 +18,7 @@
     "VERSIONING.md"
   ],
   "bin": {
-    "wiktionary-fetch": "./dist/cjs/cli/index.js"
+    "wiktionary-sdk": "./dist/cjs/cli/index.js"
   },
   "scripts": {
     "build": "tsc && tsc -p tsconfig.cjs.json",
@@ -50,6 +50,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "node-html-parser": "^7.1.0"
   }
 }

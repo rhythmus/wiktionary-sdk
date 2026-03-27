@@ -19,7 +19,7 @@ import {
     langToLanguageName,
 } from "./parser";
 import { registry, FORM_OF_TEMPLATES } from "./registry";
-import { uniq, deepMerge, commonsThumbUrl } from "./utils";
+import { deepMerge, commonsThumbUrl } from "./utils";
 
 /**
  * Fetches and normalizes a Wiktionary entry.
@@ -34,7 +34,7 @@ function lemmaKey(lang: WikiLang, lemma: string) {
     return `${lang}:${lemma}`;
 }
 
-export async function fetchWiktionary(
+export async function wiktionary(
     opts: {
         query: string;
         lang: WikiLang;
@@ -44,10 +44,10 @@ export async function fetchWiktionary(
     }
 ): Promise<FetchResult> {
     const visited = new Set<string>();
-    return fetchWiktionaryRecursive({ ...opts, _visited: visited });
+    return wiktionaryRecursive({ ...opts, _visited: visited });
 }
 
-async function fetchWiktionaryRecursive({
+async function wiktionaryRecursive({
     query,
     lang,
     preferredPos,
@@ -196,7 +196,7 @@ async function fetchWiktionaryRecursive({
         triggerMap.set(lemma, triggeredBy);
     }
     const fetchPromises = uniqueRequests.map(async ({ lemma }) => {
-        const res = await fetchWiktionaryRecursive({
+        const res = await wiktionaryRecursive({
             query: lemma,
             lang,
             preferredPos,
@@ -288,3 +288,7 @@ function slug(s: string) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 }
+
+export * from "./library";
+export * from "./morphology";
+export * from "./stem";
