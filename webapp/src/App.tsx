@@ -33,6 +33,7 @@ const DEFAULT_PILLS = ['{}'];
 
 // ── Static data ──────────────────────────────────────────────────────────────
 const LANGUAGES = [
+  { value: 'Auto', label: 'Auto', flag: '🌍' },
   { value: 'el', label: 'Greek', flag: '🇬🇷' },
   { value: 'grc', label: 'Ancient Greek', flag: '🏛️' },
   { value: 'en', label: 'English', flag: '🇬🇧' },
@@ -42,7 +43,7 @@ const LANGUAGES = [
 ];
 
 const POS_OPTIONS = [
-  { value: '', label: 'Auto' },
+  { value: 'Auto', label: 'Auto' },
   { value: 'verb', label: 'Verb' },
   { value: 'noun', label: 'Noun' },
   { value: 'adjective', label: 'Adjective' },
@@ -87,8 +88,8 @@ function extractDecoderMatches(entry: Entry): DecoderMatch[] {
 const App: React.FC = () => {
   // Search & results state
   const [query, setQuery] = useState('γράφω');
-  const [lang, setLang] = useState<WikiLang>('el');
-  const [prefPos, setPrefPos] = useState('');
+  const [lang, setLang] = useState<WikiLang | 'Auto'>('Auto');
+  const [prefPos, setPrefPos] = useState('Auto');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Entry[]>([]);
   const [rawBlock, setRawBlock] = useState('');
@@ -165,7 +166,7 @@ const App: React.FC = () => {
     setError(null);
     setSelectedEntryIdx(0);
     try {
-      const res = await wiktionary({ query: query.trim(), lang, preferredPos: prefPos || undefined, enrich: true, debugDecoders: debugMode });
+      const res = await wiktionary({ query: query.trim(), lang: lang as any, pos: prefPos, enrich: true, debugDecoders: debugMode });
       setResults(res.entries);
       setRawBlock(res.rawLanguageBlock);
       setDebugEvents(res.debug ?? []);
@@ -174,7 +175,7 @@ const App: React.FC = () => {
       if (compareMode) {
         setCompareLoading(true);
         try {
-          const cRes = await wiktionary({ query: query.trim(), lang: compareLang, preferredPos: prefPos || undefined, enrich: false });
+          const cRes = await wiktionary({ query: query.trim(), lang: compareLang as any, pos: prefPos, enrich: false });
           setCompareResults(cRes.entries);
           setCompareRawBlock(cRes.rawLanguageBlock);
         } catch { setCompareResults([]); setCompareRawBlock(''); }
