@@ -206,6 +206,29 @@ registry.register({
 });
 
 /** --- Form-of / lemma resolution triggers --- **/
+
+/** Maps morph tag shortcodes → English words for human-readable labels. */
+const TAG_LABEL_MAP: Record<string, string> = {
+    "1": "1st pers.", "2": "2nd pers.", "3": "3rd pers.",
+    "s": "singular", "sg": "singular", "p": "plural", "pl": "plural",
+    "perf": "perfective", "impf": "imperfective", "pres": "present",
+    "past": "past", "fut": "future", "aor": "aorist",
+    "actv": "active", "pasv": "passive", "mp": "mediopassive", "mid": "middle",
+    "indc": "indicative", "subj": "subjunctive", "impr": "imperative", "opt": "optative", "cond": "conditional",
+    "inf": "infinitive", "ptcp": "participle", "ger": "gerund",
+    "m": "masculine", "f": "feminine", "n": "neuter", "c": "common",
+    "nom": "nominative", "gen": "genitive", "acc": "accusative", "voc": "vocative", "dat": "dative", "inst": "instrumental", "loc": "locative",
+    "def": "definite", "indef": "indefinite",
+    "pos": "positive", "comp": "comparative", "sup": "superlative",
+};
+
+function tagsToLabel(tags: string[]): string {
+    return tags
+        .map(t => TAG_LABEL_MAP[t] || t)
+        .filter(t => t && t.length > 1) // skip single char tags that didn't map
+        .join(" ");
+}
+
 registry.register({
     id: "form-of",
     handlesTemplates: [...FORM_OF_TEMPLATES],
@@ -218,10 +241,11 @@ registry.register({
         const lemma = pos[1] ?? null;
         const tags = pos.slice(2).filter(Boolean);
         const named = t.params.named ?? {};
+        const label = tagsToLabel(tags);
         return {
             entry: {
                 type: "INFLECTED_FORM",
-                form_of: { template: t.name, lemma, lang, tags, named },
+                form_of: { template: t.name, lemma, lang, tags, named, ...(label ? { label } : {}) },
             },
         };
     },
@@ -300,6 +324,50 @@ registry.register({
 
 /** --- Phase 2.1: Sense-level structuring --- **/
 
+/** Known topic-domain labels from {{lb}} that map to structured topics. */
+const LB_TOPIC_LABELS = new Set([
+    "law", "legal", "medicine", "medical", "music", "art", "computing",
+    "math", "mathematics", "physics", "chemistry", "biology", "botany", "mycology",
+    "zoology", "linguistics", "grammar", "sports", "cooking", "culinary", "religion",
+    "politics", "philosophy", "theater", "architecture", "history", "archaeology",
+    "military", "nautical", "geometry", "economics", "finance", "logic", "astronomy",
+    "geography", "geology", "meteorology", "psychology", "sociology", "literature",
+]);
+
+/** Extracts labels and topics from a {{lb|lang|label1|label2|...}} template. */
+function parseLbTemplate(raw: string): { labels: string[]; topics: string[] } {
+    const tpls = parseTemplates(raw);
+    const lb = tpls.find(t => t.name === "lb" || t.name === "label");
+    if (!lb) return { labels: [], topics: [] };
+    const pos = lb.params.positional ?? [];
+    // pos[0] is lang code, rest are labels
+    const allLabels = pos.slice(1).filter(Boolean).map(l => l.replace(/_/g, " "));
+    const topics: string[] = [];
+    const labels: string[] = [];
+    for (const l of allLabels) {
+        if (LB_TOPIC_LABELS.has(l.toLowerCase())) {
+            topics.push(l.toLowerCase());
+        } else {
+            labels.push(l);
+        }
+    }
+    return { labels, topics };
+}
+
+/** Strips {{lb|...}} templates from the raw gloss string. */
+function stripLbTemplates(raw: string): string {
+    return raw.replace(/\{\{(?:lb|label)\|[^}]*\}\}/g, "").trim();
+}
+
+/** Extracts a trailing parenthetical qualifier from a clean gloss. */
+function extractQualifier(gloss: string): { clean: string; qualifier?: string } {
+    const m = gloss.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    if (m && m[2] && m[2].length < 80) {
+        return { clean: m[1].trim(), qualifier: m[2].trim() };
+    }
+    return { clean: gloss };
+}
+
 function parseSenses(lines: string[]): Sense[] {
     const senses: Sense[] = [];
     let counter = 0;
@@ -309,8 +377,27 @@ function parseSenses(lines: string[]): Sense[] {
         if (defMatch) {
             counter++;
             const raw = defMatch[1];
-            const gloss = stripWikiMarkup(raw);
-            senses.push({ id: `S${counter}`, gloss, gloss_raw: raw });
+
+            // 1. Extract {{lb|...}} labels/topics and strip from raw
+            const { labels, topics } = parseLbTemplate(raw);
+            const rawClean = stripLbTemplates(raw);
+
+            // 2. Strip wiki markup to get plain gloss
+            const glossFull = stripWikiMarkup(rawClean);
+
+            // 3. Extract trailing parenthetical qualifier
+            const { clean: gloss, qualifier } = extractQualifier(glossFull);
+
+            const sense: Sense = {
+                id: `S${counter}`,
+                gloss,
+                gloss_raw: raw,
+            };
+            if (qualifier) sense.qualifier = qualifier;
+            if (labels.length > 0) sense.labels = labels;
+            if (topics.length > 0) sense.topics = topics;
+
+            senses.push(sense);
             continue;
         }
 
@@ -320,11 +407,18 @@ function parseSenses(lines: string[]): Sense[] {
             if (!parent.subsenses) parent.subsenses = [];
             const subId = `${parent.id}.${parent.subsenses.length + 1}`;
             const raw = subDefMatch[1];
-            parent.subsenses.push({
-                id: subId,
-                gloss: stripWikiMarkup(raw),
-                gloss_raw: raw,
-            });
+            
+            const { labels, topics } = parseLbTemplate(raw);
+            const rawClean = stripLbTemplates(raw);
+            const glossFull = stripWikiMarkup(rawClean);
+            const { clean: gloss, qualifier } = extractQualifier(glossFull);
+            
+            const sub: Sense = { id: subId, gloss, gloss_raw: raw };
+            if (qualifier) sub.qualifier = qualifier;
+            if (labels.length > 0) sub.labels = labels;
+            if (topics.length > 0) sub.topics = topics;
+            
+            parent.subsenses.push(sub);
             continue;
         }
 
@@ -423,6 +517,84 @@ registry.register({
     },
 });
 
+/** --- Headword morphology decoders (el-verb, el-noun) --- **/
+
+/** Maps param key pairs to transitivity value. */
+function decodeTransitivity(named: Record<string, string>): "transitive" | "intransitive" | "both" | null {
+    const hasTr = named["tr"] === "yes" || named["tr"] === "1" || named["type"] === "tr";
+    const hasIntr = named["intr"] === "yes" || named["intr"] === "1" || named["type"] === "intr" || named["intrans"] === "yes";
+    if (hasTr && hasIntr) return "both";
+    if (hasTr) return "transitive";
+    if (hasIntr) return "intransitive";
+    return null;
+}
+
+/** Maps {{el-verb}} principal-parts param names to slot names. */
+const VERB_PART_PARAMS: Array<[string, string]> = [
+    ["past", "simple_past"],
+    ["past2", "simple_past_alt"],
+    ["pres_pass", "present_passive"],
+    ["perf_pass", "perfect_passive"],
+    ["fut", "future_active"],
+    ["fut_pass", "future_passive"],
+];
+
+registry.register({
+    id: "el-verb-morphology",
+    handlesTemplates: ["el-verb"],
+    matches: (ctx) => ctx.templates.some((t) => t.name === "el-verb"),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => t.name === "el-verb");
+        if (!t) return {};
+        const named = t.params.named ?? {};
+        const transitivity = decodeTransitivity(named);
+        const principal_parts: Record<string, string> = {};
+        for (const [param, slot] of VERB_PART_PARAMS) {
+            if (named[param]) principal_parts[slot] = named[param];
+        }
+        const aspect = named["asp"] === "perf" ? "perfective" : (named["asp"] === "impf" ? "imperfective" : null);
+        const voice = named["voice"] === "act" ? "active" : (named["voice"] === "pass" ? "passive" : (named["voice"] === "mp" ? "mediopassive" : null));
+        return {
+            entry: {
+                part_of_speech: "verb",
+                headword_morphology: {
+                    ...(transitivity !== null && { transitivity }),
+                    ...(aspect !== null && { aspect }),
+                    ...(voice !== null && { voice }),
+                    ...(Object.keys(principal_parts).length > 0 && { principal_parts }),
+                },
+            },
+        };
+    },
+});
+
+const GENDER_MAP: Record<string, "masculine" | "feminine" | "neuter"> = {
+    m: "masculine", masc: "masculine", masculine: "masculine",
+    f: "feminine", fem: "feminine", feminine: "feminine",
+    n: "neuter", neut: "neuter", neuter: "neuter",
+};
+
+registry.register({
+    id: "el-noun-gender",
+    handlesTemplates: ["el-noun"],
+    matches: (ctx) => ctx.templates.some((t) => t.name === "el-noun"),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => t.name === "el-noun");
+        if (!t) return {};
+        const named = t.params.named ?? {};
+        const pos = t.params.positional ?? [];
+        // Gender is usually the first positional param or the `g=` named param
+        const rawGender = named["g"] || named["gender"] || pos[0] || "";
+        const gender = GENDER_MAP[rawGender.toLowerCase()] || null;
+        return {
+            entry: {
+                part_of_speech: "noun",
+                ...(gender !== null && { headword_morphology: { gender } }),
+            },
+        };
+    },
+});
+
 /** --- Phase 2.2: Semantic relations --- **/
 
 const RELATION_TEMPLATES: Record<string, keyof import("./types").SemanticRelations> = {
@@ -437,6 +609,10 @@ const RELATION_HEADERS = {
     "Antonyms": "antonyms",
     "Hypernyms": "hypernyms",
     "Hyponyms": "hyponyms",
+    "Coordinate terms": "coordinate_terms",
+    "Holonyms": "holonyms",
+    "Meronyms": "meronyms",
+    "Troponyms": "troponyms",
 } as const;
 
 registry.register({
@@ -487,34 +663,63 @@ registry.register({
     },
 });
 
-/** --- Phase 2.3: Structured etymology & cognates --- **/
+/** --- Phase 2.3: Structured etymology & cognates (v2) --- **/
 
-const ETYMOLOGY_TEMPLATES = new Set(["inh", "der", "bor", "cog", "inherited", "derived", "borrowed", "cognate"]);
+const ETYMOLOGY_ANCESTOR_TEMPLATES = new Set(["inh", "inherited", "der", "derived", "bor", "borrowed"]);
+const ETYMOLOGY_COGNATE_TEMPLATES = new Set(["cog", "cognate", "noncognate", "nc"]);
+const ALL_ETYMOLOGY_TEMPLATES = new Set([...ETYMOLOGY_ANCESTOR_TEMPLATES, ...ETYMOLOGY_COGNATE_TEMPLATES]);
+
+const TEMPLATE_RELATION_MAP: Record<string, EtymologyLink["relation"]> = {
+    inh: "inherited", inherited: "inherited",
+    der: "derived",  derived: "derived",
+    bor: "borrowed", borrowed: "borrowed",
+    cog: "cognate", cognate: "cognate", noncognate: "cognate", nc: "cognate",
+};
 
 registry.register({
     id: "etymology",
-    handlesTemplates: [...ETYMOLOGY_TEMPLATES],
-    matches: (ctx) => ctx.templates.some((t) => ETYMOLOGY_TEMPLATES.has(t.name)),
+    handlesTemplates: [...ALL_ETYMOLOGY_TEMPLATES],
+    matches: (ctx) => ctx.templates.some((t) => ALL_ETYMOLOGY_TEMPLATES.has(t.name)),
     decode: (ctx) => {
-        const links: EtymologyLink[] = [];
+        const chain: EtymologyLink[] = [];
+        const cognates: EtymologyLink[] = [];
+
         for (const t of ctx.templates) {
-            if (!ETYMOLOGY_TEMPLATES.has(t.name)) continue;
+            if (!ALL_ETYMOLOGY_TEMPLATES.has(t.name)) continue;
             const pos = t.params.positional ?? [];
-            // {{inh|<target>|<source>|<term>}}, {{cog|<source>|<term>}}
-            const isCog = t.name === "cog" || t.name === "cognate";
+            const isCog = ETYMOLOGY_COGNATE_TEMPLATES.has(t.name);
             const sourceLang = isCog ? (pos[0] ?? "") : (pos[1] ?? "");
             const term = isCog ? (pos[1] || undefined) : (pos[2] || undefined);
             const gloss = t.params.named?.["t"] || t.params.named?.["gloss"] || (isCog ? pos[2] : pos[3]) || undefined;
-            links.push({
+            const relation = TEMPLATE_RELATION_MAP[t.name] ?? "derived";
+            const link: EtymologyLink = {
                 template: t.name,
+                relation,
                 source_lang: sourceLang,
                 term,
                 gloss,
                 raw: t.raw,
-            });
+            };
+            if (isCog) {
+                cognates.push(link);
+            } else {
+                chain.push(link);
+            }
         }
-        if (links.length === 0) return {};
-        return { entry: { etymology: { links } } };
+
+        // Populate raw_text from the etymology preamble prose 
+        const raw_text = stripWikiMarkup(ctx.etymology.etymology_raw_text ?? "").trim() || undefined;
+
+        if (chain.length === 0 && cognates.length === 0 && !raw_text) return {};
+        return {
+            entry: {
+                etymology: {
+                    ...(chain.length > 0 && { chain }),
+                    ...(cognates.length > 0 && { cognates }),
+                    ...(raw_text && { raw_text }),
+                },
+            },
+        };
     },
 });
 
@@ -542,7 +747,53 @@ registry.register({
         if (!t) return {};
         const file = t.params.positional[1] || t.params.positional[0] || undefined;
         if (!file) return {};
-        return { entry: { pronunciation: { audio: file } } };
+        // Resolve to Wikimedia Commons full URL (no MD5 path — use simple direct URL)
+        const normalizedName = file.replace(/ /g, "_");
+        const audio_url = `https://upload.wikimedia.org/wikipedia/commons/${normalizedName}`;
+        const tr = t.params.named?.tr;
+        return { entry: { pronunciation: { audio: file, audio_url, ...(tr && { romanization: tr }) } } };
+    },
+});
+
+registry.register({
+    id: "romanization",
+    handlesTemplates: [],
+    matches: (ctx) => ctx.templates.some(t => t.params.named?.tr),
+    decode: (ctx) => {
+        const t = ctx.templates.find(t => t.params.named?.tr);
+        if (!t) return {};
+        return { entry: { pronunciation: { romanization: t.params.named.tr } } };
+    },
+});
+
+/** --- Rhymes and Homophones --- **/
+registry.register({
+    id: "rhymes",
+    handlesTemplates: ["rhymes"],
+    matches: (ctx) => ctx.templates.some(t => t.name === "rhymes"),
+    decode: (ctx) => {
+        const t = ctx.templates.find(t => t.name === "rhymes");
+        if (!t) return {};
+        const pos = t.params.positional ?? [];
+        // pos[0] is lang, rest are rhymes
+        const rhymes = pos.slice(1).filter(Boolean);
+        if (rhymes.length === 0) return {};
+        return { entry: { pronunciation: { rhymes } } };
+    },
+});
+
+registry.register({
+    id: "homophones",
+    handlesTemplates: ["homophones"],
+    matches: (ctx) => ctx.templates.some(t => t.name === "homophones"),
+    decode: (ctx) => {
+        const t = ctx.templates.find(t => t.name === "homophones");
+        if (!t) return {};
+        const pos = t.params.positional ?? [];
+        // pos[0] is lang, rest are homophones
+        const homophones = pos.slice(1).filter(Boolean);
+        if (homophones.length === 0) return {};
+        return { entry: { pronunciation: { homophones } } };
     },
 });
 
@@ -625,5 +876,155 @@ registry.register({
         }
         if (notes.length === 0) return {};
         return { entry: { usage_notes: notes } };
+    },
+});
+
+/** --- Alternative forms section --- **/
+registry.register({
+    id: "alternative-forms",
+    handlesTemplates: [],
+    matches: (ctx) => /^=+\s*Alternative forms\s*=+/im.test(ctx.posBlockWikitext),
+    decode: (ctx) => {
+        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Alternative forms");
+        if (!section) return {};
+        const items: Array<{ term: string; qualifier?: string; raw: string }> = [];
+        for (const line of section.raw.split("\n")) {
+            const trimmed = line.replace(/^\*\s*/, "").trim();
+            if (!trimmed) continue;
+            const tpls = parseTemplates(trimmed);
+            const lTpl = tpls.find(t => t.name === "l" || t.name === "link" || t.name === "alt");
+            if (lTpl) {
+                const pos = lTpl.params.positional ?? [];
+                const term = lTpl.name === "alt" ? (pos[0] ?? "") : (pos[1] ?? "");
+                const qualifier = lTpl.params.named?.["qual"] || lTpl.params.named?.["q"] || undefined;
+                if (term) items.push({ term, qualifier, raw: trimmed });
+            } else {
+                // Plain wikilink fallback: [[term]]
+                const m = trimmed.match(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/);
+                if (m) items.push({ term: m[1].trim(), raw: trimmed });
+            }
+        }
+        if (items.length === 0) return {};
+        return { entry: { alternative_forms: items } };
+    },
+});
+
+/** --- See also section --- **/
+registry.register({
+    id: "see-also",
+    handlesTemplates: [],
+    matches: (ctx) => /^=+\s*See also\s*=+/im.test(ctx.posBlockWikitext),
+    decode: (ctx) => {
+        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "See also");
+        if (!section) return {};
+        const terms: string[] = [];
+        for (const line of section.raw.split("\n")) {
+            const trimmed = line.replace(/^\*\s*/, "").trim();
+            if (!trimmed) continue;
+            const tpls = parseTemplates(trimmed);
+            for (const t of tpls) {
+                if (t.name === "l" || t.name === "link") {
+                    const term = t.params.positional?.[1];
+                    if (term) terms.push(term);
+                }
+            }
+            // Wikilink fallback
+            const re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+            let m;
+            while ((m = re.exec(trimmed)) !== null) {
+                if (!terms.includes(m[1].trim())) terms.push(m[1].trim());
+            }
+        }
+        if (terms.length === 0) return {};
+        return { entry: { see_also: terms } };
+    },
+});
+
+/** --- Anagrams section --- **/
+registry.register({
+    id: "anagrams",
+    handlesTemplates: [],
+    matches: (ctx) => /^=+\s*Anagrams\s*=+/im.test(ctx.posBlockWikitext),
+    decode: (ctx) => {
+        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Anagrams");
+        if (!section) return {};
+        const anagrams: string[] = [];
+        for (const line of section.raw.split("\n")) {
+            const trimmed = line.replace(/^\*\s*/, "").trim();
+            if (!trimmed) continue;
+            // Try {{l}} template first
+            const tpls = parseTemplates(trimmed);
+            for (const t of tpls) {
+                if (t.name === "l" || t.name === "link") {
+                    const term = t.params.positional?.[1];
+                    if (term) anagrams.push(term);
+                }
+            }
+            // Plain wikilink fallback
+            if (anagrams.length === 0 || !tpls.some(t => t.name === "l" || t.name === "link")) {
+                const re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+                let m;
+                while ((m = re.exec(trimmed)) !== null) {
+                    const term = m[1].trim();
+                    if (!anagrams.includes(term)) anagrams.push(term);
+                }
+            }
+            // Plain comma-separated words fallback (no templates or links)
+            if (!trimmed.includes("{{") && !trimmed.includes("[[") && trimmed.match(/^[\w\s,]+$/)) {
+                for (const word of trimmed.split(",").map(s => s.trim()).filter(Boolean)) {
+                    if (!anagrams.includes(word)) anagrams.push(word);
+                }
+            }
+        }
+        if (anagrams.length === 0) return {};
+        return { entry: { anagrams } };
+    },
+});
+
+/** --- Usage notes section --- **/
+registry.register({
+    id: "usage-notes",
+    handlesTemplates: [],
+    matches: (ctx) => /^=+\s*(Usage notes|Notes)\s*=+/im.test(ctx.posBlockWikitext),
+    decode: (ctx) => {
+        let section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Usage notes");
+        if (!section) section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Notes");
+        if (!section) return {};
+        const notes = section.raw.split("\n").map(l => stripWikiMarkup(l).trim()).filter(Boolean);
+        if (notes.length === 0) return {};
+        return { entry: { usage_notes: notes } };
+    },
+});
+
+/** --- References section --- **/
+registry.register({
+    id: "references",
+    handlesTemplates: [],
+    matches: (ctx) => /^=+\s*References\s*=+/im.test(ctx.posBlockWikitext),
+    decode: (ctx) => {
+        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "References");
+        if (!section) return {};
+        const refs = section.raw.split("\n").map(l => stripWikiMarkup(l).trim()).filter(Boolean);
+        if (refs.length === 0) return {};
+        return { entry: { references: refs } };
+    },
+});
+
+/** --- Inflection Table Reference --- **/
+registry.register({
+    id: "inflection-table-ref",
+    handlesTemplates: [],
+    matches: (ctx) => ctx.templates.some(t => t.name.startsWith("el-conj-") || t.name.startsWith("el-decl-")),
+    decode: (ctx) => {
+        const t = ctx.templates.find(t => t.name.startsWith("el-conj-") || t.name.startsWith("el-decl-"));
+        if (!t) return {};
+        return {
+            entry: {
+                inflection_table_ref: {
+                    template_name: t.name,
+                    raw: t.raw,
+                },
+            },
+        };
     },
 });
