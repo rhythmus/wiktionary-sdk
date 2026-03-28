@@ -8,9 +8,9 @@
 Given:
 
 - `query_term: string` (required)
-- `lang: string` (required; BCP-47-ish codes, e.g. `el`, `grc`)
+- `lang: string` (optional; defaults to `"Auto"`)
+- `pos: string` (optional; defaults to `"Auto"`)
 - optional disambiguators:
-  - `preferred_pos?: string`
   - `enrich_wikidata?: boolean` (lemma-only)
 
 Return:
@@ -248,15 +248,19 @@ The `conjugate()` and `decline()` functions implement a **Smart Override** strat
 ### 4.1 Language block extraction
 
 - Locate exact language header `==Greek==` for `lang=el`, etc.
-- Return only that block (up to the next level-2 header or end of page).
-- **Unknown language codes:** If `lang` is not in the known mapping (el, grc,
-  en, nl, de, fr), `langToLanguageName()` returns `null` and `fetchWiktionary()`
-  returns early with `empty entries` and a note. No silent fallback to Greek.
+- **Auto-discovery (`lang="Auto"`)**: When no language is specified, the engine scans the entire page for level-2 headings (`==...==`) and extracts all sections matching the internal language map.
+- **Priority-Based Sorting**: Discovered entries are sorted by linguistic significance:
+  1. **Greek (`el`)** (Primary target)
+  2. **Ancient Greek (`grc`)**
+  3. **English (`en`)**
+  4. Others (Alphabetical)
+- **Unknown language codes:** If `lang` is specified but not found in the mapping, `fetchWiktionary()` returns early with `empty entries`.
 
 ### 4.2 Etymology and PoS segmentation
 
-- Split on `===Etymology===` / `===Etymology N===`
-- Split on PoS headings (level 3 within language block)
+- **Robust Heading Detection**: Split on symmetrical level-3 to level-5 headings (e.g., `===Etymology===`, `====Verb====`, `=====Noun=====`).
+- **Nesting Support**: Correctly identifies PoS blocks nested under Etymology or other H3 headers.
+- **Whitespace Sanitation**: Trims all headings and block content to prevent parsing artifacts.
 
 ### 4.3 Template extraction
 
@@ -561,3 +565,21 @@ For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
   the `{ format: 'string' }` option for full flexibility.
 - **API Aliases**: Added `phonetic()` and `derivations()` as semantic aliases for high-level 
   wrappers.
+
+**Completed (v1.4 Auto-discovery & PoS Filtering):**
+
+- **Auto-discovery Mode**: Implemented `lang="Auto"` as the default, enabling the SDK to scan
+  and aggregate entries across all language sections found on a page.
+- **Language Priority Engine**: Introduced a `LANG_PRIORITY` map to ensure results are 
+  consistently sorted (Greek > Ancient Greek > English).
+- **Optional PoS Filtering**: Added `pos` as an optional parameter (defaulting to `"Auto"`)
+  supporting both precise PoS matching and broad discovery.
+- **Robust H3-H5 Parser**: Refactored the core segmentation logic to use symmetrical regex
+  for all heading levels from H3 to H5, resolving missing PoS blocks in complex etymologies.
+- **Cross-Language Resolution**: Optimized `lemma()` and convenience wrappers to operate
+  seamlessly across multiple languages in Auto mode, while maintaining language-affinity
+  during recursive resolution.
+- **Expanded Language Mapping**: Added support for 15+ additional languages in the internal
+  mapping to improve the reliability of multi-language scans.
+- **Webapp Integration**: Updated the React playground to use Auto-discovery by default,
+  providing instant feedback on the SDK's ability to handle multi-entry pages like "bank".

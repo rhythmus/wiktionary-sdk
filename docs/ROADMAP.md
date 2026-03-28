@@ -55,5 +55,23 @@ This roadmap proposes the next implementation stages for the
 - **API Aliases**: Added `phonetic()` and `derivations()` as semantic aliases for high-level 
   wrappers.
 
-**All planned stages (0–11) are complete.** This document is retained for
+**Stage 12: Auto-discovery, Optional Filtering & Robust Parsing (Delivered)**
+
+- **Auto-discovery Mode**: Implemented `lang="Auto"` as the default, enabling the SDK to scan
+  and aggregate entries across all language sections found on a page.
+- **Language Priority Engine**: Introduced a `LANG_PRIORITY` map to ensure results are 
+  consistently sorted (Greek > Ancient Greek > English).
+- **Optional PoS Filtering**: Added `pos` as an optional parameter (defaulting to `"Auto"`)
+  supporting both precise PoS matching and broad discovery.
+- **Robust H3-H5 Parser**: Refactored the core segmentation logic to use symmetrical regex
+  for all heading levels from H3 to H5, resolving missing PoS blocks in complex etymologies.
+- **Cross-Language Resolution**: Optimized `lemma()` and convenience wrappers to operate
+  seamlessly across multiple languages in Auto mode, while maintaining language-affinity
+  during recursive resolution.
+- **Expanded Language Mapping**: Added support for 15+ additional languages in the internal
+  mapping to improve the reliability of multi-language scans.
+- **Webapp Integration**: Updated the React playground to use Auto-discovery by default,
+  providing instant feedback on the SDK's ability to handle multi-entry pages like "bank".
+
+**All planned stages (0–12) are complete.** This document is retained for
 reference. Future work can be added here as new stages.

@@ -15,9 +15,9 @@
     hyper.
     hypo.
 
-The original main input search field had "Search" an extra option (default on Auto), where the user could provide a PoS to narrow down the search. This is not available in the API of wiktionary-sdk. This is probably why you removed it from the webapp? Still, it would be very useful, to add this extra optional arg/prop to our libarary's functions. Then we could add it back as an option also in the webapp.
 
-Is there still data or information burried in the full return output we get from the Wiktionary API, that is not being extracted by our library functions? Could/should we add some more convenience functions to our library to extract and expose this data? Please investigate thoroughly and let me know.
+
+Is there still data or information burried in the full return output we get from the Wiktionary API, that is not yet being extracted by our library's functions? Could/should we add some more convenience functions to our library to extract and expose this data? Please investigate thoroughly and let me know.
 
 What should a full, exhaustive and comprehensive dictionary entry look like? Please propose a JSON/YAML structure that would be a good representation of the data we can extract from the Wiktionary API.
 

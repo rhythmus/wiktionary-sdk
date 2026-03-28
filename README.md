@@ -16,17 +16,21 @@ You can invoke the primary engine to receive the complete, normalized YAML/JSON 
 ```typescript
 import { wiktionary } from "wiktionary-sdk";
 
-// Fetch full normalized AST
-const result = await wiktionary({ query: "γράφω", lang: "el" });
-console.log(result.entries[0].senses);
+// Fetch full normalized AST (New: lang and pos are optional, default to "Auto")
+const result = await wiktionary({ query: "bank" }); 
+// Auto-discovers English, Danish, Dutch, etc. and sorts by priority (el > grc > en).
+console.log(result.entries.map(e => `${e.language}: ${e.part_of_speech_heading}`));
 ```
 
 ### 2. CLI Execution (DevOps pipelines)
 You can execute exactly the same core engine natively from your shell. By default, it dumps the entire requested schema:
 
 ```bash
-# Dump the AST to standard out formatted in YAML
-wiktionary-sdk γράφω --lang el --format yaml
+# Auto-discover multiple languages (New: --lang defaults to Auto)
+wiktionary-sdk bank --format yaml
+
+# Explicitly filter by PoS
+wiktionary-sdk test --pos verb --format yaml
 ```
 
 > **New in v1.0!** You can also evaluate our 21 convenience wrappers entirely from the CLI using the `--extract` flag:
@@ -85,28 +89,31 @@ Beyond the low-level `wiktionary` engine, the library provides high-level conven
 ```typescript
 import { lemma, synonyms, hypernyms, ipa, pronounce, hyphenate, etymology, translate, wikidataQid, wikipediaLink, image, format } from "wiktionary-sdk";
 
-// 1. Resolve inflected forms directly to their dictionary lemma
-await lemma("έγραψε", "el"); // "γράφω"
-await lemma("γράφω", "el"); // "γράφω"
+// 1. Resolve inflected forms (Now works in "Auto" mode by default!)
+await lemma("έγραψε"); // "γράφω" (Greek)
+await lemma("banks");  // "bank" (English)
+await lemma("bank");   // "bank" (Found as English LEXEME first)
 
-// 2. Fetch specific semantic relations directly 
-await synonyms("έγραψε", "el"); // ["σημειώνω", "καταγράφω"]
-await antonyms("έγραψε", "el"); // ["σβήνω"]
-await hypernyms("μήλο", "el"); // ["φρούτο"]
-await hyponyms("φρούτο", "el"); // ["μήλο", "μπανάνα"]
-await derivedTerms("έγραψε", "el"); // ["συγγραφέας", … ]
-await relatedTerms("έγραψε", "el"); // ["γραπτός"]
+// 2. Fetch specific semantic relations (Optional lang/pos)
+await synonyms("έγραψε"); // ["σημειώνω", "καταγράφω"]
+await synonyms("bank", "en", "noun"); // Specific filtered results
 
-// 3. Get precise phonetic transcription and Wikipedia audio URIs
-await ipa("έγραψε", "el"); // "ˈe.ɣrap.se" (also aliased as phonetic())
-await pronounce("έγραψε", "el"); // "https://upload.wikimedia.org/wikipedia/commons/x/xx/egrapse.ogg"
+await antonyms("έγραψε"); // ["σβήνω"]
+await hypernyms("μήλο"); // ["φρούτο"]
+await hyponyms("φρούτο"); // ["μήλο", "μπανάνα"]
+await derivedTerms("έγραψε"); // ["συγγραφέας", … ]
+await relatedTerms("έγραψε"); // ["γραπτός"]
+
+// 3. Get precise phonetic transcription and audio URIs
+await ipa("έγραψε"); 
+await pronounce("έγραψε"); 
 
 // 4. Extract hyphenation as a structured array or formatted string
-await hyphenate("έγραψε", "el"); // ["έ", "γρα", "ψε"]
-await hyphenate("έγραψε", "el", { format: "string" }); // "έ-γρα-ψε"
+await hyphenate("έγραψε"); 
+await hyphenate("έγραψε", "el", { format: "string" }); 
 
 // 5. Use the Smart Formatter to prepare data for human consumption
-const syllables = await hyphenate("έγραψε", "el");
+const syllables = await hyphenate("έγραψε");
 format(syllables, { separator: "‧" }); // "έ‧γρα‧ψε"
 format(syllables, { listStyle: "numbered" }); // "1. έ \n 2. γρα \n 3. ψε"
 
