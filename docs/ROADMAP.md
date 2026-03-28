@@ -39,5 +39,21 @@ This roadmap proposes the next implementation stages for the
 - Webapp: GitHub corner (tholman-style with octocat wag animation).
 - Webapp: removed misleading Wikidata checkbox; `enrich: true` hardcoded for playground.
 
-**All planned stages (0–10) are complete.** This document is retained for
+**Stage 11: Compliance, Normalization & Doc Synchronization (Delivered)**
+
+- **README Compliance Suite**: Integrated `test/readme_examples.test.ts` to ensure 100% parity
+  between documentation and implementation.
+- **Unicode Normalization (NFC)**: Forced all inputs (queries) and outputs (wikitext, titles) to
+  NFC normalization in `src/api.ts` and `src/index.ts`, resolving cross-platform comparison
+  failures.
+- **Lemma Resolution Prioritization**: Updated `src/library.ts` to favor `INFLECTED_FORM` entries
+  when searching for a lemma, preventing metadata blocks from intercepting resolution.
+- **Robust IPA Decoding**: Updated `src/registry.ts` to find IPA even if slashes (`/`) or 
+  brackets (`[]`) are missing in the wikitext template.
+- **Hyphenation Support**: Confirmed `hyphenate()` returns arrays by default and supports 
+  the `{ format: 'string' }` option for full flexibility.
+- **API Aliases**: Added `phonetic()` and `derivations()` as semantic aliases for high-level 
+  wrappers.
+
+**All planned stages (0–11) are complete.** This document is retained for
 reference. Future work can be added here as new stages.

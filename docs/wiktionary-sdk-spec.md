@@ -59,6 +59,7 @@ All API requests are subject to:
 - **Rate limiting**: configurable throttle, default 100ms minimum interval (10 req/s) per Wikimedia guidelines. Managed by `src/rate-limiter.ts`.
 - **User-Agent**: custom header identifying the tool (`Wiktionary SDK/1.0`).
 - **Caching**: multi-tier cache (`src/cache.ts`) prevents redundant requests. L1 in-memory with TTL, L2/L3 pluggable for persistent and shared storage.
+- **Unicode Normalization**: All Wikitext, page titles, and query strings are normalized to **NFC (Unicode Composed Form)** via `src/api.ts` and `src/index.ts`. This ensures consistent matching of Greek accented characters (e.g., `έ`) across different operating systems (MacOS NFD vs. Linux/Web NFC).
 
 ## 3. Outputs
 
@@ -320,6 +321,7 @@ For `INFLECTED_FORM` entries:
 
 - Detect form-of templates (e.g. `{{inflection of|...}}`)
 - Extract lemma from template parameters (explicit)
+- **Prioritization**: When resolving a lemma, the engine prioritizes entries explicitly marked as `INFLECTED_FORM` over metadata-only blocks (like Pronunciation sections) to ensure the correct entry is chosen for the query.
 - Fetch lemma page and include lemma LEXEME entry
 
 Disambiguation:
@@ -543,3 +545,19 @@ For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
   remains fully available in the TypeScript API and CLI (`--no-enrich`).
   **Rationale:** the checkbox was misleading (implied a search-scope filter) and redundant for
   a demo context where Wikidata augmentation should always be active.
+
+**Completed (v1.3 Compliance, Normalization & Robustness):**
+
+- **README Compliance Suite**: Integrated `test/readme_examples.test.ts` to ensure 100% parity
+  between documentation and implementation.
+- **Unicode Normalization (NFC)**: Forced all inputs (queries) and outputs (wikitext, titles) to
+  NFC normalization in `src/api.ts` and `src/index.ts`, resolving cross-platform comparison
+  failures.
+- **Lemma Resolution Prioritization**: Updated `src/library.ts` to favor `INFLECTED_FORM` entries
+  when searching for a lemma, preventing metadata blocks from intercepting resolution.
+- **Robust IPA Decoding**: Updated `src/registry.ts` to find IPA even if slashes (`/`) or 
+  brackets (`[]`) are missing in the wikitext template.
+- **Hyphenation Support**: Confirmed `hyphenate()` returns arrays by default and supports 
+  the `{ format: 'string' }` option for full flexibility.
+- **API Aliases**: Added `phonetic()` and `derivations()` as semantic aliases for high-level 
+  wrappers.

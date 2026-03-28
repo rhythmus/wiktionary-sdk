@@ -101,8 +101,9 @@ await relatedTerms("έγραψε", "el"); // ["γραπτός"]
 await ipa("έγραψε", "el"); // "ˈe.ɣrap.se" (also aliased as phonetic())
 await pronounce("έγραψε", "el"); // "https://upload.wikimedia.org/wikipedia/commons/x/xx/egrapse.ogg"
 
-// 4. Extract hyphenation as a structured array of syllables
+// 4. Extract hyphenation as a structured array or formatted string
 await hyphenate("έγραψε", "el"); // ["έ", "γρα", "ψε"]
+await hyphenate("έγραψε", "el", { format: "string" }); // "έ-γρα-ψε"
 
 // 5. Use the Smart Formatter to prepare data for human consumption
 const syllables = await hyphenate("έγραψε", "el");
@@ -318,9 +319,18 @@ npm run serve        # starts on http://localhost:3000 (runs built server)
 ```
 
 ### ✅ Running Tests
+
+The SDK includes a documentation-driven test suite to ensure that all usage examples in this README remain valid and that the API behavior is consistent.
+
 ```bash
-npm test             # run all 72 tests (includes fixture-based integration tests)
-npm run bench        # run parser benchmarks
+# Run the compliance suite
+npm test test/readme_examples.test.ts
+
+# Run all tests (includes fixture-based integration tests)
+npm test
+
+# Run parser benchmarks
+npm run bench
 ```
 
 ### 📚 Generating API Documentation
