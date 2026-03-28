@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync } from "fs";
 interface CliOptions {
   terms: string[];
   lang: WikiLang;
-  format: "yaml" | "json";
+  format: "yaml" | "json" | "ansi";
   preferredPos?: string;
   enrich: boolean;
   extract?: string;
@@ -58,8 +58,8 @@ function parseArgs(argv: string[]): CliOptions {
       opts.lang = args[++i] as WikiLang;
     } else if (arg === "--format" || arg === "-f") {
       const fmt = args[++i];
-      if (fmt !== "yaml" && fmt !== "json") {
-        console.error(`Unknown format: ${fmt}. Use 'yaml' or 'json'.`);
+      if (fmt !== "yaml" && fmt !== "json" && fmt !== "ansi") {
+        console.error(`Unknown format: ${fmt}. Use 'yaml', 'json', or 'ansi'.`);
         process.exit(1);
       }
       opts.format = fmt;
@@ -142,7 +142,11 @@ function loadBatchTerms(filePath: string): string[] {
     .filter(Boolean);
 }
 
-async function formatOutput(result: FetchResult, format: "yaml" | "json"): Promise<string> {
+async function formatOutput(result: any, format: "yaml" | "json" | "ansi"): Promise<string> {
+  if (format === "ansi") {
+    const { format: sdkFormat } = await import("../src/index");
+    return sdkFormat(result, { mode: "ansi" });
+  }
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -157,6 +161,12 @@ async function main(): Promise<void> {
   let terms = opts.terms;
   if (opts.batchFile) {
     terms = terms.concat(loadBatchTerms(opts.batchFile));
+  }
+
+  // Support smart defaulting to ANSI for interactive extractions
+  const isDefaultFormat = !process.argv.includes("--format") && !process.argv.includes("-f");
+  if (opts.extract && isDefaultFormat && process.stdout.isTTY) {
+    opts.format = "ansi";
   }
 
   if (terms.length === 0) {
