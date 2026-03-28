@@ -289,6 +289,8 @@ function slug(s: string) {
         .replace(/(^-|-$)/g, "");
 }
 
+// Consolidate exports to avoid duplicates and lint errors
 export * from "./library";
-export * from "./morphology";
+export * from "./formatter";
 export * from "./stem";
+export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";

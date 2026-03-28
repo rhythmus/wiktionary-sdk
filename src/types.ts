@@ -156,6 +156,35 @@ export interface Entry {
   }>;
 }
 
+/**
+ * A highly structured, hierarchical representation of an inflectional paradigm 
+ * (e.g., all forms of a verb across mood, tense, and voice).
+ */
+export interface InflectionTable {
+  [dimension: string]: string | string[] | InflectionTable;
+}
+
+/**
+ * A comprehensive, aggregate representation of a linguistic term, combining 
+ * lemma-level metadata with its full inflectional and semantic profile.
+ */
+export interface RichEntry {
+  headword: string;
+  pos: string;
+  morphology?: any;
+  pronunciation?: Pronunciation;
+  hyphenation?: Hyphenation;
+  etymology?: any[];
+  senses?: Sense[];
+  relations?: SemanticRelations;
+  derived_terms?: any;
+  related_terms?: any;
+  inflection_table?: InflectionTable;
+  translations?: Record<string, any[]>;
+  wikidata?: WikidataEnrichment;
+  source: WiktionarySource;
+}
+
 export interface DecoderDebugEvent {
   decoderId: string;
   matchedTemplates: Array<{ raw: string; name: string }>;

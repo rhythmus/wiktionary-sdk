@@ -98,14 +98,35 @@ export async function morphology(query: string, sourceLang: WikiLang = "el"): Pr
     if (!result.entries || result.entries.length === 0) return {};
 
     let criteria: Partial<GrammarTraits> = {};
-    const exact = result.entries.find(e => e.form === query);
+    const qLower = query.toLowerCase();
+    
+    // Filter out sections that are just metadata headers (Pronunciation, References, etc.)
+    const linguisticEntries = result.entries.filter(e => {
+        const pos = (e.part_of_speech || e.part_of_speech_heading || "").toLowerCase();
+        return !["pronunciation", "references", "further reading", "etymology"].includes(pos);
+    });
+
+    const exact = linguisticEntries.find(e => e.form.toLowerCase() === qLower && e.type === "LEXEME") 
+               || linguisticEntries.find(e => e.form.toLowerCase() === qLower)
+               || result.entries.find(e => e.form.toLowerCase() === qLower);
     
     if (exact?.type === "INFLECTED_FORM" && exact.form_of?.tags) {
         const decoded = parseMorphologyTags(exact.form_of.tags);
-        if (exact.form_of.lemma && exact.form_of.lemma.endsWith("μαι")) criteria.voice = "passive";
+        if (exact.form_of.lemma && exact.form_of.lemma.toLowerCase().endsWith("μαι")) criteria.voice = "passive";
         criteria = { ...criteria, ...decoded };
     } else if (exact?.type === "LEXEME") {
-        if (query.endsWith("μαι")) criteria.voice = "passive";
+        const pos = (exact.part_of_speech || exact.part_of_speech_heading || "").toLowerCase();
+        if (pos.includes("verb")) {
+            criteria.mood = "indicative";
+            criteria.tense = "present";
+            const form = exact.form.toLowerCase();
+            criteria.voice = form.endsWith("μαι") || form.endsWith("ται") ? "passive" : "active";
+            criteria.person = "1";
+            criteria.number = "singular";
+        } else if (pos.includes("noun") || pos.includes("adj")) {
+            criteria.case = "nominative";
+            criteria.number = "singular";
+        }
     }
 
     return criteria;
@@ -114,19 +135,10 @@ export async function morphology(query: string, sourceLang: WikiLang = "el"): Pr
 /**
  * High-level function resolving conjugated Verb forms via DOM scraping on the MediaWiki API.
  */
-export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "el"): Promise<string[]> {
-    const lemmaStr = await lemma(query, sourceLang);
-    const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
+export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "el"): Promise<string[] | Record<string, any>> {
+    const lStr = await lemma(query, sourceLang);
+    const result = await wiktionary({ query: lStr, lang: sourceLang });
     if (!result.rawLanguageBlock) return [];
-
-    const inherentGrammar = await morphology(query, sourceLang);
-    
-    const person = criteria.person || inherentGrammar.person || "1";
-    const number = criteria.number || inherentGrammar.number || "singular";
-    const voice = criteria.voice || inherentGrammar.voice || "active";
-    // Default missing properties based on inferred grammar and standard lookup fallbacks
-    const tense = criteria.tense || inherentGrammar.tense || "present";
-    const aspect = criteria.aspect || inherentGrammar.aspect || "imperfective";
 
     const templates = parseTemplates(result.rawLanguageBlock);
     const conjug = templates.find(t => t.name.startsWith("el-conjug-") || t.name.startsWith("el-verb-"));
@@ -138,8 +150,20 @@ export async function conjugate(query: string, criteria: Partial<ConjugateCriter
 
     if (!apiResult.parse || !apiResult.parse.text) return [];
     const html = apiResult.parse.text["*"];
-    const root = parse(html);
+    
+    // If no criteria, return the FULL table
+    if (Object.keys(criteria).length === 0) {
+        return scrapeFullConjugationTable(html);
+    }
 
+    const inherentGrammar = await morphology(query, sourceLang);
+    const person = criteria.person || inherentGrammar.person || "1";
+    const number = criteria.number || inherentGrammar.number || "singular";
+    const voice = criteria.voice || inherentGrammar.voice || "active";
+    const tense = criteria.tense || inherentGrammar.tense || "present";
+    const aspect = criteria.aspect || inherentGrammar.aspect || "imperfective";
+
+    const root = parse(html);
     const isPast = (tense === "past" || tense === "pluperfect");
     const isPerfective = (aspect === "perfective");
     const isActive = (voice === "active");
@@ -162,11 +186,11 @@ export async function conjugate(query: string, criteria: Partial<ConjugateCriter
         if (!rowHeader) continue;
         
         const ht = rowHeader.text.replace(/\s+/g, ' ').trim();
-        if (ht.startsWith(person) && ht.includes(number === "singular" ? "sg" : "pl")) {
+        // Match both "1st sg" and "1 sg"
+        if (ht.match(new RegExp(`^${person}(?:st|nd|rd)?\\s*${number === "singular" ? "sg" : "pl"}`, "i"))) {
             const cells = row.querySelectorAll('td');
-            // Check mapping relative to structure: Action (Active Impr, Perf... Passive Impr, Perf...)
             let colIdx = isActive ? (isPerfective ? 2 : 1) : (isPerfective ? 4 : 3);
-            if (cells.length < 5 && !isActive) colIdx = isPerfective ? 2 : 1; // Pure passive tables shift columns
+            if (cells.length < 5 && !isActive) colIdx = isPerfective ? 2 : 1;
             
             const targetCell = cells[colIdx];
             if (targetCell) foundTokens = cleanCellText(targetCell.text);
@@ -185,16 +209,10 @@ export async function conjugate(query: string, criteria: Partial<ConjugateCriter
 /**
  * High-level function resolving Nominal (Noun/Adjective) forms via DOM scraping on the MediaWiki API.
  */
-export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "el"): Promise<string[]> {
-    const lemmaStr = await lemma(query, sourceLang);
-    const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
+export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "el"): Promise<string[] | Record<string, any>> {
+    const lStr = await lemma(query, sourceLang);
+    const result = await wiktionary({ query: lStr, lang: sourceLang });
     if (!result.rawLanguageBlock) return [];
-
-    const inherentGrammar = await morphology(query, sourceLang);
-    
-    const targetCase = criteria.case || inherentGrammar.case || "nominative";
-    const number = criteria.number || inherentGrammar.number || "singular";
-    const gender = criteria.gender || inherentGrammar.gender || "masculine"; // Defaults 
 
     const templates = parseTemplates(result.rawLanguageBlock);
     const nominalTpl = templates.find(t => 
@@ -210,8 +228,18 @@ export async function decline(query: string, criteria: Partial<DeclineCriteria> 
 
     if (!apiResult.parse || !apiResult.parse.text) return [];
     const html = apiResult.parse.text["*"];
-    const root = parse(html);
+    
+    // If no criteria, return the FULL table
+    if (Object.keys(criteria).length === 0) {
+        return scrapeFullDeclensionTable(html);
+    }
 
+    const inherentGrammar = await morphology(query, sourceLang);
+    const targetCase = criteria.case || inherentGrammar.case || "nominative";
+    const number = criteria.number || inherentGrammar.number || "singular";
+    const gender = criteria.gender || inherentGrammar.gender || "masculine";
+
+    const root = parse(html);
     const rows = root.querySelectorAll('tr');
     let foundTokens: string[] = [];
 
@@ -222,19 +250,13 @@ export async function decline(query: string, criteria: Partial<DeclineCriteria> 
         const ht = rowHeader.text.trim().toLowerCase();
         if (ht === targetCase) {
             const cells = row.querySelectorAll('td');
-            let colIdx = 0; // Default: singular explicit column 1
-            
+            let colIdx = 0;
             if (cells.length >= 6) {
-                // Adjective Table
                 const plOffset = number === "plural" ? 3 : 0;
                 const genOffset = gender === "feminine" ? 1 : (gender === "neuter" ? 2 : 0);
                 colIdx = plOffset + genOffset;
             } else if (cells.length >= 2) {
-                // Noun Table
                 colIdx = number === "plural" ? 1 : 0;
-            } else {
-                // Singular-only or plural-only noun fallback
-                colIdx = 0;
             }
             
             const targetCell = cells[colIdx];
@@ -244,4 +266,70 @@ export async function decline(query: string, criteria: Partial<DeclineCriteria> 
     }
 
     return Array.from(new Set(foundTokens));
+}
+
+function scrapeFullConjugationTable(html: string): Record<string, any> {
+    const root = parse(html);
+    const table: any = {
+        active: { indicative: { present: {}, past: {} } },
+        passive: { indicative: { present: {}, past: {} } }
+    };
+
+    const rows = root.querySelectorAll('tr');
+    let group: string | null = null;
+
+    for (const row of rows) {
+        const text = row.text.replace(/\s+/g, ' ').trim();
+        // Wider detection for headers
+        if (text.includes("Non-past tenses") || text.includes("Present")) group = "present";
+        else if (text.includes("Past tenses") || text.includes("Imperfect")) group = "past";
+        else if (text.includes("Future tenses") || text.includes("Imperative") || text.includes("Non-finite")) group = null;
+
+        if (!group) continue;
+        
+        const rowHeader = row.querySelector('td:first-child') || row.querySelector('th');
+        if (!rowHeader) continue;
+        
+        const ht = rowHeader.text.replace(/\s+/g, ' ').trim();
+        const m = ht.match(/^(\d)(?:st|nd|rd)?\s*(sg|pl)/i);
+        if (m) {
+            const person = m[1];
+            const num = m[2].toLowerCase();
+            const key = `${person}${num}`; // 1sg, 2sg...
+            
+            const cells = row.querySelectorAll('td');
+            // cells[0] is header. cells[1] Active, cells[3] Passive
+            if (cells.length >= 5) {
+                table.active.indicative[group][key] = cleanCellText(cells[1].text);
+                table.passive.indicative[group][key] = cleanCellText(cells[3].text);
+            } else if (cells.length >= 2) {
+                // If only active entries exist or different layout
+                table.active.indicative[group][key] = cleanCellText(cells[1].text);
+            }
+        }
+    }
+    return table;
+}
+
+function scrapeFullDeclensionTable(html: string): Record<string, any> {
+    const root = parse(html);
+    const table: Record<string, any> = { singular: {}, plural: {} };
+    const rows = root.querySelectorAll('tr');
+
+    for (const row of rows) {
+        const th = row.querySelector('th');
+        if (!th) continue;
+        const caseName = th.text.trim().toLowerCase();
+        if (["nominative", "genitive", "accusative", "vocative"].includes(caseName)) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+                table.singular[caseName] = cleanCellText(cells[0].text);
+                table.plural[caseName] = cleanCellText(cells[1].text);
+            } else if (cells.length >= 1) {
+                // Singular or plural only
+                table.singular[caseName] = cleanCellText(cells[0].text);
+            }
+        }
+    }
+    return table;
 }

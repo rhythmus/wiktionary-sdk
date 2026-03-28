@@ -114,14 +114,14 @@ registry.register({
 registry.register({
     id: "hyphenation",
     handlesTemplates: ["hyphenation"],
-    matches: (ctx) => ctx.lines.some((l) => l.trim().startsWith("{{hyphenation|")),
+    matches: (ctx) => ctx.lines.some((l) => /^\s*[*#]*\s*\{\{hyphenation\|/.test(l)),
     decode: (ctx) => {
-        const line = ctx.lines.find((l) => l.trim().startsWith("{{hyphenation|"));
+        const line = ctx.lines.find((l) => /^\s*[*#]*\s*\{\{hyphenation\|/.test(l));
         if (!line) return {};
         const tpls = parseTemplates(line);
         const t = tpls.find((x) => x.name === "hyphenation");
         if (!t) return { entry: { hyphenation: { raw: line.trim() } } };
-        const sylls = (t.params.positional || []).filter(Boolean);
+        const sylls = (t.params.positional || []).filter(Boolean).filter(s => s !== "el" && s !== "grc");
         if (sylls.length === 0) return { entry: { hyphenation: { raw: line.trim() } } };
         return { entry: { hyphenation: { syllables: sylls, raw: line.trim() } } };
     },
@@ -260,7 +260,7 @@ function parseTranslationsFromBlock(wikitext: string) {
 registry.register({
     id: "translations",
     handlesTemplates: ["t", "t+", "t-simple", "tt", "tt+"],
-    matches: (ctx) => ctx.posBlockWikitext.includes("==Translations=="),
+    matches: (ctx) => /==+\s*Translations\s*==+/i.test(ctx.posBlockWikitext),
     decode: (ctx) => {
         const parts = ctx.posBlockWikitext.split("\n");
         let inTr = false;
@@ -346,6 +346,12 @@ export function stripWikiMarkup(text: string): string {
         if (text.startsWith("{{", i)) {
             const end = findMatching(text, i + 2, "{{", "}}");
             if (end !== -1) {
+                // Special case for {{l}} or {{link}} inside senses, try to extract term
+                if (text.startsWith("{{l|", i) || text.startsWith("{{link|", i)) {
+                    const inner = text.slice(i + 2, end);
+                    const parts = inner.split("|");
+                    if (parts.length >= 3) out.push(parts[2]); // term
+                }
                 i = end + 2;
                 continue;
             }
@@ -410,13 +416,23 @@ const RELATION_TEMPLATES: Record<string, keyof import("./types").SemanticRelatio
     hypo: "hyponyms",
 };
 
+const RELATION_HEADERS = {
+    "Synonyms": "synonyms",
+    "Antonyms": "antonyms",
+    "Hypernyms": "hypernyms",
+    "Hyponyms": "hyponyms",
+} as const;
+
 registry.register({
     id: "semantic-relations",
     handlesTemplates: ["syn", "ant", "hyper", "hypo"],
     matches: (ctx) =>
-        ctx.templates.some((t) => Object.keys(RELATION_TEMPLATES).includes(t.name)),
+        ctx.templates.some((t) => Object.keys(RELATION_TEMPLATES).includes(t.name)) ||
+        Object.keys(RELATION_HEADERS).some(h => ctx.posBlockWikitext.includes(`==${h}==`)),
     decode: (ctx) => {
         const relations: import("./types").SemanticRelations = {};
+        
+        // 1. Template-based relations
         for (const t of ctx.templates) {
             const key = RELATION_TEMPLATES[t.name];
             if (!key) continue;
@@ -431,13 +447,26 @@ registry.register({
                 relations[key]!.push({ term, sense_id: senseId, qualifier });
             }
         }
-        if (
-            !relations.synonyms?.length &&
-            !relations.antonyms?.length &&
-            !relations.hypernyms?.length &&
-            !relations.hyponyms?.length
-        )
-            return {};
+
+        // 2. Section-based relations (====Synonyms====)
+        for (const [header, field] of Object.entries(RELATION_HEADERS)) {
+            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, header);
+            if (section) {
+                const items = parseSectionLinkTemplates(section.raw);
+                if (items.length > 0) {
+                    if (!relations[field as keyof import("./types").SemanticRelations]) 
+                        relations[field as keyof import("./types").SemanticRelations] = [];
+                    for (const item of items) {
+                        relations[field as keyof import("./types").SemanticRelations]!.push({ 
+                            term: item.term, 
+                            qualifier: item.gloss 
+                        });
+                    }
+                }
+            }
+        }
+
+        if (Object.keys(relations).length === 0) return {};
         return { entry: { semantic_relations: relations } };
     },
 });
@@ -506,13 +535,13 @@ registry.register({
 const SECTION_LINK_HEADERS = ["Derived terms", "Related terms", "Descendants"] as const;
 const SECTION_LINK_FIELDS = ["derived_terms", "related_terms", "descendants"] as const;
 
-function extractSectionByLevel4(wikitext: string, headerName: string): { raw: string } | null {
-    const re = new RegExp(`^====\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*====\\s*$`, "m");
+function extractSectionByLevelHeaders(wikitext: string, headerName: string): { raw: string } | null {
+    const re = new RegExp(`^=+\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=+.*$`, "im");
     const m = re.exec(wikitext);
     if (!m) return null;
     const start = m.index + m[0].length;
     const after = wikitext.slice(start);
-    const next = after.search(/^====/m);
+    const next = after.search(/^=+/m);
     const raw = next === -1 ? after : after.slice(0, next);
     return { raw: raw.trim() };
 }
@@ -539,14 +568,14 @@ registry.register({
     handlesTemplates: ["l", "link"],
     matches: (ctx) => {
         const txt = ctx.posBlockWikitext;
-        return SECTION_LINK_HEADERS.some((h) => txt.includes(`====${h}====`));
+        return SECTION_LINK_HEADERS.some((h) => new RegExp(`^=+\\s*${h}\\s*=+`, "im").test(txt));
     },
     decode: (ctx) => {
         const patch: any = { entry: {} };
         for (let i = 0; i < SECTION_LINK_HEADERS.length; i++) {
             const header = SECTION_LINK_HEADERS[i];
             const field = SECTION_LINK_FIELDS[i];
-            const section = extractSectionByLevel4(ctx.posBlockWikitext, header);
+            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, header);
             if (!section || !section.raw) continue;
             const items = parseSectionLinkTemplates(section.raw);
             if (items.length === 0) continue;

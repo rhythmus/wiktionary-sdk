@@ -20,7 +20,8 @@ export function escapeRegExp(s: string) {
 
 export function splitEtymologiesAndPOS(langBlock: string) {
     const lines = langBlock.split("\n");
-    let currentEtym: any = { idx: 0, title: "Etymology", posBlocks: [] };
+    const etyms: any[] = [];
+    let currentEtym: any = { idx: 0, title: "Etymology", posBlocks: [], preamble: [] };
     let currentPOS: any = null;
 
     function flushPOS() {
@@ -34,43 +35,57 @@ export function splitEtymologiesAndPOS(langBlock: string) {
         if (currentEtym.posBlocks.length > 0) etyms.push(currentEtym);
     }
 
-    const etyms: any[] = [];
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const mE = line.match(/^===\s*Etymology(?:\s+(\d+))?\s*===\s*$/);
         const mPOS = line.match(/^===\s*([^=]+?)\s*===\s*$/);
+
         if (mE) {
             flushEtym();
-            const n = mE[1] ? parseInt(mE[1], 10) : currentEtym.idx + 1;
+            const n = mE[1] ? parseInt(mE[1], 10) : etyms.length + 1;
             currentEtym = {
                 idx: n,
                 title: `Etymology${mE[1] ? " " + mE[1] : ""}`,
                 posBlocks: [],
+                preamble: [],
             };
             continue;
         }
+
         if (mPOS && !mE) {
             flushPOS();
             currentPOS = { posHeading: mPOS[1].trim(), lines: [] };
             continue;
         }
-        if (currentPOS) currentPOS.lines.push(line);
+
+        // Collect lines
+        if (currentPOS) {
+            currentPOS.lines.push(line);
+        } else {
+            // This is preamble content (Etymology text, Pronunciation, etc.)
+            currentEtym.preamble.push(line);
+        }
     }
     flushEtym();
+
     if (etyms.length === 0) {
+        // Fallback for language blocks without explicit etymology headers
         return [
             {
                 idx: 0,
                 title: "Etymology",
-                posBlocks: [{ posHeading: "(unknown)", lines: lines.slice(1) }],
+                posBlocks: [{ posHeading: "(unknown)", wikitext: lines.join("\n") }],
             },
         ];
     }
+
     for (const e of etyms) {
+        const preambleText = e.preamble.join("\n");
         for (const pb of e.posBlocks) {
-            pb.wikitext = pb.lines.join("\n");
+            pb.wikitext = (preambleText ? preambleText + "\n" : "") + pb.lines.join("\n");
             delete pb.lines;
         }
+        delete e.preamble;
     }
     return etyms;
 }
