@@ -213,10 +213,10 @@ The SDK provides a high-level functional layer above the raw `FetchResult` to si
 | `etymology(q, l)` | object | Structured lineage tree. |
 | `translate(q, l, t)` | string[] | Gloss-mode translation. |
 | `stem(q, l)` | WordStems | Logical stems extracted from templates. |
-| `conjugate(q, c, l)`| string[] | DOM-parsed verbal paradigm forms. |
-| `decline(q, c, l)` | string[] | DOM-parsed nominal paradigm forms. |
-| `morphology(q, l)` | object | Inferred grammar from existing templates. |
-| `inflect(q, c, l)`  | string[] | (Internal) High-level coordinate extraction. |
+| `conjugate(q, c, l)` | string[] or Record | Targeted cell (criteria given) or full paradigm table (empty criteria). |
+| `decline(q, c, l)` | string[] or Record | Targeted cell (criteria given) or full declension table (empty criteria). |
+| `morphology(q, l)` | GrammarTraits | Inferred grammar from POS and forms; seeds smart defaults. |
+| `inflect(q, c, l)` | string[] | (Internal) High-level coordinate extraction. |
 
 ### 3.11 Morphological Extraction Methodology (The "Scribunto" Exception)
 
@@ -422,14 +422,29 @@ Derived/Related/Descendants sections are stored with both `raw_text` (verbatim) 
 ### 12.9 Brace-Aware Gloss Stripping
 `stripWikiMarkup()` uses depth-based scanning rather than regex for `[[links]]` and `{{templates}}`. **Rationale:** regex-based replacement can mis-handle nested structures (e.g. `[[link]]` producing duplicated text, or `{{t|g={{g|m}}}}` leaving stray braces). The brace-aware implementation: (1) finds matching `]]`/`}}` by depth counting; (2) extracts `[[link|display]]` → display, `[[link]]` → link; (3) recursively strips markup inside link display text; (4) removes templates entirely. **Design choice:** process `'''` before `''` to avoid partial italic matches.
 
+### 12.10 Formatter Architecture
+`src/formatter.ts` provides a polymorphic `format(data, options)` function that dispatches to a registered `FormatterStyle`. The type of `data` is detected at runtime (RichEntry, InflectionTable, EtymologyStep[], Sense[], WordStems, GrammarTraits) and routed to the appropriate style method. Built-in styles:
+- **text**: plain strings, suitable for logging and tests.
+- **markdown**: bolded keys, inline code for forms, `←` etymology arrows.
+- **html**: `<span>` and `<div>` markup, suitable for static site output.
+- **ansi**: ANSI escape sequences (`\x1b[32m` green, `\x1b[36m` cyan, etc.) for colourised terminal output.
+- **terminal-html**: inline `style="color: ..."` HTML for browser pseudo-terminals (used by the webapp playground).
+
+**Design choice:** `styleRegistry` is a plain object; `registerStyle()` allows consumers to add custom styles (e.g. LaTeX, CSV) without modifying the core library. The dispatcher runs before style dispatch, keeping each style method purely presentational.
+
+### 12.11 Playground as Authentic CLI Mirror
+The webapp's API Playground is designed to mirror the real CLI as closely as possible. The pseudo-terminal displays the exact command the user could run in a shell (`wiktionary-sdk γράφω --lang el --extract stem`) alongside the colour-coded output. This reinforces the playground's role as a teaching and exploration tool, not just a debugging panel, and makes the CLI feel immediately approachable. The macOS window chrome (traffic-light dots, centred window title) reinforces the terminal analogy.
+
 ---
 
 **Artifacts:**
 - `src/index.ts`: Orchestration entry point.
 - `src/types.ts`: Canonical type definitions (`SCHEMA_VERSION = "1.0.0"`).
+- `src/formatter.ts`: Multi-format output engine (`format()`, `FormatterStyle`, `registerStyle()`).
 - `schema/normalized-entry.schema.json`: Formal output schema.
-- `webapp/src/App.tsx`: React frontend with inspector and comparison mode.
-- `cli/index.ts`: CLI tool.
+- `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and CLI playground.
+- `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
+- `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.
 - `server.ts`: HTTP API wrapper.
 - This specification document.
 
@@ -473,3 +488,58 @@ For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
 - **CLI Router**: Dynamic command extraction via `--extract` and parameter passing via `--props`.
 - **API Playground**: Interactive visualizer in Webapp for direct SDK exploration.
 - **CORS Support**: Added `origin: "*"` to all MediaWiki API calls for browser feasibility.
+
+**Completed (v1.2 Formatter, Morphology Improvements & Playground Polish):**
+
+- **Multi-format output system** (`src/formatter.ts`): Polymorphic `format()` function with a
+  registered-style architecture. Five built-in styles: `text` (plain), `markdown`, `html`,
+  `ansi` (ANSI colour codes for terminals), and `terminal-html` (inline-style HTML for browser
+  pseudo-terminals). The `FormatterStyle` interface allows third-party styles to be registered
+  via `registerStyle()`. **Rationale:** decouples rendering from extraction; one result object
+  can be rendered in any target environment without changing the core engine.
+
+- **CLI ANSI output**: `wiktionary-sdk --extract stem γράφω` now automatically selects `ansi`
+  format when stdout is a TTY (smart default). Explicit override available via `--format ansi`.
+  **Design choice:** behaviour mirrors well-established Unix CLI conventions (colours only when
+  interactive).
+
+- **`conjugate()` / `decline()` full-table mode**: When called with an empty criteria object
+  `{}`, these functions now return the _entire_ paradigm table as a structured
+  `Record<string, any>` (active/passive × indicative × present/past, with person-number keys
+  `1sg`, `2sg`, … for verbs; singular/plural × case for nouns). When criteria are provided,
+  the targeted single-cell extraction is used as before.
+  **Rationale:** allows exploratory use and use-cases where the full paradigm is needed.
+
+- **`morphology()` smart detection improvements**: The function now filters out non-linguistic
+  entries (Pronunciation, References, Further reading, Etymology headers) before attempting
+  exact form matching. Case-insensitive comparison added. LEXEME detection now seeds default
+  grammatical traits by part of speech (verbs → indicative/present/active/1sg; nouns/adj →
+  nominative/singular).
+
+- **Row-header matching fix in `conjugate()`**: Header cells such as `"1st sg"` and `"1 sg"`
+  are now matched via a permissive regex (`/^1(?:st|nd|rd)?\s*sg/i`) instead of simple
+  `startsWith`, eliminating silent misses for headers with ordinal suffixes.
+
+- **Webapp: dual-theme UI with salve-style header**: The playground now uses a strict
+  dual-theme system — a light-mode dictionary interface (serif Alegreya, `#F7F7F5` background,
+  Google-inspired search bar) and a dark `.dark-island` technical inspector (monospace
+  JetBrains Mono, `#111622` background). The page header follows the aesthetic of
+  [rhythmus.github.io/salve](https://rhythmus.github.io/salve/): left-aligned, Inter
+  sans-serif, bold app name followed by inline descriptor, small muted tagline below.
+
+- **Webapp: authentic CLI terminal experience**: The pseudo-terminal in the API Playground now
+  renders the exact CLI command that corresponds to the current widget state (e.g.
+  `~ wiktionary-sdk γράφω --lang el --extract stem`) before showing the colour-coded output.
+  The macOS window chrome (traffic-light dots + centred `wiktionary-sdk` title) completes the
+  terminal aesthetic. Output is formatted via `TerminalHtmlStyle` and injected via
+  `dangerouslySetInnerHTML`.
+
+- **Webapp: GitHub corner**: Canonical tholman-style GitHub corner with octocat wag animation
+  on hover, linking to `https://github.com/rhythmus/wiktionary-sdk`. Replaces the previous
+  inline link.
+
+- **Webapp: Wikidata checkbox removed**: The `enrich` boolean toggle was removed from the UI.
+  Wikidata enrichment is unconditionally enabled (`enrich: true`) in the Playground — the flag
+  remains fully available in the TypeScript API and CLI (`--no-enrich`).
+  **Rationale:** the checkbox was misleading (implied a search-scope filter) and redundant for
+  a demo context where Wikidata augmentation should always be active.

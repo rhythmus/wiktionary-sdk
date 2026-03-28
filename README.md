@@ -1,5 +1,7 @@
 # 📖 Wiktionary SDK
 
+> Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia and Wikimedia
+
 Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries**.
 
 The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).
@@ -27,7 +29,7 @@ You can execute exactly the same core engine natively from your shell. By defaul
 wiktionary-sdk γράφω --lang el --format yaml
 ```
 
-> **New in v1.0!** You can also evaluate our 17 convenience wrappers entirely from the CLI using the `--extract` flag:
+> **New in v1.0!** You can also evaluate our 21 convenience wrappers entirely from the CLI using the `--extract` flag:
 ```bash
 wiktionary-sdk γράφω --extract stem --format json
 wiktionary-sdk έγραψε --extract translate --target en
@@ -81,7 +83,7 @@ entries:
 Beyond the low-level `wiktionary` engine, the library provides high-level convenience wrappers to extract exact data points easily:
 
 ```typescript
-import { lemma, synonyms, hypernyms, ipa, pronounce, hyphenate, etymology, translate, wikidataQid, wikipediaLink, image } from "wiktionary-sdk";
+import { lemma, synonyms, hypernyms, ipa, pronounce, hyphenate, etymology, translate, wikidataQid, wikipediaLink, image, format } from "wiktionary-sdk";
 
 // 1. Resolve inflected forms directly to their dictionary lemma
 await lemma("έγραψε", "el"); // "γράφω"
@@ -99,10 +101,13 @@ await relatedTerms("έγραψε", "el"); // ["γραπτός"]
 await ipa("έγραψε", "el"); // "ˈe.ɣrap.se" (also aliased as phonetic())
 await pronounce("έγραψε", "el"); // "https://upload.wikimedia.org/wikipedia/commons/x/xx/egrapse.ogg"
 
-// 4. Format hyphenation natively or as arrays
-await hyphenate("έγραψε", "el"); // "έ-γρα-ψε"
-await hyphenate("έγραψε", "el", { separator: "‧" }); // "έ‧γρα‧ψε"
-await hyphenate("έγραψε", "el", { format: "array" }); // ["έ", "γρα", "ψε"]
+// 4. Extract hyphenation as a structured array of syllables
+await hyphenate("έγραψε", "el"); // ["έ", "γρα", "ψε"]
+
+// 5. Use the Smart Formatter to prepare data for human consumption
+const syllables = await hyphenate("έγραψε", "el");
+format(syllables, { separator: "‧" }); // "έ‧γρα‧ψε"
+format(syllables, { listStyle: "numbered" }); // "1. έ \n 2. γρα \n 3. ψε"
 
 // 6. Get structured etymology lineage (auto-resolves Wiktionary language macros!)
 await etymology("έγραψε", "el");
@@ -176,9 +181,19 @@ await stem("άνθρωπος")
 {
   "nominals": [ "άνθρωπ", "ανθρώπ" ],
   "aliases": [ "άνθρωπ", "ανθρώπ" ]
-  "aliases": [ "άνθρωπ", "ανθρώπ" ]
 }
 */
+
+// 13. Polymorphic Presentation Layer (The Smart Formatter)
+// Transform any structured result from the functions above into Text, Markdown, or HTML
+const morphologyResult = await morphology("έγραψες");
+format(morphologyResult, { mode: "markdown" }); // "*2nd person, singular, past, perfective, indicative, active*"
+
+const stemsResult = await stem("έγραψα");
+format(stemsResult, { mode: "text" }); // "Stems: γράφ, έγραφ, γράψ, γραφ, γραφτ, έγραψ"
+
+const lineage = await etymology("γράφω", "el");
+format(lineage, { mode: "markdown" }); // "grk-pro ***grépʰō** ← el **γράφω**"
 ```
 
 > [!WARNING]
@@ -186,6 +201,13 @@ await stem("άνθρωπος")
 > To support fully inflected paradigm generation (`conjugate()` and `decline()`), the library makes a strict temporary exception to its core _"No HTML Scraping"_ rule. Because Wiktionary uses dynamic Lua module architectures for inflection rendering that are entirely inaccessible via JSON text dumps, we call the MediaWiki `expandtemplates` API to execute Wiktionary's Lua scripts server-side, and then deploy highly localized DOM-parsing against the resulting payload to extract exact grammatical criteria. Conversely, the `stem()` function relies purely on mathematical indexing across parameterized source tags, preserving our explicit 100% data-faithfulness baseline.
 >
 > For a detailed technical breakdown of this mechanism and the Scribunto Lua runtime, see the [Wiktionary Morphological Engine document](file:///Users/woutersoudan/Desktop/wiktionary-fetch/docs/wiktionary_morphology_engine.md).
+
+### 🎭 Smart Presentation Layer
+
+- **Polymorphic `format()` utility** — transforms any structured SDK result (Morphology, Stems, Etymology, Senses) into human-readable Text, Markdown, or HTML.
+- **Extensible Style Registry** — Developers can register custom formatting styles (e.g., LaTeX, YAML) by implementing the `FormatterStyle` interface and calling `registerStyle()`.
+- **Context-aware serialization** — automatic handling of list styles, ordinal suffixes, and philological separators (e.g., `‧` for syllables).
+- **Extensible Templates** — support for Markdown and HTML styling to ensure consistent presentation across playgrounds, CLIs, and web applications.
 
 ### 🧠 Extraction Engine
 
@@ -222,6 +244,7 @@ await stem("άνθρωπος")
   - Standard payload dumping (`--lang=el --format=yaml`)
   - Batch CSV/JSON processing (`--batch list.txt`)
   - Extended API Endpoint execution via explicit router flags (`--extract`, `--target`, `--props`)
+  - **Color-Coded Interactive Mode**: Automatically uses ANSI styles (`--format ansi`) for convenience extractions when running in a TTY terminal.
 - 🔌 **HTTP API Server** — Lightweight Node.js server with `GET /api/fetch` and `GET /api/health`, CORS enabled, Docker-ready.
 - 📦 **NPM package** — dual ESM/CJS build for library consumers, with TypeDoc-generated API documentation.
 
