@@ -13,10 +13,12 @@ import {
 } from "./api";
 import {
     extractLanguageSection,
+    extractAllLanguageSections,
     splitEtymologiesAndPOS,
     parseTemplates,
     mapHeadingToPos,
     langToLanguageName,
+    languageNameToLang,
 } from "./parser";
 import { registry, FORM_OF_TEMPLATES } from "./registry";
 import { deepMerge, commonsThumbUrl } from "./utils";
@@ -25,38 +27,47 @@ import { deepMerge, commonsThumbUrl } from "./utils";
  * Fetches and normalizes a Wiktionary entry.
  *
  * @param options.query - The term to look up (e.g. `"γράφω"`)
- * @param options.lang - BCP-47 language code (e.g. `"el"`)
- * @param options.preferredPos - Optional POS filter for disambiguation
+ * @param options.lang - BCP-47 language code (e.g. `"el"`) or `"Auto"` (default)
+ * @param options.pos - Optional POS filter (e.g. `"verb"`, `"noun"`) or `"Auto"` (default)
+ * @param options.preferredPos - Optional POS filter for disambiguation (legacy, use pos)
  * @param options.enrich - Whether to fetch Wikidata enrichment (default `true`)
  * @returns A {@link FetchResult} containing normalized entries and raw wikitext
  */
-function lemmaKey(lang: WikiLang, lemma: string) {
-    return `${lang}:${lemma}`;
-}
-
 export async function wiktionary(
     opts: {
         query: string;
-        lang: WikiLang;
+        lang?: WikiLang;
+        pos?: string;
         preferredPos?: string;
         enrich?: boolean;
         debugDecoders?: boolean;
     }
 ): Promise<FetchResult> {
     const visited = new Set<string>();
-    return wiktionaryRecursive({ ...opts, _visited: visited });
+    return wiktionaryRecursive({ 
+        ...opts, 
+        lang: opts.lang || "Auto", 
+        pos: opts.pos || "Auto",
+        _visited: visited 
+    });
+}
+
+function lemmaKey(lang: WikiLang, lemma: string) {
+    return `${lang}:${lemma}`;
 }
 
 async function wiktionaryRecursive({
     query,
-    lang,
+    lang = "Auto",
+    pos = "Auto",
     preferredPos,
     enrich = true,
     debugDecoders = false,
     _visited,
 }: {
     query: string;
-    lang: WikiLang;
+    lang?: WikiLang;
+    pos?: string;
     preferredPos?: string;
     enrich?: boolean;
     debugDecoders?: boolean;
@@ -69,7 +80,7 @@ async function wiktionaryRecursive({
             schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
             entries: [],
-            notes: [`Cycle detected: ${query} already visited.`],
+            notes: [`Cycle detected: ${query} already visited in ${lang}.`],
         };
     }
     _visited.add(key);
@@ -83,123 +94,156 @@ async function wiktionaryRecursive({
             notes: [`No page found for ${query} on en.wiktionary.org (after redirects).`],
         };
     }
-    const languageName = langToLanguageName(lang);
-    if (languageName === null) {
-        return {
-            schema_version: SCHEMA_VERSION,
-            rawLanguageBlock: "",
-            entries: [],
-            notes: [`Unknown language code: ${lang}. No language section searched.`],
-        };
+
+    let searchSections: Array<{ langName: string; lang: WikiLang; block: string }> = [];
+
+    if (lang === "Auto") {
+        const sections = extractAllLanguageSections(qPage.wikitext);
+        for (const s of sections) {
+            searchSections.push({
+                langName: s.langName,
+                lang: languageNameToLang(s.langName) || s.langName,
+                block: s.block,
+            });
+        }
+    } else {
+        const languageName = langToLanguageName(lang);
+        if (languageName === null) {
+            return {
+                schema_version: SCHEMA_VERSION,
+                rawLanguageBlock: "",
+                entries: [],
+                notes: [`Unknown language code: ${lang}. No language section searched.`],
+            };
+        }
+        const langBlock = extractLanguageSection(qPage.wikitext, languageName);
+        if (langBlock) {
+            searchSections.push({ langName: languageName, lang, block: langBlock });
+        }
     }
-    const langBlock = extractLanguageSection(qPage.wikitext, languageName);
-    if (!langBlock) {
+
+    if (searchSections.length === 0) {
         return {
             schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
             entries: [],
             notes: [
-                `No ${languageName} section found on en.wiktionary.org for ${qPage.title}.`,
+                lang === "Auto" 
+                    ? `No language sections found on en.wiktionary.org for ${qPage.title}.`
+                    : `No ${langToLanguageName(lang)} section found on en.wiktionary.org for ${qPage.title}.`,
             ],
         };
     }
 
-    const etyms = splitEtymologiesAndPOS(langBlock);
     let entries: Entry[] = [];
     const allDebugEvents: DecoderDebugEvent[][] = [];
+    const combinedLangBlock = searchSections.map(s => s.block).join("\n\n");
 
-    for (const e of etyms) {
-        for (const pb of e.posBlocks) {
-            const templates = parseTemplates(pb.wikitext, true) as any[]; // always withLocation for templates_all
-            const lines = pb.wikitext.split("\n");
-            const entryType = guessEntryTypeFromTemplates(templates);
+    for (const section of searchSections) {
+        const etyms = splitEtymologiesAndPOS(section.block);
+        for (const e of etyms) {
+            for (const pb of e.posBlocks) {
+                const mappedPos = mapHeadingToPos(pb.posHeading);
 
-            const ctx: DecodeContext = {
-                lang,
-                query,
-                page: qPage,
-                languageBlock: langBlock,
-                etymology: e,
-                posBlock: pb,
-                posBlockWikitext: pb.wikitext,
-                templates,
-                lines,
-            };
+                // Apply POS filter if not Auto
+                if (pos !== "Auto") {
+                    if (mappedPos !== pos && pb.posHeading.toLowerCase() !== pos.toLowerCase()) {
+                        continue;
+                    }
+                }
 
-            const result = registry.decodeAll(ctx, { debug: debugDecoders });
-            const patch: any = typeof result === "object" && "patch" in result ? result.patch : result;
-            const id = `${lang}:${qPage.title}#E${e.idx}#${slug(pb.posHeading)}#${entryType}`;
+                const templates = parseTemplates(pb.wikitext, true) as any[]; // always withLocation for templates_all
+                const lines = pb.wikitext.split("\n");
+                const entryType = guessEntryTypeFromTemplates(templates);
 
-            const base: Entry = {
-                id,
-                language: lang,
-                query,
-                type: entryType,
-                form: qPage.title,
-                etymology_index: e.idx,
-                part_of_speech_heading: pb.posHeading,
-                templates: {},
-                source: {
-                    wiktionary: {
-                        site: "en.wiktionary.org",
-                        title: qPage.title,
-                        language_section: languageName,
-                        etymology_index: e.idx,
-                        pos_heading: pb.posHeading,
+                const ctx: DecodeContext = {
+                    lang: section.lang,
+                    query,
+                    page: qPage,
+                    languageBlock: section.block,
+                    etymology: e,
+                    posBlock: pb,
+                    posBlockWikitext: pb.wikitext,
+                    templates,
+                    lines,
+                };
+
+                const result = registry.decodeAll(ctx, { debug: debugDecoders });
+                const patch: any = typeof result === "object" && "patch" in result ? result.patch : result;
+                const id = `${section.lang}:${qPage.title}#E${e.idx}#${slug(pb.posHeading)}#${entryType}`;
+
+                const base: Entry = {
+                    id,
+                    language: section.lang,
+                    query,
+                    type: entryType,
+                    form: qPage.title,
+                    etymology_index: e.idx,
+                    part_of_speech_heading: pb.posHeading,
+                    templates: {},
+                    source: {
+                        wiktionary: {
+                            site: "en.wiktionary.org",
+                            title: qPage.title,
+                            language_section: section.langName,
+                            etymology_index: e.idx,
+                            pos_heading: pb.posHeading,
+                        },
                     },
-                },
-            };
+                };
 
-            deepMerge(base, patch.entry || {});
+                deepMerge(base, patch.entry || {});
 
-            if (debugDecoders && typeof result === "object" && "debug" in result && result.debug) {
-                allDebugEvents.push(result.debug);
+                if (debugDecoders && typeof result === "object" && "debug" in result && result.debug) {
+                    allDebugEvents.push(result.debug);
+                }
+                base.templates_all = templates.map((t: any) => ({
+                    name: t.name,
+                    raw: t.raw,
+                    params: t.params,
+                    ...(t.start != null && { start: t.start, end: t.end, line: t.line }),
+                }));
+
+                if (!base.part_of_speech && mappedPos) {
+                    base.part_of_speech = mappedPos;
+                }
+
+                base.form = qPage.title;
+                entries.push(base);
             }
-            base.templates_all = templates.map((t: any) => ({
-                name: t.name,
-                raw: t.raw,
-                params: t.params,
-                ...(t.start != null && { start: t.start, end: t.end, line: t.line }),
-            }));
-
-            if (!base.part_of_speech) {
-                const mapped = mapHeadingToPos(pb.posHeading);
-                if (mapped) base.part_of_speech = mapped;
-            }
-
-            base.form = qPage.title;
-            entries.push(base);
         }
     }
 
     // Lemma resolution with cycle protection
-    const lemmaRequests: Array<{ lemma: string; triggeredBy: string }> = [];
+    const lemmaRequests: Array<{ lemma: string; lang: WikiLang; triggeredBy: string }> = [];
     for (const ent of entries) {
         const lemma = ent.form_of?.lemma;
-        const lemmaLang = ent.form_of?.lang ?? lang;
-        if (ent.type === "INFLECTED_FORM" && lemma && lemmaLang === lang) {
-            const key = lemmaKey(lang, lemma);
+        const lemmaLang = ent.form_of?.lang ?? ent.language;
+        if (ent.type === "INFLECTED_FORM" && lemma) {
+            const key = lemmaKey(lemmaLang, lemma);
             if (!_visited.has(key)) {
-                lemmaRequests.push({ lemma, triggeredBy: ent.id });
+                lemmaRequests.push({ lemma, lang: lemmaLang, triggeredBy: ent.id });
             }
         }
     }
     const seen = new Set<string>();
     const uniqueRequests = lemmaRequests.filter((r) => {
-        if (seen.has(r.lemma)) return false;
-        seen.add(r.lemma);
+        const key = `${r.lang}:${r.lemma}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
         return true;
     });
 
     const lemmaEntries: Entry[] = [];
     const triggerMap = new Map<string, string>();
-    for (const { lemma, triggeredBy } of uniqueRequests) {
-        triggerMap.set(lemma, triggeredBy);
+    for (const { lemma, lang: lLang, triggeredBy } of uniqueRequests) {
+        triggerMap.set(`${lLang}:${lemma}`, triggeredBy);
     }
-    const fetchPromises = uniqueRequests.map(async ({ lemma }) => {
+    const fetchPromises = uniqueRequests.map(async ({ lemma, lang: lLang }) => {
         const res = await wiktionaryRecursive({
             query: lemma,
-            lang,
+            lang: lLang,
+            pos,
             preferredPos,
             enrich,
             debugDecoders,
@@ -211,12 +255,12 @@ async function wiktionaryRecursive({
                 preferredPosSortKey(a.part_of_speech || "", preferredPos) -
                 preferredPosSortKey(b.part_of_speech || "", preferredPos)
         );
-        return cands[0] ? { lemma, entry: cands[0] } : null;
+        return cands[0] ? { lemma, lang: lLang, entry: cands[0] } : null;
     });
     const resolved = await Promise.all(fetchPromises);
     for (const r of resolved) {
         if (r) {
-            const triggeredBy = triggerMap.get(r.lemma);
+            const triggeredBy = triggerMap.get(`${r.lang}:${r.lemma}`);
             if (triggeredBy) {
                 (r.entry as any).lemma_triggered_by_entry_id = triggeredBy;
             }
@@ -264,7 +308,29 @@ async function wiktionaryRecursive({
         }
     }
 
-    const out: FetchResult = { schema_version: SCHEMA_VERSION, rawLanguageBlock: langBlock, entries: merged, notes: [] };
+    const LANG_PRIORITY: Record<string, number> = {
+        el: 1,
+        grc: 2,
+        en: 3,
+    };
+
+    // Sort entries by language priority, then POS heading
+    merged.sort((a, b) => {
+        if (a.language !== b.language) {
+            const pA = LANG_PRIORITY[a.language] || 100;
+            const pB = LANG_PRIORITY[b.language] || 100;
+            if (pA !== pB) return pA - pB;
+            return a.language.localeCompare(b.language);
+        }
+        return a.part_of_speech_heading.localeCompare(b.part_of_speech_heading);
+    });
+
+    const out: FetchResult = { 
+        schema_version: SCHEMA_VERSION, 
+        rawLanguageBlock: lang === "Auto" ? qPage.wikitext : (searchSections[0]?.block || ""), 
+        entries: merged, 
+        notes: [] 
+    };
     if (debugDecoders && allDebugEvents.length > 0) {
         out.debug = allDebugEvents.concat(Array(lemmaEntries.length).fill([]));
     }

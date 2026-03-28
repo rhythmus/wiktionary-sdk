@@ -36,26 +36,34 @@ export function splitEtymologiesAndPOS(langBlock: string) {
     }
 
     for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const mE = line.match(/^===\s*Etymology(?:\s+(\d+))?\s*===\s*$/);
-        const mPOS = line.match(/^===\s*([^=]+?)\s*===\s*$/);
+        const line = lines[i].trim();
+        if (!line) continue;
 
-        if (mE) {
-            flushEtym();
-            const n = mE[1] ? parseInt(mE[1], 10) : etyms.length + 1;
-            currentEtym = {
-                idx: n,
-                title: `Etymology${mE[1] ? " " + mE[1] : ""}`,
-                posBlocks: [],
-                preamble: [],
-            };
-            continue;
-        }
+        const m = line.match(/^(=+)\s*(.+?)\s*\1$/);
+        if (m) {
+            const level = m[1].length;
+            const heading = m[2].trim();
 
-        if (mPOS && !mE) {
-            flushPOS();
-            currentPOS = { posHeading: mPOS[1].trim(), lines: [] };
-            continue;
+            // Check for Etymology first (H3)
+            if (level === 3 && heading.startsWith("Etymology")) {
+                flushEtym();
+                const etymMatch = heading.match(/Etymology\s+(\d+)/);
+                const n = etymMatch ? parseInt(etymMatch[1], 10) : etyms.length + 1;
+                currentEtym = {
+                    idx: n,
+                    title: heading,
+                    posBlocks: [],
+                    preamble: [],
+                };
+                continue;
+            }
+
+            // Check for POS (H3-H5)
+            if (level >= 3 && level <= 5) {
+                flushPOS();
+                currentPOS = { posHeading: heading, lines: [] };
+                continue;
+            }
         }
 
         // Collect lines
@@ -242,5 +250,41 @@ export function langToLanguageName(lang: WikiLang): string | null {
     if (lang === "nl") return "Dutch";
     if (lang === "de") return "German";
     if (lang === "fr") return "French";
+    if (lang === "da") return "Danish";
+    if (lang === "es") return "Spanish";
     return null;
+}
+
+export function languageNameToLang(name: string): WikiLang | null {
+    const nameLower = name.toLowerCase();
+    if (nameLower === "greek") return "el";
+    if (nameLower === "ancient greek") return "grc";
+    if (nameLower === "english") return "en";
+    if (nameLower === "dutch") return "nl";
+    if (nameLower === "german") return "de";
+    if (nameLower === "french") return "fr";
+    if (nameLower === "danish") return "da";
+    if (nameLower === "spanish") return "es";
+    return null;
+}
+
+export function extractAllLanguageSections(wikitext: string): Array<{ langName: string; block: string }> {
+    const re = /^==\s*([^=]+)\s*==\s*$/gm;
+    let match;
+    const sections: Array<{ langName: string; block: string }> = [];
+    const positions: Array<{ name: string; start: number }> = [];
+
+    while ((match = re.exec(wikitext)) !== null) {
+        positions.push({ name: match[1].trim(), start: match.index });
+    }
+
+    for (let i = 0; i < positions.length; i++) {
+        const start = positions[i].start;
+        const end = i + 1 < positions.length ? positions[i + 1].start : wikitext.length;
+        sections.push({
+            langName: positions[i].name,
+            block: wikitext.slice(start, end)
+        });
+    }
+    return sections;
 }
