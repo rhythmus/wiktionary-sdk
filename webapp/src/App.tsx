@@ -8,7 +8,7 @@ import {
   derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
   partOfSpeech, usageNotes, translate, richEntry
 } from '@engine/index';
-import type { Entry, WikiLang } from '@engine/types';
+import type { Entry, WikiLang, DecoderDebugEvent } from '@engine/types';
 import { format } from '@engine/formatter';
 
 // ── SDK method registry ──────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ function extractDecoderMatches(entry: Entry): DecoderMatch[] {
     if (['syn', 'ant', 'hyper', 'hypo'].includes(tplName)) fp.push('semantic_relations');
     if (['inh', 'der', 'bor', 'cog'].includes(tplName)) fp.push('etymology');
     if (['t', 't+', 'tt', 'tt+', 't-simple'].includes(tplName)) fp.push('translations');
-    for (const inst of tplInstances as any[]) {
+    for (const inst of (tplInstances as { raw: string }[])) {
       matches.push({ decoderId: tplName, templateName: tplName, raw: inst.raw, fieldsProduced: fp.length ? fp : ['templates'] });
     }
   }
@@ -88,7 +88,7 @@ function extractDecoderMatches(entry: Entry): DecoderMatch[] {
 const App: React.FC = () => {
   // Search & results state
   const [query, setQuery] = useState('γράφω');
-  const [lang, setLang] = useState<WikiLang | 'Auto'>('Auto');
+  const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Entry[]>([]);
@@ -98,7 +98,7 @@ const App: React.FC = () => {
 
   // Debug state
   const [debugMode, setDebugMode] = useState(false);
-  const [debugEvents, setDebugEvents] = useState<any[][]>([]);
+  const [debugEvents, setDebugEvents] = useState<DecoderDebugEvent[][]>([]);
   const [highlightedTemplate, setHighlightedTemplate] = useState<string | null>(null);
 
   // Compare state
@@ -129,21 +129,20 @@ const App: React.FC = () => {
   const handleApiExecute = useCallback(async () => {
     setApiLoading(true);
     try {
-      let propsObj: any = undefined;
+      let propsObj: Record<string, unknown> | undefined = undefined;
       if (apiProps.trim()) {
         try { propsObj = JSON.parse(apiProps); }
         catch { setApiResult({ error: 'Invalid JSON' }); setApiFormatted(null); setApiLoading(false); return; }
       }
       const fn = API_METHODS[apiMethod];
       let res;
-      if (['conjugate', 'decline'].includes(apiMethod))
-        res = await fn(query, lang, propsObj || {});
-      else if (['translate', 'wikipediaLink'].includes(apiMethod))
-        res = await fn(query, lang, propsObj?.target, propsObj);
-      else if (['hyphenate'].includes(apiMethod))
+      if (['conjugate', 'decline', 'translate', 'wikipediaLink'].includes(apiMethod)) {
+        res = await fn(query, lang, (propsObj as any)?.target, propsObj);
+      } else if (['hyphenate'].includes(apiMethod)) {
         res = await fn(query, lang, propsObj);
-      else
+      } else {
         res = await fn(query, lang);
+      }
       setApiResult(res);
       // Format for the terminal using the colour-coded terminal-html style
       try {
@@ -152,9 +151,10 @@ const App: React.FC = () => {
       } catch {
         setApiFormatted(null); // fallback to raw
       }
-    } catch (e: any) {
-      setApiResult({ error: e.message });
-      setApiFormatted(`<span style="color:#f87171">Error: ${(e as any).message}</span>`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setApiResult({ error: msg });
+      setApiFormatted(`<span style="color:#f87171">Error: ${msg}</span>`);
     }
     setApiLoading(false);
   }, [apiMethod, apiProps, query, lang]);
@@ -166,7 +166,7 @@ const App: React.FC = () => {
     setError(null);
     setSelectedEntryIdx(0);
     try {
-      const res = await wiktionary({ query: query.trim(), lang: lang as any, pos: prefPos, enrich: true, debugDecoders: debugMode });
+      const res = await wiktionary({ query: query.trim(), lang, pos: prefPos, enrich: true, debugDecoders: debugMode });
       setResults(res.entries);
       setRawBlock(res.rawLanguageBlock);
       setDebugEvents(res.debug ?? []);
@@ -175,14 +175,14 @@ const App: React.FC = () => {
       if (compareMode) {
         setCompareLoading(true);
         try {
-          const cRes = await wiktionary({ query: query.trim(), lang: compareLang as any, pos: prefPos, enrich: false });
+          const cRes = await wiktionary({ query: query.trim(), lang: compareLang, pos: prefPos, enrich: false });
           setCompareResults(cRes.entries);
           setCompareRawBlock(cRes.rawLanguageBlock);
         } catch { setCompareResults([]); setCompareRawBlock(''); }
         finally { setCompareLoading(false); }
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -244,10 +244,10 @@ const App: React.FC = () => {
     if (!debugMode || results.length === 0) return [];
     const events = debugEvents[selectedEntryIdx] ?? debugEvents[0];
     if (events?.length > 0) {
-      return events.flatMap((e: any) => {
+      return events.flatMap((e) => {
         const tpls = e.matchedTemplates ?? [];
         if (!tpls.length) return [{ decoderId: e.decoderId, templateName: e.decoderId, raw: '', fieldsProduced: e.fieldsProduced ?? [] }];
-        return tpls.map((t: any) => ({ decoderId: e.decoderId, templateName: t.name, raw: t.raw, fieldsProduced: e.fieldsProduced ?? [] }));
+        return tpls.map((t) => ({ decoderId: e.decoderId, templateName: t.name, raw: t.raw, fieldsProduced: (e.fieldsProduced as string[]) ?? [] }));
       });
     }
     const entry = results[selectedEntryIdx] || results[0];
