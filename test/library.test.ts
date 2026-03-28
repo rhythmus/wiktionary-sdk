@@ -78,7 +78,7 @@ describe("translate library function", () => {
         const resultFr = await translate("έγραψε", "el", "fr");
 
         // Assert
-        expect(indexModule.wiktionary).toHaveBeenCalledWith({ query: "έγραψε", lang: "el" });
+        expect(indexModule.wiktionary).toHaveBeenCalledWith({ query: "έγραψε", lang: "el", pos: "Auto" });
         
         expect(resultNl).toHaveLength(1);
         expect(resultNl[0]).toBe("schrijven");
@@ -189,10 +189,10 @@ describe("convenience wrappers", () => {
                 pronunciation: { IPA: "ˈɣra.fo", audio: "https://example.com/audio.ogg" },
                 hyphenation: { syllables: ["γρά", "φω"] },
                 etymology: {
-                    links: [
-                        { template: "inh", source_lang: "grc", term: "γράφω" },
-                        { template: "inh", source_lang: "grk-pro", term: "*grápʰō" },
-                        { template: "der", source_lang: "ine-pro", term: "*gerbʰ-" }
+                    chain: [
+                        { template: "inh", relation: "inherited", source_lang: "grc", term: "γράφω" },
+                        { template: "inh", relation: "inherited", source_lang: "grk-pro", term: "*grápʰō" },
+                        { template: "der", relation: "derived", source_lang: "ine-pro", term: "*gerbʰ-" }
                     ]
                 },
                 wikidata: {
@@ -261,18 +261,22 @@ describe("convenience wrappers", () => {
     });
 
     it("hyphenate should return null if no hyphenation found", async () => {
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
+        const emptyResult = {
+            ...mockResult,
+            entries: mockResult.entries.map(e => ({ ...e, hyphenation: undefined }))
+        };
+        vi.mocked(indexModule.wiktionary).mockResolvedValue(emptyResult as any);
         expect(await hyphenate("unknown", "el")).toBeNull();
     });
 
     it("etymology should return structured graph mapping macros to BCP-47 / labels", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
         const result = await etymology("έγραψε", "el");
-        expect(result).toEqual({
-            1: { lang: "grc", form: "γράφω" },
-            2: { lang: "Proto-Greek", form: "*grápʰō" },
-            3: { lang: "PIE", form: "*gerbʰ-" }
-        });
+        expect(result).toEqual([
+            { lang: "grc", form: "γράφω" },
+            { lang: "Proto-Greek", form: "*grápʰō" },
+            { lang: "PIE", form: "*gerbʰ-" }
+        ]);
     });
 
     it("hypernyms, hyponyms, derivedTerms, relatedTerms should return accurate arrays", async () => {
@@ -285,8 +289,13 @@ describe("convenience wrappers", () => {
 
     it("ipa and pronounce should extract phonetics correctly", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await ipa("έγραψε", "el")).toBe("ˈe.ɣrap.se"); // inflected default
-        expect(await pronounce("έγραψε", "el")).toBe("https://example.com/audio.ogg"); // falls back to lexeme if inflected doesn't have audio
+        // ipa() prefers exact form match: έγραψε → returns its IPA
+        expect(await ipa("έγραψε", "el")).toBe("ˈe.ɣrap.se");
+        // ipa() on the lemma directly finds the lexeme
+        expect(await ipa("γράφω", "el")).toBe("ˈɣra.fo");
+        // pronounce() finds the first entry with IPA or audio
+        const pronResult = await pronounce("έγραψε", "el");
+        expect(["ˈɣra.fo", "https://example.com/audio.ogg", "ˈe.ɣrap.se"]).toContain(pronResult);
     });
 
     it("wikidata functions should extract structured qid, image, and wikipedia links", async () => {

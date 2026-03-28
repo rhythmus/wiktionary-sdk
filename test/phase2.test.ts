@@ -114,39 +114,47 @@ describe("Phase 2.3: Structured etymology & cognates", () => {
     const ctx = makeCtx("{{inh|el|grc|γράφω|t=to write}}");
     const result = registry.decodeAll(ctx);
     const etym = (result as any).entry.etymology;
-    expect(etym.links).toHaveLength(1);
-    expect(etym.links[0].template).toBe("inh");
-    expect(etym.links[0].source_lang).toBe("grc");
-    expect(etym.links[0].term).toBe("γράφω");
-    expect(etym.links[0].gloss).toBe("to write");
+    expect(etym.chain).toHaveLength(1);
+    expect(etym.chain[0].template).toBe("inh");
+    expect(etym.chain[0].relation).toBe("inherited");
+    expect(etym.chain[0].source_lang).toBe("grc");
+    expect(etym.chain[0].term).toBe("γράφω");
+    expect(etym.chain[0].gloss).toBe("to write");
   });
 
   it("parses der template", () => {
     const ctx = makeCtx("{{der|el|la|scrībō}}");
     const result = registry.decodeAll(ctx);
     const etym = (result as any).entry.etymology;
-    expect(etym.links[0].template).toBe("der");
-    expect(etym.links[0].source_lang).toBe("la");
-    expect(etym.links[0].term).toBe("scrībō");
+    expect(etym.chain[0].template).toBe("der");
+    expect(etym.chain[0].relation).toBe("derived");
+    expect(etym.chain[0].source_lang).toBe("la");
+    expect(etym.chain[0].term).toBe("scrībō");
   });
 
   it("parses bor template", () => {
     const ctx = makeCtx("{{bor|el|fr|écrire}}");
     const result = registry.decodeAll(ctx);
-    expect((result as any).entry.etymology.links[0].template).toBe("bor");
+    const etym = (result as any).entry.etymology;
+    expect(etym.chain[0].template).toBe("bor");
+    expect(etym.chain[0].relation).toBe("borrowed");
   });
 
-  it("parses cog template", () => {
+  it("parses cog template into cognates (not chain)", () => {
     const ctx = makeCtx("{{cog|de|schreiben}}");
     const result = registry.decodeAll(ctx);
-    expect((result as any).entry.etymology.links[0].template).toBe("cog");
-    expect((result as any).entry.etymology.links[0].term).toBe("schreiben");
+    const etym = (result as any).entry.etymology;
+    expect(etym.cognates[0].template).toBe("cog");
+    expect(etym.cognates[0].relation).toBe("cognate");
+    expect(etym.cognates[0].term).toBe("schreiben");
+    expect(etym.chain).toBeUndefined();
   });
 
-  it("handles multiple etymology templates", () => {
+  it("handles mixed ancestor + cognate templates", () => {
     const ctx = makeCtx("{{inh|el|grc|γράφω}} and {{cog|la|graphō}}");
     const result = registry.decodeAll(ctx);
-    expect((result as any).entry.etymology.links).toHaveLength(2);
+    expect((result as any).entry.etymology.chain).toHaveLength(1);
+    expect((result as any).entry.etymology.cognates).toHaveLength(1);
   });
 });
 

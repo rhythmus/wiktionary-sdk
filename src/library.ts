@@ -147,37 +147,13 @@ export async function hyponyms(query: string, sourceLang: WikiLang = "Auto", pos
 }
 
 /**
- * Retrieves derivations/derived terms.
- */
-export async function derivedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
-    const lemmaStr = await lemma(query, sourceLang, pos);
-    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.derived_terms?.items) return [];
-    return lexeme.derived_terms.items.map(i => i.term);
-}
-
-export const derivations = derivedTerms;
-
-/**
- * Retrieves related terms.
- */
-export async function relatedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
-    const lemmaStr = await lemma(query, sourceLang, pos);
-    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.related_terms?.items) return [];
-    return lexeme.related_terms.items.map(i => i.term);
-}
-
-/**
  * Extracts the primary IPA transcription or audio file.
  */
 export async function pronounce(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = result.entries.find(e => e.pronunciation?.IPA || e.pronunciation?.audio);
+    const lexeme = result.entries.find(e => e.pronunciation?.audio_url || e.pronunciation?.audio || e.pronunciation?.IPA);
     if (!lexeme) return null;
-    return lexeme.pronunciation?.IPA || lexeme.pronunciation?.audio || null;
+    return lexeme.pronunciation?.audio_url || lexeme.pronunciation?.audio || lexeme.pronunciation?.IPA || null;
 }
 
 /**
@@ -275,17 +251,28 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
     return {
         headword: lexeme.form,
         pos: entryPos,
-        morphology: morph,
+        morphology: {
+            ...morph,
+            aspect: lexeme.headword_morphology?.aspect,
+            voice: lexeme.headword_morphology?.voice,
+        },
         pronunciation: lexeme.pronunciation,
         hyphenation: lexeme.hyphenation,
         etymology: etymStep as any[],
         senses: lexeme.senses,
         relations: {
             synonyms: syns,
-            antonyms: ants
+            antonyms: ants,
+            coordinate_terms: lexeme.semantic_relations?.coordinate_terms?.map(c => ({ term: c.term })),
+            holonyms: lexeme.semantic_relations?.holonyms?.map(h => ({ term: h.term })),
+            meronyms: lexeme.semantic_relations?.meronyms?.map(m => ({ term: m.term })),
+            troponyms: lexeme.semantic_relations?.troponyms?.map(t => ({ term: t.term })),
         },
-        derived_terms: lexeme.derived_terms?.items?.map(i => i.term) || [],
-        related_terms: lexeme.related_terms?.items?.map(i => i.term) || [],
+        derived_terms: lexeme.derived_terms,
+        related_terms: lexeme.related_terms,
+        descendants: lexeme.descendants,
+        usage_notes: lexeme.usage_notes,
+        references: lexeme.references,
         inflection_table: infl as any,
         translations: lexeme.translations,
         wikidata: lexeme.wikidata,
@@ -318,10 +305,13 @@ export async function etymology(query: string, sourceLang: WikiLang = "Auto", po
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
     const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.etymology || !lexeme.etymology.links) return null;
+    if (!lexeme || !lexeme.etymology) return null;
+    // Support both new `chain` and legacy `links` field
+    const links = (lexeme.etymology as any).chain || (lexeme.etymology as any).links;
+    if (!links || links.length === 0) return null;
 
     const output: EtymologyStep[] = [];
-    for (const link of lexeme.etymology.links) {
+    for (const link of links) {
         if (!link.term) continue;
         output.push({ lang: resolveLangCode(link.source_lang), form: link.term });
     }
@@ -352,11 +342,193 @@ export async function wikipediaLink(query: string, sourceLang: WikiLang = "Auto"
     return link?.url || null;
 }
 
+/**
+ * Returns a map of other Wiktionary editions where this term exists.
+ */
+export const interwiki = langlinks;
+
+/**
+ * Checks if a word belongs to a specific category.
+ */
+export async function isCategory(query: string, categoryName: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<boolean> {
+    const cats = await categories(query, sourceLang, pos);
+    return cats.some(c => c.toLowerCase().includes(categoryName.toLowerCase()));
+}
+
+/**
+ * Retrieves page-level metadata from the API.
+ */
+export async function pageMetadata(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return result.metadata?.info || null;
+}
+
+/**
+ * Retrieves the principal paradigm forms of a verb (e.g. simple_past, future_active).
+ */
+export async function principalParts(query: string, sourceLang: WikiLang = "Auto"): Promise<Record<string, string> | null> {
+    const lemmaStr = await lemma(query, sourceLang, "verb");
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos: "verb" });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.headword_morphology?.principal_parts || null;
+}
+
+/**
+ * Returns the grammatical gender of a nominal (noun, adjective, etc.).
+ */
+export async function gender(query: string, sourceLang: WikiLang = "Auto"): Promise<"masculine" | "feminine" | "neuter" | null> {
+    const lemmaStr = await lemma(query, sourceLang);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.headword_morphology?.gender || null;
+}
+
+/**
+ * Returns the transitivity of a verb.
+ */
+export async function transitivity(query: string, sourceLang: WikiLang = "Auto"): Promise<"transitive" | "intransitive" | "both" | null> {
+    const lemmaStr = await lemma(query, sourceLang, "verb");
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos: "verb" });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.headword_morphology?.transitivity || null;
+}
+
+/**
+ * Returns the alternative forms listed for a word.
+ */
+export async function alternativeForms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Array<{ term: string; qualifier?: string }>> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return (lexeme?.alternative_forms || []).map(f => ({ term: f.term, qualifier: f.qualifier }));
+}
+
+/**
+ * Returns terms from the See also section.
+ */
+export async function seeAlso(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.see_also || [];
+}
+
+export async function anagrams(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.anagrams || [];
+}
+
+/**
+ * Returns usage notes for the word.
+ */
 export async function usageNotes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
     const lexeme = getMainLexeme(result);
     return lexeme?.usage_notes || [];
+}
+
+/**
+ * Returns derived terms for the word.
+ */
+export async function derivedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.derived_terms?.items || [];
+}
+
+/**
+ * Returns related terms for the word.
+ */
+export async function relatedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.related_terms?.items || [];
+}
+
+/**
+ * Returns descendants for the word.
+ */
+export async function descendants(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.descendants?.items || [];
+}
+
+/**
+ * Returns references for the word.
+ */
+export async function referencesSection(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.references || [];
+}
+
+/**
+ * Returns the etymology chain (ancestors).
+ */
+export async function etymologyChain(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.etymology?.chain || [];
+}
+
+/**
+ * Returns cognates extracted from etymology.
+ */
+export async function etymologyCognates(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.etymology?.cognates || [];
+}
+
+/**
+ * Returns the raw etymology text.
+ */
+export async function etymologyText(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.etymology?.raw_text || null;
+}
+
+/**
+ * Returns categories for the word (filtered by language section).
+ */
+export async function categories(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.categories || [];
+}
+
+/**
+ * Returns links to other Wiktionary editions.
+ */
+export async function langlinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.langlinks || [];
+}
+
+/**
+ * Returns the name of the inflection template used for this word.
+ */
+export async function inflectionTableRef(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<{ template_name: string; raw: string } | null> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.inflection_table_ref || null;
 }
 
 async function getNativeSenses(query: string, sourceLang: WikiLang, targetLang: string): Promise<string[]> {
