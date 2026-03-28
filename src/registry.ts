@@ -105,7 +105,12 @@ registry.register({
     decode: (ctx) => {
         const t = ctx.templates.find((t) => t.name === "IPA");
         const pos = t?.params?.positional ?? [];
-        const ipa = pos.find((x) => x.startsWith("/")) ?? null;
+        // First look for something with /.../ if possible
+        let ipa = pos.find((x) => x.startsWith("/") || x.startsWith("[")) ?? null;
+        // Fallback: the first parameter that isn't a language code (el, grc, en)
+        if (!ipa) {
+            ipa = pos.find((x) => x !== "el" && x !== "grc" && x !== "en") ?? null;
+        }
         if (!ipa) return {};
         return { entry: { pronunciation: { IPA: ipa } } };
     },

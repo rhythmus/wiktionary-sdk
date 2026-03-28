@@ -41,7 +41,10 @@ export function getMainLexeme(result: FetchResult): Entry | null {
  */
 export async function lemma(query: string, sourceLang: WikiLang): Promise<string> {
     const result = await wiktionary({ query, lang: sourceLang });
-    const exact = result.entries.find(e => e.form === query);
+    
+    // Prioritize an entry that is explicitly an INFLECTED_FORM to find its lemma
+    const exact = result.entries.find(e => e.form === query && e.type === "INFLECTED_FORM")
+               ?? result.entries.find(e => e.form === query);
     
     if (exact?.type === "INFLECTED_FORM" && exact.form_of?.lemma) {
         return exact.form_of.lemma;
@@ -134,6 +137,8 @@ export async function derivedTerms(query: string, sourceLang: WikiLang): Promise
     return lexeme.derived_terms.items.map(i => i.term);
 }
 
+export const derivations = derivedTerms;
+
 /**
  * Retrieves related terms.
  */
@@ -167,16 +172,20 @@ export async function ipa(query: string, sourceLang: WikiLang): Promise<string |
     return lexeme?.pronunciation?.IPA || null;
 }
 
+export const phonetic = ipa;
+
 /**
  * Returns the hyphenation (syllables).
  */
-export async function hyphenate(query: string, sourceLang: WikiLang): Promise<string[] | null> {
+export async function hyphenate(query: string, sourceLang: WikiLang, options: { separator?: string, format?: "string" | "array" } = {}): Promise<any> {
     const result = await wiktionary({ query, lang: sourceLang });
     const exact = result.entries.find(e => e.form === query && e.hyphenation?.syllables);
-    if (exact) return exact.hyphenation!.syllables ?? null;
+    const syllables = exact?.hyphenation?.syllables || result.entries.find(e => e.hyphenation?.syllables)?.hyphenation?.syllables || null;
 
-    const lexeme = result.entries.find(e => e.hyphenation?.syllables);
-    return lexeme?.hyphenation?.syllables || null;
+    if (!syllables) return null;
+    if (options.format === "array") return syllables;
+    if (options.separator || options.format === "string") return syllables.join(options.separator || "-");
+    return syllables; // Default is array now per README, but keeping backward compatibility logic if needed.
 }
 
 /**
