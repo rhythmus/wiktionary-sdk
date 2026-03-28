@@ -1,13 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/woutersoudan/wiktionary-fetch/schema/normalized-entry.schema.json",
+  "$id": "https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json",
   "title": "Wiktionary SDK Normalized Output",
-  "description": "JSON Schema for the wiktionary-fetch engine output (FetchResult and Entry types).",
+  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Entry types). v2.0.0.",
   "type": "object",
   "$defs": {
     "schemaVersion": {
-      "const": "1.0.0",
-      "description": "Semantic version of this output schema. Bump MAJOR for breaking shape changes, MINOR for additive fields, PATCH for documentation-only corrections."
+      "type": "string",
+      "description": "Semantic version of this output schema. Bump MAJOR for breaking shape changes, MINOR for additive fields, PATCH for documentation-only corrections.",
+      "examples": ["2.0.0"]
     },
     "WikiLang": {
       "type": "string",
@@ -16,14 +17,33 @@
     },
     "EntryType": {
       "type": "string",
-      "enum": ["LEXEME", "INFLECTED_FORM", "FORM_OF"],
+      "enum": ["LEXEME", "INFLECTED_FORM"],
       "description": "Discriminator for the kind of dictionary entry."
     },
     "Pronunciation": {
       "type": "object",
       "properties": {
-        "IPA": { "type": "string" },
-        "audio": { "type": "string" }
+        "IPA": { "type": "string", "description": "International Phonetic Alphabet transcription." },
+        "audio": { "type": "string", "description": "Raw Wikimedia Commons filename, e.g. 'El-γράφω.ogg'." },
+        "audio_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Resolved Wikimedia Commons download URL for the audio file."
+        },
+        "romanization": {
+          "type": "string",
+          "description": "Romanized form of the headword, e.g. 'gráfo' for γράφω."
+        },
+        "rhymes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rhyming words or sounds."
+        },
+        "homophones": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Words that sound the same but have different meanings/spellings."
+        }
       },
       "additionalProperties": false
     },
@@ -47,7 +67,20 @@
         "title": { "type": "string" },
         "language_section": { "type": "string" },
         "etymology_index": { "type": "integer", "minimum": 0 },
-        "pos_heading": { "type": "string" }
+        "pos_heading": { "type": "string" },
+        "revision_id": {
+          "type": "integer",
+          "description": "MediaWiki revision ID at time of fetch. Use for reproducibility/cache-busting."
+        },
+        "last_modified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the last page edit."
+        },
+        "pageid": {
+          "type": ["integer", "null"],
+          "description": "Numeric page ID from the MediaWiki API."
+        }
       },
       "additionalProperties": false
     },
@@ -84,18 +117,9 @@
       "required": ["qid"],
       "properties": {
         "qid": { "type": "string", "pattern": "^Q\\d+$" },
-        "labels": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/LabelValue" }
-        },
-        "descriptions": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/LabelValue" }
-        },
-        "sitelinks": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/SitelinkValue" }
-        },
+        "labels": { "type": "object", "additionalProperties": { "$ref": "#/$defs/LabelValue" } },
+        "descriptions": { "type": "object", "additionalProperties": { "$ref": "#/$defs/LabelValue" } },
+        "sitelinks": { "type": "object", "additionalProperties": { "$ref": "#/$defs/SitelinkValue" } },
         "media": { "$ref": "#/$defs/WikidataMedia" }
       },
       "additionalProperties": false
@@ -104,14 +128,8 @@
       "type": "object",
       "required": ["positional", "named"],
       "properties": {
-        "positional": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "named": {
-          "type": "object",
-          "additionalProperties": { "type": "string" }
-        }
+        "positional": { "type": "array", "items": { "type": "string" } },
+        "named": { "type": "object", "additionalProperties": { "type": "string" } }
       },
       "additionalProperties": false
     },
@@ -144,14 +162,12 @@
         "template": { "type": "string" },
         "lemma": { "type": ["string", "null"] },
         "lang": { "type": "string" },
-        "tags": {
-          "type": "array",
-          "items": { "type": "string" }
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "label": {
+          "type": "string",
+          "description": "Human-readable label rendered from the tag array, e.g. '1st pers. singular perfective past'."
         },
-        "named": {
-          "type": "object",
-          "additionalProperties": { "type": "string" }
-        }
+        "named": { "type": "object", "additionalProperties": { "type": "string" } }
       },
       "additionalProperties": false
     },
@@ -171,64 +187,45 @@
       },
       "additionalProperties": false
     },
-    "Entry": {
+    "HeadwordMorphology": {
       "type": "object",
-      "required": ["id", "language", "query", "type", "form", "etymology_index", "part_of_speech_heading", "templates", "source"],
+      "description": "Grammatical traits extracted from the headword template (el-verb, el-noun, etc.).",
       "properties": {
-        "id": { "type": "string" },
-        "language": { "$ref": "#/$defs/WikiLang" },
-        "query": { "type": "string" },
-        "type": { "$ref": "#/$defs/EntryType" },
-        "form": { "type": "string" },
-        "etymology_index": { "type": "integer", "minimum": 0 },
-        "part_of_speech_heading": { "type": "string" },
-        "part_of_speech": { "type": ["string", "null"] },
-        "pronunciation": { "$ref": "#/$defs/Pronunciation" },
-        "hyphenation": { "$ref": "#/$defs/Hyphenation" },
-        "form_of": { "$ref": "#/$defs/FormOf" },
-        "translations": {
+        "transitivity": {
+          "type": ["string", "null"],
+          "enum": ["transitive", "intransitive", "both", null],
+          "description": "For verbs: whether the verb takes a direct object."
+        },
+        "gender": {
+          "type": ["string", "null"],
+          "enum": ["masculine", "feminine", "neuter", null],
+          "description": "For nouns/adjectives: grammatical gender."
+        },
+        "principal_parts": {
           "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/TranslationItem" }
-          }
+          "description": "For verbs: key paradigm forms keyed by slot name (simple_past, future_active, present_passive, …).",
+          "additionalProperties": { "type": "string" }
         },
-        "templates": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/StoredTemplate" }
-          }
+        "aspect": {
+          "type": ["string", "null"],
+          "enum": ["perfective", "imperfective", null],
+          "description": "For verbs: aspectual trait."
         },
-        "templates_all": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/StoredTemplateInstance" },
-          "description": "Templates in document order with optional location metadata"
-        },
-        "senses": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/Sense" }
-        },
-        "semantic_relations": { "$ref": "#/$defs/SemanticRelations" },
-        "etymology": { "$ref": "#/$defs/EtymologyData" },
-        "derived_terms": { "$ref": "#/$defs/SectionWithLinks" },
-        "related_terms": { "$ref": "#/$defs/SectionWithLinks" },
-        "descendants": { "$ref": "#/$defs/SectionWithLinks" },
-        "usage_notes": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "wikidata": { "$ref": "#/$defs/WikidataEnrichment" },
-        "resolved_for_query": { "type": "string" },
-        "preferred": { "type": "boolean" },
-        "source": {
-          "type": "object",
-          "required": ["wiktionary"],
-          "properties": {
-            "wiktionary": { "$ref": "#/$defs/WiktionarySource" }
-          },
-          "additionalProperties": false
+        "voice": {
+          "type": ["string", "null"],
+          "enum": ["active", "passive", "mediopassive", null],
+          "description": "For verbs: grammatical voice."
         }
+      },
+      "additionalProperties": false
+    },
+    "AlternativeForm": {
+      "type": "object",
+      "required": ["term", "raw"],
+      "properties": {
+        "term": { "type": "string" },
+        "qualifier": { "type": "string", "description": "Optional label, e.g. 'colloquial', 'archaic'." },
+        "raw": { "type": "string", "description": "Verbatim wikitext line." }
       },
       "additionalProperties": false
     },
@@ -239,14 +236,22 @@
         "id": { "type": "string", "description": "Unique sense ID, e.g. 'S1', 'S1.1'" },
         "gloss": { "type": "string" },
         "gloss_raw": { "type": "string", "description": "Exact text after #/## before stripping" },
-        "examples": {
-          "type": "array",
-          "items": { "type": "string" }
+        "qualifier": {
+          "type": "string",
+          "description": "Parenthetical qualifier after the main gloss, e.g. 'for traffic violations'."
         },
-        "subsenses": {
+        "labels": {
           "type": "array",
-          "items": { "$ref": "#/$defs/Sense" }
-        }
+          "items": { "type": "string" },
+          "description": "Register/style labels from {{lb}}, e.g. ['colloquial', 'figurative']."
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Topic domains from {{lb}}, e.g. ['law', 'computing']."
+        },
+        "examples": { "type": "array", "items": { "type": "string" } },
+        "subsenses": { "type": "array", "items": { "$ref": "#/$defs/Sense" } }
       },
       "additionalProperties": false
     },
@@ -266,15 +271,40 @@
         "synonyms": { "type": "array", "items": { "$ref": "#/$defs/SemanticRelation" } },
         "antonyms": { "type": "array", "items": { "$ref": "#/$defs/SemanticRelation" } },
         "hypernyms": { "type": "array", "items": { "$ref": "#/$defs/SemanticRelation" } },
-        "hyponyms": { "type": "array", "items": { "$ref": "#/$defs/SemanticRelation" } }
+        "hyponyms": { "type": "array", "items": { "$ref": "#/$defs/SemanticRelation" } },
+        "coordinate_terms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "Peer-level terms (e.g. days of the week together)."
+        },
+        "holonyms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "Wholes that contain this term as a part."
+        },
+        "meronyms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "Parts that make up this term."
+        },
+        "troponyms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "For verbs: manner-of-action subtypes."
+        }
       },
       "additionalProperties": false
     },
     "EtymologyLink": {
       "type": "object",
-      "required": ["template", "source_lang"],
+      "required": ["template", "relation", "source_lang", "raw"],
       "properties": {
         "template": { "type": "string", "description": "Template name, e.g. 'inh', 'der', 'bor', 'cog'" },
+        "relation": {
+          "type": "string",
+          "enum": ["inherited", "borrowed", "derived", "cognate"],
+          "description": "The semantic relation between the target and source language forms."
+        },
         "source_lang": { "type": "string" },
         "source_lang_name": { "type": "string" },
         "term": { "type": "string" },
@@ -286,11 +316,20 @@
     "EtymologyData": {
       "type": "object",
       "properties": {
-        "links": {
+        "chain": {
           "type": "array",
-          "items": { "$ref": "#/$defs/EtymologyLink" }
+          "items": { "$ref": "#/$defs/EtymologyLink" },
+          "description": "Ordered ancestry chain: inherited (inh), derived (der), borrowed (bor) links."
         },
-        "raw_text": { "type": "string" }
+        "cognates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EtymologyLink" },
+          "description": "Cognate forms in other languages (from {{cog}} templates), distinct from the ancestry chain."
+        },
+        "raw_text": {
+          "type": "string",
+          "description": "Full human-readable prose of the etymology section, wikimarkup stripped."
+        }
       },
       "additionalProperties": false
     },
@@ -312,12 +351,124 @@
       "required": ["raw_text", "items"],
       "properties": {
         "raw_text": { "type": "string", "description": "Verbatim section content" },
-        "items": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/SectionLinkItem" }
-        }
+        "items": { "type": "array", "items": { "$ref": "#/$defs/SectionLinkItem" } }
       },
       "additionalProperties": false
+    },
+    "Entry": {
+      "type": "object",
+      "required": [
+        "id", "language", "query", "type", "form",
+        "etymology_index", "part_of_speech_heading", "templates", "source"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "language": { "$ref": "#/$defs/WikiLang" },
+        "query": { "type": "string" },
+        "type": { "$ref": "#/$defs/EntryType" },
+        "form": { "type": "string" },
+        "etymology_index": { "type": "integer", "minimum": 0 },
+        "part_of_speech_heading": { "type": "string" },
+        "part_of_speech": { "type": ["string", "null"] },
+        "pronunciation": { "$ref": "#/$defs/Pronunciation" },
+        "hyphenation": { "$ref": "#/$defs/Hyphenation" },
+        "form_of": { "$ref": "#/$defs/FormOf" },
+        "translations": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/TranslationItem" } }
+        },
+        "templates": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/StoredTemplate" } }
+        },
+        "templates_all": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StoredTemplateInstance" },
+          "description": "Templates in document order with optional location metadata"
+        },
+        "senses": { "type": "array", "items": { "$ref": "#/$defs/Sense" } },
+        "semantic_relations": { "$ref": "#/$defs/SemanticRelations" },
+        "etymology": { "$ref": "#/$defs/EtymologyData" },
+        "derived_terms": { "$ref": "#/$defs/SectionWithLinks" },
+        "related_terms": { "$ref": "#/$defs/SectionWithLinks" },
+        "descendants": { "$ref": "#/$defs/SectionWithLinks" },
+        "usage_notes": { "type": "array", "items": { "type": "string" } },
+        "headword_morphology": {
+          "$ref": "#/$defs/HeadwordMorphology"
+        },
+        "alternative_forms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AlternativeForm" },
+          "description": "Entries from the ====Alternative forms==== section."
+        },
+        "see_also": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Terms from the ====See also==== section."
+        },
+        "anagrams": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Anagrams of this word from the ====Anagrams==== section."
+        },
+        "references": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Content from the ====References==== section."
+        },
+        "inflection_table_ref": {
+          "type": "object",
+          "properties": {
+            "template_name": { "type": "string" },
+            "raw": { "type": "string" }
+          },
+          "required": ["template_name", "raw"],
+          "additionalProperties": false,
+          "description": "Reference to the inflection template used."
+        },
+        "wikidata": { "$ref": "#/$defs/WikidataEnrichment" },
+        "resolved_for_query": { "type": "string" },
+        "lemma_triggered_by_entry_id": { "type": "string" },
+        "preferred": { "type": "boolean" },
+        "source": {
+          "type": "object",
+          "required": ["wiktionary"],
+          "properties": {
+            "wiktionary": { "$ref": "#/$defs/WiktionarySource" }
+          },
+          "additionalProperties": false
+        },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Wiktionary categories filtered to this language section."
+        },
+        "langlinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["lang", "title"],
+            "properties": {
+              "lang": { "type": "string" },
+              "title": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "description": "Links to the same term in other Wiktionary language editions."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Page-level metadata from the MediaWiki API.",
+          "properties": {
+            "last_modified": { "type": "string", "format": "date-time" },
+            "length": { "type": "integer" },
+            "pageid": { "type": ["integer", "null"] },
+            "lastrevid": { "type": "integer" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
     }
   },
   "properties": {
@@ -330,6 +481,16 @@
     "notes": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Page-level metadata attached to the FetchResult.",
+      "properties": {
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "langlinks": { "type": "array", "items": {} },
+        "info": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": true
     }
   },
   "required": ["rawLanguageBlock", "entries", "notes"]

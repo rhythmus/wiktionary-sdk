@@ -1,5 +1,6 @@
 /** Current version of the normalized output schema. See VERSIONING.md. */
-export const SCHEMA_VERSION = "1.0.0";
+export const SCHEMA_VERSION = "2.0.0";
+
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
 export type WikiLang = "el" | "grc" | "en" | "nl" | "de" | "fr" | string;
@@ -10,6 +11,14 @@ export type EntryType = "LEXEME" | "INFLECTED_FORM" | "FORM_OF";
 export interface Pronunciation {
   IPA?: string;
   audio?: string;
+  /** Resolved Wikimedia Commons download URL for the audio file. */
+  audio_url?: string;
+  /** Romanized form of the headword (e.g. "gráfo" for γράφω). */
+  romanization?: string;
+  /** Rhyming words or sounds. */
+  rhymes?: string[];
+  /** Words that sound the same but have different meanings/spellings. */
+  homophones?: string[];
 }
 
 export interface Hyphenation {
@@ -23,6 +32,12 @@ export interface WiktionarySource {
   language_section: string;
   etymology_index: number;
   pos_heading: string;
+  /** The MediaWiki revision ID at time of fetch. Use for reproducibility/cache-busting. */
+  revision_id?: number;
+  /** ISO 8601 timestamp of the last page edit (from API `info.touched`). */
+  last_modified?: string;
+  /** Numeric page ID from the MediaWiki API. */
+  pageid?: number | null;
 }
 
 export interface WikidataEnrichment {
@@ -41,6 +56,12 @@ export interface Sense {
   id: string;
   gloss: string;
   gloss_raw?: string;
+  /** Parenthetical qualifier after the main gloss, e.g. "for traffic violations". */
+  qualifier?: string;
+  /** Labels from {{lb|...}} templates, e.g. ["colloquial", "figurative"]. */
+  labels?: string[];
+  /** Topic domains from {{lb|...}}, e.g. ["law", "art"]. */
+  topics?: string[];
   examples?: string[];
   subsenses?: Sense[];
 }
@@ -56,10 +77,21 @@ export interface SemanticRelations {
   antonyms?: SemanticRelation[];
   hypernyms?: SemanticRelation[];
   hyponyms?: SemanticRelation[];
+  /** Terms that are peers at the same level (e.g. days of the week together). */
+  coordinate_terms?: SemanticRelation[];
+  /** Wholes that contain this term as a part (meronymy inverse). */
+  holonyms?: SemanticRelation[];
+  /** Parts that make up this term. */
+  meronyms?: SemanticRelation[];
+  /** For verbs: manner-of-action subtypes (e.g. "sprint" is a troponym of "run"). */
+  troponyms?: SemanticRelation[];
 }
+
 
 export interface EtymologyLink {
   template: string;
+  /** The semantic relation: "inherited", "borrowed", "derived", or "cognate". */
+  relation: "inherited" | "borrowed" | "derived" | "cognate" | string;
   source_lang: string;
   source_lang_name?: string;
   term?: string;
@@ -68,9 +100,16 @@ export interface EtymologyLink {
 }
 
 export interface EtymologyData {
-  links?: EtymologyLink[];
+  /** A structured chain of ancestor/cognate links parsed from etymology templates. */
+  chain?: EtymologyLink[];
+  /** Separately extracted cognates ({{cog}} templates). */
+  cognates?: EtymologyLink[];
+  /** The full human-readable prose text of the etymology section. */
   raw_text?: string;
 }
+
+/** @deprecated Use EtymologyData.chain instead. */
+export type LegacyEtymologyLinks = EtymologyLink[];
 
 /** Single item from {{l}}/{{link}} in Derived/Related/Descendants sections. */
 export interface SectionLinkItem {
@@ -108,6 +147,8 @@ export interface Entry {
     lemma: string | null;
     lang: string;
     tags: string[];
+    /** Human-readable label rendered from the tag array, e.g. "1st pers. singular perfective past". */
+    label?: string;
     named: Record<string, string>;
   };
   translations?: Record<string, Array<{
@@ -138,6 +179,33 @@ export interface Entry {
   /** From {{l}}/{{link}} in ====Descendants==== section. */
   descendants?: SectionWithLinks;
   usage_notes?: string[];
+  /** Grammatical traits extracted from headword templates (gender, transitivity, principal parts, etc.). */
+  headword_morphology?: {
+    /** For verbs: "transitive" | "intransitive" | "both" | null. */
+    transitivity?: "transitive" | "intransitive" | "both" | null;
+    /** For verbs: "perfective" | "imperfective" | null. */
+    aspect?: "perfective" | "imperfective" | null;
+    /** For verbs: "active" | "passive" | "mediopassive" | null. */
+    voice?: "active" | "passive" | "mediopassive" | null;
+    /** For nouns/adjectives: "masculine" | "feminine" | "neuter" | null. */
+    gender?: "masculine" | "feminine" | "neuter" | null;
+    /** For verbs: principal inflection paradigm forms keyed by slot name. */
+    principal_parts?: Record<string, string>;
+  };
+  /** Entries from the ====Alternative forms==== section. */
+  alternative_forms?: Array<{ term: string; qualifier?: string; raw: string }>;
+  /** Terms from the ====See also==== section. */
+  see_also?: string[];
+  /** Anagrams of this word. */
+  anagrams?: string[];
+  /** References section content. */
+  references?: string[];
+  /** Reference to the inflection template used (e.g. "el-conj-γράφω"). */
+  inflection_table_ref?: {
+    template_name: string;
+    raw: string;
+  };
+
   wikidata?: WikidataEnrichment;
   resolved_for_query?: string;
   /** When this lemma was resolved for an inflected form, the entry id that triggered it */
@@ -145,6 +213,16 @@ export interface Entry {
   preferred?: boolean;
   source: {
     wiktionary: WiktionarySource;
+  };
+  /** Categories this entry belongs to (filtered by language). */
+  categories?: string[];
+  /** Links to other Wiktionary editions for this term. */
+  langlinks?: Array<{ lang: string; title: string }>;
+  /** Page-level metadata from the API. */
+  metadata?: {
+    last_modified?: string;
+    length?: number;
+    pageid?: number | null;
   };
   templates_all?: Array<{
     name: string;
@@ -179,6 +257,9 @@ export interface RichEntry {
   relations?: SemanticRelations;
   derived_terms?: any;
   related_terms?: any;
+  descendants?: any;
+  usage_notes?: string[];
+  references?: string[];
   inflection_table?: InflectionTable;
   translations?: Record<string, any[]>;
   wikidata?: WikidataEnrichment;
@@ -199,6 +280,16 @@ export interface FetchResult {
   notes: string[];
   /** Present when debugDecoders option is true. debug[i] corresponds to entries[i]. */
   debug?: DecoderDebugEvent[][];
+  /** Global metadata for the page. */
+  metadata?: {
+    categories: string[];
+    langlinks: Array<{ lang: string; title: string }>;
+    info: {
+      last_modified?: string;
+      length?: number;
+      pageid?: number | null;
+    };
+  };
 }
 
 export interface TemplateCall {
@@ -225,6 +316,8 @@ export interface DecodeContext {
     idx: number;
     title: string;
     posBlocks: any[];
+    /** Raw prose text of the Etymology section (above the template chain). */
+    etymology_raw_text?: string;
   };
   posBlock: {
     posHeading: string;
