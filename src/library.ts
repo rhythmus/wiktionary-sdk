@@ -2,7 +2,7 @@ import { wiktionary } from "./index";
 import { mwFetchJson } from "./api";
 import { stripWikiMarkup } from "./registry";
 import { morphology as getMorphology, conjugate as runConjugate, decline as runDecline } from "./morphology";
-import type { WikiLang, FetchResult, Entry, Sense, RichEntry } from "./types";
+import type { WikiLang, FetchResult, Entry, RichEntry } from "./types";
 import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
 
 export interface TranslationOptions {

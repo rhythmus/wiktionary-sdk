@@ -651,7 +651,7 @@ const App: React.FC = () => {
                                 <td style={{ padding: '7px 12px', color: '#60a5fa', fontFamily: "'JetBrains Mono', monospace" }}>{m.templateName ? `{{${m.templateName}}}` : '–'}</td>
                                 <td style={{ padding: '7px 12px', color: 'var(--dk-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem' }}>{m.raw}</td>
                                 <td style={{ padding: '7px 12px' }}>
-                                  {m.fieldsProduced.map((f) => (
+                                  {m.fieldsProduced.map((f: string) => (
                                     <span key={f} style={{ display: 'inline-block', background: 'rgba(129,140,248,0.15)', color: '#a5b4fc', fontSize: '0.68rem', padding: '2px 7px', borderRadius: 999, marginRight: 4, marginBottom: 2 }}>{f}</span>
                                   ))}
                                 </td>
