@@ -78,6 +78,17 @@ export const FORM_OF_TEMPLATES = new Set([
     "clipping of",
     "diminutive of",
     "augmentative of",
+    "plural of",
+    "noun form of",
+    "verb form of",
+    "adj form of",
+    "participle of",
+    "past tense of",
+    "past participle of",
+    "present participle of",
+    "gerund of",
+    "command of",
+    "imperative of",
 ]);
 
 export const registry = new DecoderRegistry();

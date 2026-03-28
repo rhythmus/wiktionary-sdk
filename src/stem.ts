@@ -35,9 +35,9 @@ function isGreekStem(str: string): boolean {
  * and declension definition templates. Adheres to "Extraction, Not Inference" by strictly pulling
  * parameters rather than computing linguistic suffixes heuristic algorithms.
  */
-export async function stem(query: string, sourceLang: WikiLang = "el"): Promise<WordStems> {
-    const lemmaStr = await lemma(query, sourceLang);
-    const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
+export async function stem(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<WordStems> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
     
     if (!result.rawLanguageBlock) return { aliases: [] };
     

@@ -93,8 +93,8 @@ export function parseMorphologyTags(tags: string[]): Partial<GrammarTraits> {
 /**
  * Extracts and decodes grammatical traits intrinsically assigned to a query string by Wiktionary.
  */
-export async function morphology(query: string, sourceLang: WikiLang = "el"): Promise<Partial<GrammarTraits>> {
-    const result = await wiktionary({ query, lang: sourceLang });
+export async function morphology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Partial<GrammarTraits>> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
     if (!result.entries || result.entries.length === 0) return {};
 
     let criteria: Partial<GrammarTraits> = {};
@@ -135,9 +135,9 @@ export async function morphology(query: string, sourceLang: WikiLang = "el"): Pr
 /**
  * High-level function resolving conjugated Verb forms via DOM scraping on the MediaWiki API.
  */
-export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "el"): Promise<string[] | Record<string, any>> {
-    const lStr = await lemma(query, sourceLang);
-    const result = await wiktionary({ query: lStr, lang: sourceLang });
+export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<string[] | Record<string, any>> {
+    const lStr = await lemma(query, sourceLang, "verb");
+    const result = await wiktionary({ query: lStr, lang: sourceLang, pos: "verb" });
     if (!result.rawLanguageBlock) return [];
 
     const templates = parseTemplates(result.rawLanguageBlock);
@@ -151,12 +151,11 @@ export async function conjugate(query: string, criteria: Partial<ConjugateCriter
     if (!apiResult.parse || !apiResult.parse.text) return [];
     const html = apiResult.parse.text["*"];
     
-    // If no criteria, return the FULL table
     if (Object.keys(criteria).length === 0) {
         return scrapeFullConjugationTable(html);
     }
 
-    const inherentGrammar = await morphology(query, sourceLang);
+    const inherentGrammar = await morphology(query, sourceLang, "verb");
     const person = criteria.person || inherentGrammar.person || "1";
     const number = criteria.number || inherentGrammar.number || "singular";
     const voice = criteria.voice || inherentGrammar.voice || "active";
@@ -209,7 +208,7 @@ export async function conjugate(query: string, criteria: Partial<ConjugateCriter
 /**
  * High-level function resolving Nominal (Noun/Adjective) forms via DOM scraping on the MediaWiki API.
  */
-export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "el"): Promise<string[] | Record<string, any>> {
+export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<string[] | Record<string, any>> {
     const lStr = await lemma(query, sourceLang);
     const result = await wiktionary({ query: lStr, lang: sourceLang });
     if (!result.rawLanguageBlock) return [];
@@ -229,7 +228,6 @@ export async function decline(query: string, criteria: Partial<DeclineCriteria> 
     if (!apiResult.parse || !apiResult.parse.text) return [];
     const html = apiResult.parse.text["*"];
     
-    // If no criteria, return the FULL table
     if (Object.keys(criteria).length === 0) {
         return scrapeFullDeclensionTable(html);
     }
