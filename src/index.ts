@@ -62,6 +62,7 @@ async function wiktionaryRecursive({
     debugDecoders?: boolean;
     _visited: Set<string>;
 }): Promise<FetchResult> {
+    query = query.normalize("NFC");
     const key = lemmaKey(lang, query);
     if (_visited.has(key)) {
         return {

@@ -39,10 +39,10 @@ export async function fetchWikitextEnWiktionary(title: string) {
         titles: title,
     });
     const page = j?.query?.pages?.[0];
-    const wikitext = page?.revisions?.[0]?.slots?.main?.content ?? "";
+    const wikitext = (page?.revisions?.[0]?.slots?.main?.content ?? "").normalize("NFC");
     const pageprops = page?.pageprops ?? {};
     const exists = !page?.missing;
-    const normalizedTitle = page?.title ?? title;
+    const normalizedTitle = (page?.title ?? title).normalize("NFC");
     const result = {
         exists,
         title: normalizedTitle,
