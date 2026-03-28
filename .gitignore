@@ -24,3 +24,6 @@ pnpm-debug.log*
 # Project specific
 tmp/
 .gemini/
+result.json
+result_clean.json
+wikitext.txt
