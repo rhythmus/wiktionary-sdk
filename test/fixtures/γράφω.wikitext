@@ -1,0 +1,198 @@
+==Ancient Greek==
+
+===Etymology===
+{{etymon|grc|id=to scratch|:inh|grk-pro:*grə́pʰō<id:to scratch>}}
+From {{inh|grc|grk-pro|*grə́pʰō}}, from {{der|grc|ine-pro|*gerbʰ-}}.<ref>{{R:grc:Beekes|285|γράφω}}</ref> Cognates include {{cog|ang|ċeorfan}} ({{cog|en|carve}}), {{cog|cu|жрѣбъ}}.
+
+===Pronunciation===
+{{grc-IPA|γρά˘φω}}
+
+===Verb===
+{{grc-verb|γρᾰ́φω}}
+
+# {{lb|grc|Homeric}} to [[scratch]], [[cut]] into
+#* {{Q|grc|Homer|Iliad|17|599|quote='''γράψεν''' δέ οἱ ὀστέον ἄχρις / αἰχμὴ Πουλυδάμαντος {{...}}|trans=and the spearpoint of Polydamas '''scratched''' him close to the bone {{...}}}}
+# to [[draw]], [[sketch]], [[paint]]
+# to [[write]]
+# to write down, propose a law
+#* {{Q|grc|Xen.|Hell.|1|7|34|quote=ταῦτ’ εἰπὼν Εὐρυπτόλεμος '''ἔγραψε''' γνώμην κατὰ τὸ Καννωνοῦ ψήφισμα κρίνεσθαι τοὺς ἄνδρας δίχα ἕκαστον.|trans=After saying this, Euryptolemus '''proposed''' a resolution that the men be tried under the decree of Cannonus, each one separately.}}
+# {{lb|grc|middle}}
+## {{lb|grc|indirect reflexive}} write down for oneself, note down
+##* {{Q|grc|Plato|Theaetetus|143|a|quote=Τερψίων &nbsp; ἀτὰρ τίνες ἦσαν οἱ λόγοι; ἔχοις ἂν διηγήσασθαι;<br>Εὐκλείδης &nbsp; οὐ μὰ τὸν Δία, {{...}} ἀλλ’ '''ἐγραψάμην''' μὲν τότ’ εὐθὺς οἴκαδ’ ἐλθὼν ὑπομνήματα {{...}} .|trans=Terpsion: But what was the talk? Can you repeat it?<br>Eucleides: No, by Zeus, but I '''wrote myself''' notes as soon as I came home.}}
+## to [[indict]], [[prosecute]]
+##* {{Q|grc|Demosthenes|18|13|quote=δεῖ {{...}} ταῖς ἐκ τῶν νόμων τιμωρίαις παρ’ αὐτὰ τἀδικήματα χρῆσθαι, {{...}} εἰ δὲ γράφοντα παράνομα, παρανόμων '''γραφόμενον'''|trans=he must make use of the legal punishments for these crimes: {{...}} if [I] proposed illegal measures, '''to indict''' [me] for breaking the law}}
+##: {{ux|grc|οἱ γραψάμενοι|the prosecutors}}
+# {{lb|grc|perfect passive}} be written down, be in written form
+#* {{Q|grc|Plato|Theaetetus|143|a|quote=Εὐκλείδης &nbsp; {{...}} ὥστε μοι σχεδόν τι πᾶς ὁ λόγος '''γέγραπται'''.|trans=Eucleides: &nbsp; {{...}} So I have pretty much the whole conversation written down.}}
+
+====Conjugation====
+{{grc-conj|pres|γρᾰφ}}
+{{grc-conj|imperf|ἐγρᾰφ}}
+{{grc-conj|fut|γρᾰψ|γρᾰφ}}
+{{grc-conj|aor-1|ἐγρᾰψ|γρᾰψ|ἐγρᾰφ|γρᾰφ}}
+{{grc-conj|perf|γεγρᾰφ|γεγρᾰφ}}
+{{grc-conj|plup|ἐγεγρᾰφ|ἐγεγρᾰφ}}
+
+====Derived terms====
+{{col|grc
+|γραφή
+|γραφεύς
+|γρᾰμμή
+|γράμμα
+|γραμματεῖον
+|γραμματικός
+|ῠ̔πογρᾰ́φω
+|προσγρᾰ́φω
+|ἀναγράφω
+|ἀντεγγράφω
+|ἀντεπιγράφω
+|ἀντιγράφω
+|ἀντιδιαγράφω
+|ἀντιπαραγράφω
+|ἀπογράφω
+|ἀποδιαγράφω
+|γράβδην
+|γραψείω
+|διαγράφω
+|ἐγγράφω
+|ἐγκαταγράφω
+|εἰσγράφω
+|ἐκγράφω
+|ἐμπεριγράφω
+|ἐπιγράφω
+|ἐπιδιαγράφω
+|καθυπογράφω
+|καταγράφω
+|λευκογραφέω|λευκογραφία|λευκογραφίς
+|μεταγράφω
+|μετεγγράφω
+|μετεπιγράφω
+|παραγράφω
+|παρεγγράφω
+|παρεπιγράφω
+|περιγράφω
+|ποιγράφω
+|προαναγράφω
+|προγράφω
+|προδιαγράφω
+|προεπιγράφω
+|προκαταγράφω
+|προσαναγράφω
+|προσαπογράφω
+|προσδιαγράφω
+|προσεγγράφω
+|προσεπιγράφω
+|προσκαταγράφω
+|προσπαραγράφω
+|προσυπογράφω
+|προϋπογράφω
+|συγγράφω
+|συγκαταγράφω
+|συμπεριγράφω
+|συναναγράφω
+|συνεγγράφω
+|συνεπιγράφω
+|συνυπογράφω
+|ὑπεργράφω
+|λογογράφος
+}}
+
+====Descendants====
+* {{desc|el|γράφω}}
+* {{desc|grk-mar|гра́фту|гра́фкум}}
+* {{desc|it|graffire|bor=1}}
+
+===References===
+<references />
+
+===Further reading===
+* {{R:grc:Autenrieth}}
+* {{R:grc:BDAG}}
+* {{R:grc:Cunliffe}}
+* {{R:grc:LBG}}
+* {{R:grc:LSJ}}
+* {{R:grc:Middle Liddell}}
+* {{R:grc:Slater}}
+* {{R:Strong's|G|1125}}
+* {{R:LOGEION}}
+
+{{topics|grc|Writing|Law}}
+
+==Greek==
+
+===Etymology===
+From {{inh|el|grc|γράφω}}, from {{inh|el|grk-pro|*grəpʰō}}, from {{der|el|ine-pro|*gerbʰ-}}. For the stems, see ''[[#Related terms|Related terms]]''.
+
+===Pronunciation===
+* {{IPA|el|/ˈɣra.fo/}}
+* {{hyphenation|el|γρά|φω}}
+
+===Verb===
+{{el-verb|past=έγραψα|passive=γράφομαι}}
+
+# to [[write]], [[pen]]
+#: {{ux|el|'''Γράφετε''' βιβλίο;|t=Are you '''writing''' a book?}}
+# to [[record]]
+# to [[issue]] a [[ticket]] {{q|for traffic violation, etc}}
+
+====Conjugation====
+{{el-conjug-1st
+|augmented=1
+|present=γράφ
+|a-imperfect=έγραφ
+|a-dependent=γράψ
+|a-simplepast=έγραψ
+|p-imperfect=γραφ
+|p-dependent=γραφτ
+|p-dependent-2=γραφ
+|p-simplepast=γράφτ
+|p-simplepast-2=γράφ
+|p-perf-part=γραμ
+|cat=γράφω
+<!-- + colloquial imperatives -->
+|a-impv-ps=[[γράψε]], [[γράφ']]&nbsp;<sup>1</sup>
+|a-impv-pp=[[γράψτε]], [[γράφτε]]<sup>2</sup>
+|note1=Colloquial {{glossary|apocopic}} perfective imperative + accusative of article & noun or {{glossary|weak pronoun|weak pronouns}} e.g. '''γράφ' [[το#Pronoun|το]]''' ("write it!"). Compare to imperfective '''γράφε το''' ("keep writing it")
+|note2=Colloquial form: [[γράφτε]]. There is also a formal type: [[γράψετε]].
+}}
+
+====Synonyms====
+* {{l|el|σημειώνω}}
+* {{l|el|καταγράφω}}
+
+====Antonyms====
+* {{l|el|ξεγράφω|t=strike out}}
+
+====Related terms====
+More than 60 compounds with -'''γράφω''' or -'''γραφώ'''<ref>{{R:DSMG|*γραφω}}</ref> e.g.
+* {{l|el|αντιγράφω|gloss=to copy, to cheat}}
+* {{l|el|εγγράφω|t=enrol, register}}
+* {{l|el|επιγράφω|t=inscribe, entitle}}
+* {{l|el|σκηνογραφώ|t=direct film or play}}
+* {{l|el|συγγράφω|gloss=to write (a book, etc), to author}}
+* {{l|el|υπογράφω|gloss=to sign}}
+From stems:
+* '''γραφ'''- <ref>{{R:DSMG|*γραφ*}}</ref> (-γραφία, -γράφος, -γράφημα, -γράφηση) e.g.
+** {{l|el|καταγραφικό|gloss=chart recorder, datalogger}}
+* γραφσ- > '''γραψ'''-
+** {{l|el|εγγράψιμος|t=able to be enrolled}}
+** {{l|el|γράψιμο|g=n|t=writing}}
+* γραφμ- > '''γραμμ'''- <ref>{{R:DSMG|*γραμμ*}}</ref>
+* {{l|el|γραπτός|t=written}} and '''γραπτ'''- <ref>{{R:DSMG|*γραπτ*}}</ref>
+
+===References===
+<references />
+
+==Italiot Greek==
+
+===Etymology===
+From {{inh|grk-ita|grc|γράφω}}, from {{inh|grk-ita|grk-pro|*grəpʰō}}, from {{der|grk-ita|ine-pro|*gerbʰ-}}.
+
+===Pronunciation===
+* {{IPA|grk-ita|/ˈɡra.fo/}}
+* {{hyphenation|grk-ita|γρά|φω}}
+
+===Verb===
+{{grk-ita-head|verb|latn=grafo}}
+
+# {{lb|grk-ita|Apulian|Calabrian}} to [[write]]

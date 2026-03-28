@@ -1,0 +1,10 @@
+==Greek==
+
+===Pronunciation===
+* {{IPA|el|ˈe.ɣrap.se}}
+* {{hyphenation|el|έ|γρα|ψε}}
+
+===Verb===
+{{head|el|verbf}}
+
+# {{infl of|el|γράφω||3s|spast}}

@@ -1,0 +1,23 @@
+==Greek==
+
+===Etymology===
+From {{uder|el|la|fructus}}.
+
+===Noun===
+{{el-noun|n|φρούτα}}
+
+# [[fruit]]
+# {{lb|el|colloquial}} [[freak]]
+
+====Declension====
+{{el-nN-ο-α-2a|φρούτ}}
+
+====Derived terms====
+* {{l|el|φρουτοχυμός|g=m|gloss=fruit juice}}
+* {{l|el|[[ζαχαρωμένα]] [[φρούτα]]|g=f|gloss=crystallised fruit}}
+
+====Related terms====
+* {{l|el|καρπός|t=fruit}}
+
+====Descendants====
+{{desc|rup|frut|bor=t1}}

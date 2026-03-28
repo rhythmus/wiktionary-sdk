@@ -1,0 +1,28 @@
+==Greek==
+
+===Etymology===
+[[File:Red Apple.jpg|thumb|'''μήλο''']]
+Inherited from {{inh|el|grc|μῆλον}}.
+
+===Pronunciation===
+* {{IPA|el|/ˈmilo/}}
+* {{hyphenation|el|μή|λο}}
+* {{homophones|el|μύλο}}
+
+===Noun===
+{{el-noun|n|μήλα}}
+
+# [[apple]]
+# {{lb|el|in the plural}} [[dodgeball]]
+
+====Declension====
+{{el-nN-ο-α-2a|μήλ}}
+
+====Related terms====
+* {{l|el|μηλιά|gloss=apple tree|g=f}}
+* {{l|el|μηλόκρασο|g=n|gloss=cider}}
+
+====Further reading====
+* {{pedia|lang=el}}
+
+{{C|el|Fruits}}

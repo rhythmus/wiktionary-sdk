@@ -1,0 +1,74 @@
+{{also|ἄνθρωπος}}
+==Greek==
+
+===Etymology===
+Inherited<ref>{{R:DSMG}}</ref> from {{inh|el|grc|ἄνθρωπος||man}}, as also are variants<ref>[http://repository.academyofathens.gr/kendi/index.php/gr/listItems/118776 άνθρωπος] - ''Historical Dictionary of the Academy of Athens'', vol.2</ref> like {{m|el|άθρωπος}}, already since {{m|grc|ἄθρωπος}} of the 3rd century.<ref>[https://www.greek-language.gr/greekLang/medieval_greek/em_kriaras/scanned_new/index.html?start=301&id=50&show=1 p.214], [https://www.greek-language.gr/greekLang/medieval_greek/em_kriaras/scanned_new/index.html?start=301&id=50&show=1 215] - {{R:Kriaras Medieval2}}</ref><ref>{{R:Kriaras Medieval}}</ref><br>
+According to other etymologists, an internal learned borrowing,<ref>{{R:Georgakas}}</ref> replacing {{m|el|άθρωπος}}.<ref>{{cite-book|author=Julián Mendez Dosuna|chapter=Once again on allophonic spellings in Ancient Greek|title=Miscellanea Indogermanica: Festschrift for José Luis García Ramón herausgegeben von 65. Geburtstag|editors=Ivo Hajnal, Daniel Kölligan, Katharina Zipser|page=491|location=Innsbruck|year=2017|publisher=Innsbrucker Beiträge zur Sprachwissenschaft}}</ref>
+
+===Pronunciation===
+* {{IPA|el|/ˈan.θɾo.pos/}}
+* {{audio|el|El-άνθρωπος.ogg}}
+* {{hyphenation|el|άν|θρω|πος}}
+
+===Noun===
+{{el-noun|m|άνθρωποι}}
+
+# a [[human]]; [[person]]; the species [[man]]
+## {{lb|el|in the plural}} [[people]]
+
+====Usage notes====
+This masculine noun covers both male and female meanings of the definition. Articles and adjectives will both follow the masculine gender.
+
+====Declension====
+{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}
+
+====Derived terms====
+{{col|el|keeplast=1
+|ανθρωπο-<pos:prefix>
+|ανθρωπό-<pos:prefix>
+|ανθρωπάκι<pos:diminutive form><g:n>
+|ανθρωπάριο<pos:diminutive form><g:n>
+|αγριάνθρωπος<t:wild man><g:m>
+|ανθρωπεύω<t:to civilise>
+|ανθρωπιά<t:compassion><g:f>
+|ανθρωπινός<t:humane><pos:a>
+|ανθρώπινος<t:human><pos:a>
+|ανθρωπισμός<t:humanism><g:m>
+|ανθρωπιστής<t:humanist><g:m>
+|ανθρωπίστρια<t:humanist><g:f>
+|ανθρωπιστικά<t:compassionately><pos:adverb>
+|ανθρωπιστικός<t:compassionate, humanistic>
+|ανθρωπογένεση<t:anthropogeny><g:f>
+|ανθρωπογεωγραφία<t:anthropogeography><g:f>
+|ανθρωπογνωσία<t:knowledge of man><g:f>
+|ανθρωποειδής<t:anthropoid, humanoid><pos:a>
+|ανθρωποθάλασσα<t:huge crowd><g:f>
+|ανθρωποθυσία<t:human sacrifice><g:f>
+|Ανθρωπόκαινο<t:Anthropocene><g:n>
+|ανθρωπόκαινος<t:Anthropocene><pos:a>
+|ανθρωποκεντρικός<t:anthropocentric><pos:a>
+|ανθρωποκεντρισμός<t:anthropocentrism><g:m>
+|ανθρωποκτονία<t:homicide><g:f>
+|ανθρωποκτόνος<t:homicidal><pos:a>
+|ανθρωπομετρία<t:anthropometry><g:f>
+|ανθρωπομορφικός<t:anthropomorphic><pos:a>
+|ανθρωπομορφισμός<t:anthropomorphism><g:m>
+|ανθρωπόμορφος<t:anthropomorphous><pos:a>
+|ανθρωποπίθηκος<t:anthropithecus><g:m>
+|ανθρωποπλημμύρα<t:huge crowd><g:f>
+|ανθρωποσύναξη<t:crowd, assembly><g:f>
+|ανθρωποσφαγή<t:massacre><g:f>
+|ανθρωποσωτήριος<t:humanitarian><pos:a>
+|ανθρωπότητα<t:mankind><g:f>
+|ανθρωποφαγία<t:cannibalism><g:f>
+|ανθρωποφαγικός<t:cannibalistic><pos:a>
+|ανθρωποφάγος<t:cannibal><g:m>
+|ανθρωποφοβία<t:anthropophobia><g:f>
+|συνάνθρωπος<t:fellow man><g:m>
+|φιλάνθρωπος<t:philanthropic><pos:a>
+|χιονάνθρωπος<t:snowman><g:m>
+|{{see|el|noast=1|and=1|ανθρωπολογία|t=anthropology|g=f}} ''and'' {{l|el|απάνθρωπος|t=inhuman, cruel}}
+}}
+
+===References===
+<references/>

@@ -248,11 +248,11 @@ describe("convenience wrappers", () => {
         expect(await phonetic("γράφω", "el")).toBe("ˈɣra.fo");
     });
 
-    it("hyphenate should return string joined by config separator or default", async () => {
+    it("hyphenate should return array of syllables", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await hyphenate("γράφω", "el")).toBe("γρά-φω");
-        expect(await hyphenate("έγραψε", "el")).toBe("έ-γρα-ψε");
-        expect(await hyphenate("έγραψε", "el", { separator: "‧" })).toBe("έ‧γρα‧ψε");
+        expect(await hyphenate("γράφω", "el")).toEqual(["γρά", "φω"]);
+        expect(await hyphenate("έγραψε", "el")).toEqual(["έ", "γρα", "ψε"]);
+        // format is now handled by the format() utility, but hyphenate returns the array.
     });
 
     it("hyphenate should return array if requested", async () => {

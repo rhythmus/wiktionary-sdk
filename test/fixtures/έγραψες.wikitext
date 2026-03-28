@@ -1,0 +1,6 @@
+==Greek==
+
+===Verb===
+{{head|el|verbf}}
+
+# {{infl of|el|γράφω||2s|spast}}
