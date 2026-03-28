@@ -89,6 +89,7 @@ export function splitEtymologiesAndPOS(langBlock: string) {
 
     for (const e of etyms) {
         const preambleText = e.preamble.join("\n");
+        e.etymology_raw_text = preambleText; // preserve for etymology decoder
         for (const pb of e.posBlocks) {
             pb.wikitext = (preambleText ? preambleText + "\n" : "") + pb.lines.join("\n");
             delete pb.lines;

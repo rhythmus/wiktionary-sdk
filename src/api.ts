@@ -32,15 +32,26 @@ export async function fetchWikitextEnWiktionary(title: string) {
         format: "json",
         formatversion: "2",
         origin: "*",
-        prop: "revisions|pageprops",
+        prop: "revisions|pageprops|categories|images|langlinks|info",
         rvprop: "content",
         rvslots: "main",
+        cllimit: "50",
+        imlimit: "20",
+        lllimit: "20",
         redirects: "1",
         titles: title,
     });
     const page = j?.query?.pages?.[0];
     const wikitext = (page?.revisions?.[0]?.slots?.main?.content ?? "").normalize("NFC");
     const pageprops = page?.pageprops ?? {};
+    const categories = (page?.categories ?? []).map((c: any) => c.title.replace(/^Category:/, ""));
+    const langlinks = page?.langlinks ?? [];
+    const info = {
+        last_modified: page?.touched,
+        length: page?.length,
+        pageid: page?.pageid,
+        lastrevid: page?.lastrevid,
+    };
     const exists = !page?.missing;
     const normalizedTitle = (page?.title ?? title).normalize("NFC");
     const result = {
@@ -48,6 +59,9 @@ export async function fetchWikitextEnWiktionary(title: string) {
         title: normalizedTitle,
         wikitext,
         pageprops,
+        categories,
+        langlinks,
+        info,
         pageid: page?.pageid ?? null,
     };
     if (exists) {

@@ -188,6 +188,9 @@ async function wiktionaryRecursive({
                             language_section: section.langName,
                             etymology_index: e.idx,
                             pos_heading: pb.posHeading,
+                            revision_id: (qPage as any).info?.lastrevid ?? undefined,
+                            last_modified: (qPage as any).info?.last_modified ?? undefined,
+                            pageid: qPage.pageid ?? null,
                         },
                     },
                 };
@@ -209,6 +212,20 @@ async function wiktionaryRecursive({
                 }
 
                 base.form = qPage.title;
+                
+                // Attach metadata and filter categories
+                const langName = section.langName;
+                base.categories = (qPage as any).categories?.filter((c: string) => 
+                    c.toLowerCase().includes(langName.toLowerCase()) || 
+                    c.toLowerCase().includes("pages with") // e.g. "Pages with 3 entries"
+                ) || [];
+                base.langlinks = (qPage as any).langlinks || [];
+                base.metadata = {
+                    last_modified: (qPage as any).info?.last_modified,
+                    length: (qPage as any).info?.length,
+                    pageid: (qPage as any).info?.pageid,
+                };
+
                 entries.push(base);
             }
         }
@@ -329,7 +346,12 @@ async function wiktionaryRecursive({
         schema_version: SCHEMA_VERSION, 
         rawLanguageBlock: lang === "Auto" ? qPage.wikitext : (searchSections[0]?.block || ""), 
         entries: merged, 
-        notes: [] 
+        notes: [],
+        metadata: {
+            categories: (qPage as any).categories || [],
+            langlinks: (qPage as any).langlinks || [],
+            info: (qPage as any).info || {},
+        }
     };
     if (debugDecoders && allDebugEvents.length > 0) {
         out.debug = allDebugEvents.concat(Array(lemmaEntries.length).fill([]));
