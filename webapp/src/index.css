@@ -1,25 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-
-
+/* ── Design tokens ── */
 :root {
-  --bg-color: #0d0f14;
-  --panel-color: rgba(17, 22, 34, 0.8);
-  --border-color: rgba(255, 255, 255, 0.1);
-  --accent-color: #3b82f6;
-  --accent-glow: rgba(59, 130, 246, 0.4);
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --success: #10b981;
-  --warning: #f59e0b;
+  /* Light-mode page (outside dark island) */
+  --page-bg:       #F7F7F5;
+  --page-bg-alt:   #FFFFFF;
+  --page-border:   rgba(0, 0, 0, 0.07);
+  --page-text:     #111111;
+  --page-muted:    #6b7280;
+  --page-accent:   #4f46e5;
+
+  /* Dark island internals */
+  --dk-bg:         #0d0f14;
+  --dk-panel:      #111622;
+  --dk-border:     rgba(255, 255, 255, 0.08);
+  --dk-text:       #f1f5f9;
+  --dk-muted:      #64748b;
+  --dk-secondary:  #94a3b8;
+  --dk-fuchsia:    #d946ef;
+  --dk-fuchsia-bg: rgba(217, 70, 239, 0.12);
+  --dk-fuchsia-br: rgba(217, 70, 239, 0.35);
+
+  /* Semantic */
   --error: #ef4444;
-  --glass-bg: rgba(17, 22, 34, 0.6);
-  --glass-blur: blur(12px);
 }
 
 * {
@@ -28,10 +35,11 @@
   padding: 0;
 }
 
+/* ── Page: light ── */
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-primary);
+  background-color: var(--page-bg);
+  color: var(--page-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -42,85 +50,332 @@ code {
   font-family: 'JetBrains Mono', monospace;
 }
 
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--border-color);
-}
-
-.glass-card {
-  border-radius: 16px;
-  background: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.05) 0%,
-      rgba(255, 255, 255, 0) 100%);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Animations */
+/* ── Animations ── */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease forwards;
 }
 
-/* YAML Highlighting */
-.yaml-key {
-  color: #818cf8;
-  font-weight: 500;
+/* ── Google-vibe search bar ── */
+.google-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 620px;
+  background: #fff;
+  border-radius: 28px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 4px rgba(32, 33, 36, 0.10);
+  padding: 4px 4px 4px 18px;
+  transition: box-shadow 0.2s;
 }
 
-.yaml-string {
-  color: #34d399;
+.google-bar:focus-within {
+  box-shadow: 0 3px 12px rgba(32, 33, 36, 0.20);
 }
 
-.yaml-number {
-  color: #facc15;
+.google-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Alegreya', serif;
+  font-size: 1.2rem;
+  color: var(--page-text);
+  padding: 8px 10px 8px 0;
+  min-width: 0;
 }
 
-.yaml-bool {
-  color: #f472b6;
-}
-
-.yaml-dash {
-  color: #94a3b8;
-}
-
-.yaml-comment {
-  color: #64748b;
+.google-bar input::placeholder {
+  color: #adb5bd;
   font-style: italic;
+}
+
+.google-bar .bar-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+.google-bar select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--page-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+
+.google-bar .fetch-btn {
+  background: var(--page-accent);
+  color: #fff;
+  border: none;
+  border-radius: 22px;
+  padding: 10px 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.google-bar .fetch-btn:hover  { background: #4338ca; }
+.google-bar .fetch-btn:disabled { background: #9ea5d6; cursor: not-allowed; }
+
+/* ── Dictionary result card ── */
+.dict-card {
+  background: var(--page-bg-alt);
+  border-radius: 18px;
+  border: 1px solid var(--page-border);
+  padding: 2.5rem 3rem;
+  animation: fadeIn 0.45s ease forwards;
+}
+
+.dict-lemma {
+  font-family: 'Alegreya', serif;
+  font-size: 3.5rem;
+  font-weight: 500;
+  color: #111;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.dict-ipa {
+  font-family: 'Alegreya', serif;
+  font-style: italic;
+  font-size: 1.15rem;
+  color: var(--page-muted);
+  margin-left: 1rem;
+}
+
+.dict-pos-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--page-accent);
+  background: rgba(79, 70, 229, 0.08);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-top: 0.75rem;
+}
+
+.dict-rule {
+  height: 1px;
+  background: var(--page-border);
+  margin: 1.5rem 0;
+}
+
+.dict-entry-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--page-border);
+  background: transparent;
+  color: var(--page-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.15s;
+}
+.dict-entry-pill:hover { border-color: var(--page-accent); color: var(--page-accent); }
+.dict-entry-pill.active {
+  border-color: var(--page-accent);
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--page-accent);
+}
+
+/* ── Dark island wrapper ── */
+.dark-island {
+  background: var(--dk-bg);
+  border-radius: 20px;
+  padding: 2rem 2.5rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--dk-text);
+}
+
+/* ── Dark island: section headings ── */
+.dk-section-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--dk-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Dark island: plain panels (NO glassmorphism) ── */
+.dk-panel {
+  background: var(--dk-panel);
+  border: 1px solid var(--dk-border);
+  border-radius: 12px;
+}
+
+/* ── Dark island: terminal output well ── */
+.dk-well {
+  background: rgba(0, 0, 0, 0.50);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+/* ── Dark island: inputs / selects ── */
+.dk-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--dk-border);
+  border-radius: 10px;
+  color: var(--dk-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  height: 38px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.dk-input:focus { border-color: var(--dk-fuchsia-br); }
+
+.dk-select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(217, 70, 239, 0.25);
+  border-radius: 10px;
+  color: var(--dk-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  height: 38px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+  cursor: pointer;
+  width: 100%;
+}
+.dk-select:focus { border-color: var(--dk-fuchsia-br); }
+
+/* ── Dark island: Execute button (fuchsia — restored original) ── */
+.dk-execute-btn {
+  background: var(--dk-fuchsia-bg);
+  border: 1px solid var(--dk-fuchsia-br);
+  color: var(--dk-fuchsia);
+  border-radius: 10px;
+  height: 38px;
+  padding: 0 20px;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.dk-execute-btn:hover    { background: rgba(217, 70, 239, 0.22); border-color: rgba(217, 70, 239, 0.6); }
+.dk-execute-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Dark island: prop pills ── */
+.dk-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--dk-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dk-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dk-pill:hover  { border-color: var(--dk-fuchsia-br); color: var(--dk-fuchsia); }
+.dk-pill.active { border-color: var(--dk-fuchsia-br); background: var(--dk-fuchsia-bg); color: var(--dk-fuchsia); }
+
+/* ── Dark island: collapse toggle ── */
+.dk-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--dk-muted);
+  transition: color 0.15s;
+}
+.dk-toggle:hover { color: var(--dk-text); }
+
+/* ── Dark island: icon btn (Debug / Compare inside collapse) ── */
+.dk-icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--dk-border);
+  background: transparent;
+  color: var(--dk-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dk-icon-btn:hover             { border-color: rgba(255,255,255,0.2); color: var(--dk-text); }
+.dk-icon-btn.active-amber      { border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.1); color: #f59e0b; }
+.dk-icon-btn.active-emerald    { border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.08); color: #10b981; }
+
+/* ── Dark island: custom scrollbars ── */
+.dark-island ::-webkit-scrollbar        { width: 6px; height: 6px; }
+.dark-island ::-webkit-scrollbar-track  { background: transparent; }
+.dark-island ::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.dark-island ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Dark island: YAML Highlighting ── */
+.yaml-key     { color: #818cf8; font-weight: 500; }
+.yaml-string  { color: #34d399; }
+.yaml-number  { color: #facc15; }
+.yaml-bool    { color: #f472b6; }
+.yaml-dash    { color: #94a3b8; }
+.yaml-comment { color: #64748b; font-style: italic; }
+
+/* ── Utility ── */
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ── GitHub Corner ── */
+.github-corner:hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+@keyframes octocat-wave {
+  0%, 100% { transform: rotate(0); }
+  20%, 60%  { transform: rotate(-25deg); }
+  40%, 80%  { transform: rotate(10deg); }
+}
+@media (max-width: 500px) {
+  .github-corner:hover .octo-arm { animation: none; }
+  .github-corner .octo-arm { animation: octocat-wave 560ms ease-in-out; }
 }
