@@ -14,7 +14,7 @@
 
 {{#if etymology.chain}}
 ### I. Etymology & Origins
-{{#each etymology.chain}}**{{source_lang_name}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}← {{/unless}}{{/each}}
+{{#each etymology.chain}}**{{source_lang_name}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
 
 {{#if etymology.cognates}}
 > **Cognates:** {{#each etymology.cognates}}{{source_lang_name}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}

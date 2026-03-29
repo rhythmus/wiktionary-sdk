@@ -217,6 +217,16 @@ Handlebars.registerHelper("ifCond", function (this: any, v1: any, operator: stri
     }
 });
 
+Handlebars.registerHelper("etymSymbol", (relation: string) => {
+    switch (relation) {
+        case "alternative": return "~";
+        case "inherited": return "←";
+        case "borrowed": return "bor.";
+        case "cognate": return "cog.";
+        default: return "<";
+    }
+});
+
 const htmlEntryTemplate = Handlebars.compile(HTML_ENTRY_TEMPLATE);
 const mdEntryTemplate = Handlebars.compile(MD_ENTRY_TEMPLATE);
 const entryCss = ENTRY_CSS;

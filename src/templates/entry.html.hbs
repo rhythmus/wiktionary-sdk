@@ -2,7 +2,7 @@
     <div class="entry-body">
         <div class="entry-head">
             {{#if form_of}}
-            <div class="inflected-header">
+            <div class="inflected-header {{form_of.subclass}}">
                 <span class="lemma">{{headword}}</span>
                 <span class="inflection-label">{{form_of.label}} of:</span>
             </div>
@@ -45,7 +45,7 @@
             <div class="etym-chain">
                 {{#each etymology.chain}}
                 <b class="lang-tag">{{source_lang_name}}</b> {{term}} {{#if gloss}}({{gloss}}){{/if}}
-                {{#unless @last}}<span class="etym-arrow">←</span>{{/unless}}
+                {{#unless @last}}<span class="etym-arrow">{{etymSymbol relation}}</span>{{/unless}}
                 {{/each}}
             </div>
             {{#if etymology.cognates}}

@@ -7,7 +7,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
     <div class="entry-body">
         <div class="entry-head">
             {{#if form_of}}
-            <div class="inflected-header">
+            <div class="inflected-header {{form_of.subclass}}">
                 <span class="lemma">{{headword}}</span>
                 <span class="inflection-label">{{form_of.label}} of:</span>
             </div>
@@ -50,7 +50,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
             <div class="etym-chain">
                 {{#each etymology.chain}}
                 <b class="lang-tag">{{source_lang_name}}</b> {{term}} {{#if gloss}}({{gloss}}){{/if}}
-                {{#unless @last}}<span class="etym-arrow">←</span>{{/unless}}
+                {{#unless @last}}<span class="etym-arrow">{{etymSymbol relation}}</span>{{/unless}}
                 {{/each}}
             </div>
             {{#if etymology.cognates}}
@@ -216,7 +216,7 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 
 {{#if etymology.chain}}
 ### I. Etymology & Origins
-{{#each etymology.chain}}**{{source_lang_name}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}← {{/unless}}{{/each}}
+{{#each etymology.chain}}**{{source_lang_name}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
 
 {{#if etymology.cognates}}
 > **Cognates:** {{#each etymology.cognates}}{{source_lang_name}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}
@@ -351,6 +351,31 @@ export const ENTRY_CSS = `:root {
     font-weight: 600;
     color: #374151;
     margin-left: 0.5rem;
+}
+
+/* Subclass-specific styling */
+.inflected-header.misspelling .lemma {
+    text-decoration: underline wavy #ef4444; /* Red Wiggle */
+    color: #b91c1c;
+}
+
+.inflected-header.abbreviation .lemma {
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    color: #4b5563;
+}
+
+.inflected-header.clipping .lemma {
+    font-style: italic;
+    color: #4b5563;
+}
+
+.inflected-header.diminutive .lemma {
+    color: #0891b2; /* Cyan tint */
+}
+
+.inflected-header.augmentative .lemma {
+    color: #b45309; /* Amber tint */
 }
 
 .lemma-redirect {
