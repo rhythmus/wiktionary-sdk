@@ -45,6 +45,13 @@ A custom parser handles nested `{{...}}` structures.
 
 ---
 
+## 🧪 Testing
+
+See **[test/README.md](test/README.md)** for mocking rules, npm scripts (`test`, `test:perf`,
+`test:all`, `test:network`), golden snapshots, and decoder coverage expectations.
+
+---
+
 ## 📝 Commit Message Style
 
 Follow this format consistently for all commits.
@@ -113,5 +120,6 @@ detailed Delivered sections.
 ---
 
 ## 📚 Essential Reading
-- [Wiktionary-Fetch Spec](file:///Users/woutersoudan/Desktop/wiktionary-fetch/docs/wiktionary-fetch-spec.md) (Ground Truth)
-- [Roadmap](file:///Users/woutersoudan/Desktop/wiktionary-fetch/docs/ROADMAP.md) (Context for Phase 2-6)
+- [Test suite guide](test/README.md) (mocking, tiers, goldens, coverage)
+- [Wiktionary SDK spec](docs/wiktionary-sdk-spec.md) (ground truth)
+- [Roadmap](docs/ROADMAP.md) (context for later phases)

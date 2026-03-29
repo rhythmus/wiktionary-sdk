@@ -87,7 +87,7 @@ entries:
 Beyond the low-level `wiktionary` engine, the library provides high-level convenience wrappers to extract exact data points easily:
 
 ```typescript
-import { lemma, synonyms, hypernyms, ipa, pronounce, hyphenate, etymology, translate, wikidataQid, wikipediaLink, image, format } from "wiktionary-sdk";
+import { lemma, synonyms, hypernyms, ipa, pronounce, hyphenate, etymology, translate, derivedTerms, derivations, wikidataQid, wikipediaLink, image, format } from "wiktionary-sdk";
 
 // 1. Resolve inflected forms (Now works in "Auto" mode by default!)
 await lemma("έγραψε"); // "γράφω" (Greek)
@@ -101,8 +101,9 @@ await synonyms("bank", "en", "noun"); // Specific filtered results
 await antonyms("έγραψε"); // ["σβήνω"]
 await hypernyms("μήλο"); // ["φρούτο"]
 await hyponyms("φρούτο"); // ["μήλο", "μπανάνα"]
-await derivedTerms("έγραψε"); // ["συγγραφέας", … ]
-await relatedTerms("έγραψε"); // ["γραπτός"]
+await derivedTerms("έγραψε"); // [{ term: "συγγραφέας", … }]
+await derivations("έγραψε"); // alias of derivedTerms()
+await relatedTerms("έγραψε"); // [{ term: "γραπτός", … }]
 
 // 3. Get precise phonetic transcription and audio URIs
 await ipa("έγραψε"); 
@@ -327,16 +328,26 @@ npm run serve        # starts on http://localhost:3000 (runs built server)
 
 ### ✅ Running Tests
 
-The SDK includes a documentation-driven test suite to ensure that all usage examples in this README remain valid and that the API behavior is consistent.
+The SDK includes a documentation-driven test suite to ensure that all usage examples in this README remain valid and that the API behavior is consistent. **Contributor guide:** [test/README.md](test/README.md) (mocking, golden snapshots, decoder coverage).
 
 ```bash
 # Run the compliance suite
 npm test test/readme_examples.test.ts
 
-# Run all tests (includes fixture-based integration tests)
+# Default offline suite (excludes parser wall-clock perf test)
 npm test
+npm run test:ci
 
-# Run parser benchmarks
+# Parser performance assertions (optional; also relaxed under CI=1)
+npm run test:perf
+
+# Full unit + perf
+npm run test:all
+
+# Optional live en.wiktionary fetch (sets WIKT_TEST_LIVE)
+npm run test:network
+
+# Vitest benchmark files (separate from test:perf)
 npm run bench
 ```
 
