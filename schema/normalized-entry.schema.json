@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json",
   "title": "Wiktionary SDK Normalized Output",
-  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Entry types). v2.1.0.",
+  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Entry types). v2.4.0.",
   "type": "object",
   "$defs": {
     "schemaVersion": {
@@ -199,6 +199,10 @@
         "lemma": { "type": ["string", "null"] },
         "lang": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } },
+        "subclass": {
+          "type": "string",
+          "description": "The specific subclass of form-of (e.g. 'misspelling', 'abbreviation', 'plural')."
+        },
         "label": {
           "type": "string",
           "description": "Human-readable label rendered from the tag array, e.g. '1st pers. singular perfective past'."

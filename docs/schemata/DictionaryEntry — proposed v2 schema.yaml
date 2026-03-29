@@ -1,7 +1,7 @@
 # DictionaryEntry — Proposed v2 Schema
 # Full example: γράφω (Greek verb)
 
-schema_version: "2.3.0"
+schema_version: "2.4.0"
 
 # ── Identity ───────────────────────────────────────────────────────────────
 id: "el:γράφω#E0#verb#LEXEME"
@@ -167,6 +167,7 @@ form_of:
   lemma: "γράφω"
   lang: "el"
   tags: ["1", "s", "perf", "past", "actv", "indc"]
+  subclass: "inflected"          # misspelling | abbreviation | plural | inflected
   label: "1st pers. singular perfective past"
   named: {}
 

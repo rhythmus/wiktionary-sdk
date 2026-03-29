@@ -199,6 +199,19 @@ This section records **intentionally partial** choices from the testing hardenin
 - **Design: Academic Typography**
     - **Done:** Added directional arrow (`→`) prefixes and hierarchical styling for grammatical redirects, matching premium printed dictionary standards.
 
+## 💎 Stage 22: Granular Subclasses & Etymological Relations (v2.4.0 — Delivered)
+
+**Goal**: enhance the rendering engine to support specialized typography for variants and complex etymologies.
+
+- **Engine: Granular Subclass Extraction**
+    - **Done:** Updated the `form-of` decoder to systematically extract subclasses (misspelling, abbreviation, clipping, diminutive, plural) from template names.
+- **Etymology: Granular Relation Symbols**
+    - **Done:** Expanded `TEMPLATE_RELATION_MAP` to preserve specific types (affix, compound, alternative) and mapped them to academic symbols (`~`, `←`, `<`) via a new Handlebars helper.
+- **Design: Subclass-Specific CSS**
+    - **Done:** Implemented CSS selectors for all subclasses, including the "Gold Standard" red wavy underline for misspellings and small-caps for abbreviations.
+- **Infrastructure: v2.4.0 Schema Synchronization**
+    - **Done:** Formalized the `subclass` field in `types.ts`, the JSON Schema, and the YAML specification.
+
 ## 🌍 Stage 18: Multi-lingual Expansion & Schema Consolidation (v2.1 — Delivered)
 
 **Goal**: transition from "Greek-only" to a multi-lingual foundation and formalize high-level API outputs.
