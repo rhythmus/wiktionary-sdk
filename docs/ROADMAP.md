@@ -175,6 +175,19 @@ This section records **intentionally partial** choices from the testing hardenin
 - **Interface: Playground & CLI Parity**
     - **Done:** Added `audioGallery()`, `citations()`, and `isSubclass()` to all public interfaces.
 
+## 💎 Stage 20: Premium Rendering & Typographic Standards (v2.2 — Delivered)
+
+**Goal**: transition to a professional-grade, font-neutral rendering engine using specialized Handlebars templates.
+
+- **Infrastructure: Handlebars Templating Engine**
+    - **Done:** Integrated `handlebars` for high-fidelity HTML/Markdown output, enabling complex logic and reusable partials.
+- **Design: "Gold Standard" Typographic Specimen**
+    - **Done:** Implemented `src/templates/entry.html.hbs` and `entry.css` to emulate premium printed academic dictionaries.
+- **Architecture: Font-Neutral Snippets**
+    - **Done:** Re-engineered the renderer to produce CSS-neutral fragments that inherit typography from their host environment, ensuring seamless embedding.
+- **Data: RichEntry Expansion**
+    - **Done:** Expanded the aggregate mapping to capture principal parts, structured citations, and usage notes for high-fidelity display.
+
 ## 🌍 Stage 18: Multi-lingual Expansion & Schema Consolidation (v2.1 — Delivered)
 
 **Goal**: transition from "Greek-only" to a multi-lingual foundation and formalize high-level API outputs.

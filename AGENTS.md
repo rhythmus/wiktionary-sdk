@@ -48,12 +48,23 @@ A custom parser handles nested `{{...}}` structures.
 
 ---
 
+## 🛠️ How to Modify rendering & Styles
+
+The SDK uses **Handlebars** for high-fidelity rendering of dictionary entries. 
+
+1.  **HTML Design**: Edit `src/templates/entry.html.hbs`.
+2.  **Markdown Design**: Edit `src/templates/entry.md.hbs`.
+3.  **Styling**: Edit `src/templates/entry.css`.
+4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`) are defined in `src/formatter.ts`.
+
+When modifying templates, ensure you maintain the "Gold Standard" typographic density and academic aesthetic.
+
 ## 🛠️ How to Add Support for a New Template
 
 1.  **Identify**: Find the template on Wiktionary (e.g., `{{el-noun-m-ος-2}}`).
 2.  **Define**: Update `types.ts` if a new PoS-specific interface is needed.
 3.  **Implement**: Create a new `TemplateDecoder` in `registry.ts`.
-4.  **Verify**: Run a search for a word using that template in the `/webapp` and inspect the YAML output.
+4.  **Verify**: Run the verification script: `npx tsx tools/verify_templates.ts`.
 
 ---
 

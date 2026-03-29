@@ -80,7 +80,7 @@ entries:
 2.  🧩 **Registry-Based Modularity** — Instead of a monolithic parser, a decentralized **Registry of Template Decoders** allows for rapid expansion and total traceability.
 3.  🔗 **Traceability First** — Every piece of normalized data links back to its specific source template and verbatim wikitext.
 4.  🔍 **Developer-Centric Verification** — A premium React dashboard with interactive template inspection and debugger mode provides instant visual confirmation of extraction quality.
-5.  🏛️ **Academic Typographic Standards** — From v2.1, the SDK defines a "Gold Standard" for human-readable output, emulating the density and formal aesthetic of premium printed dictionaries (see `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`).
+5.  🏛️ **Academic Typographic Standards** — From v2.2, the SDK uses a **Handlebars-based high-fidelity rendering engine** to achieve a "Gold Standard" for human-readable output, emulating the density and formal aesthetic of premium printed dictionaries (see `src/templates/entry.html.hbs`).
 
 ## ✨ Features & Capabilities
 
@@ -291,7 +291,8 @@ format(lineage, { mode: "markdown" }); // "grk-pro ***grépʰō** ← el **γρ�
 - **Polymorphic `format()` utility** — transforms any structured SDK result (Morphology, Stems, Etymology, Senses) into human-readable Text, Markdown, or HTML.
 - **Extensible Style Registry** — Developers can register custom formatting styles (e.g., LaTeX, YAML) by implementing the `FormatterStyle` interface and calling `registerStyle()`.
 - **Context-aware serialization** — automatic handling of list styles, ordinal suffixes, and philological separators (e.g., `‧` for syllables).
-- **Extensible Templates** — support for Markdown and HTML styling to ensure consistent presentation across playgrounds, CLIs, and web applications.
+- **Extensible Templates** — support for Handlebars-based Markdown and HTML fragments to ensure high-fidelity presentation across playgrounds, CLIs, and web applications.
+- **Font-Agnostic Fragments** — entry output is designed as a CSS-neutral snippet that inherits the host environment's typography for seamless embedding.
 
 ### 🧠 Extraction Engine
 
@@ -448,7 +449,7 @@ The project distinguishes between two primary entry types:
 1.  **LEXEME**: Represents a dictionary lemma (e.g., *γράφω*). Includes POS, morphology stems, translations, senses, semantic relations, etymology, pronunciation, and usage notes.
 2.  **INFLECTED_FORM**: Represents a specific form (e.g., *έγραψε*). Links back to a lemma via `form_of` and includes inflectional tags.
 
-The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`) versioned per the policy in `VERSIONING.md`. The current schema version is `2.1.0`.
+The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`) versioned per the policy in `VERSIONING.md`. The current schema version is `2.2.0`.
 
 ## 🧩 Decoder Coverage
 

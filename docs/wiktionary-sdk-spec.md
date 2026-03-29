@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v2.1)
+# Wiktionary SDK — Formal Specification (v2.2)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -78,7 +78,7 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "2.1.0"
+schema_version: "2.2.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
@@ -90,7 +90,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.1.0"`.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.2.0"`.
 - `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `entries[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -333,7 +333,7 @@ derived_terms:
 
 ### 3.7 Schema versioning
 
-The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.1.0`** (a major bump from 1.x, with v2.1 adding high-fidelity "buried data" extraction). The version follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
+The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.2.0`** (v2.1 added high-fidelity extraction; v2.2 adds high-fidelity rendering).
 
 Human-readable schema examples are in `docs/schemata/`:
 - `verb-lemma.yaml`: annotated example for a verb lemma entry.
@@ -617,15 +617,22 @@ Derived/Related/Descendants sections are stored with both `raw_text` (verbatim) 
 ### 12.9 Brace-Aware Gloss Stripping
 `stripWikiMarkup()` uses depth-based scanning rather than regex for `[[links]]` and `{{templates}}`. **Rationale:** regex-based replacement can mis-handle nested structures (e.g. `[[link]]` producing duplicated text, or `{{t|g={{g|m}}}}` leaving stray braces). The brace-aware implementation: (1) finds matching `]]`/`}}` by depth counting; (2) extracts `[[link|display]]` → display, `[[link]]` → link; (3) recursively strips markup inside link display text; (4) removes templates entirely. **Design choice:** process `'''` before `''` to avoid partial italic matches.
 
-### 12.10 Formatter Architecture
-`src/formatter.ts` provides a polymorphic `format(data, options)` function that dispatches to a registered `FormatterStyle`. The type of `data` is detected at runtime (RichEntry, InflectionTable, EtymologyStep[], Sense[], WordStems, GrammarTraits) and routed to the appropriate style method. Built-in styles:
-- **text**: plain strings, suitable for logging and tests.
-- **markdown**: bolded keys, inline code for forms, `←` etymology arrows.
-- **html**: `<span>` and `<div>` markup, suitable for static site output.
-- **ansi**: ANSI escape sequences (`\x1b[32m` green, `\x1b[36m` cyan, etc.) for colourised terminal output.
-- **terminal-html**: inline `style="color: ..."` HTML for browser pseudo-terminals (used by the webapp playground).
+### 12.10 Formatter Architecture (High-Fidelity Rendering)
+`src/formatter.ts` provides a polymorphic `format(data, options)` function that dispatches to a registered `FormatterStyle`. From v2.2, the system utilizes **Handlebars-based templates** (`src/templates/*.hbs`) for complex output formats (HTML, Markdown).
 
 **Design choice:** `styleRegistry` is a plain object; `registerStyle()` allows consumers to add custom styles (e.g. LaTeX, CSV) without modifying the core library. The dispatcher runs before style dispatch, keeping each style method purely presentational.
+
+#### 12.10.1 Handlebars Integration
+The move to Handlebars allows for:
+- **Logical Branching**: Handling optional fields (Principal Parts, Wikidata) without complex string concatenation.
+- **Reusable Partials**: Shared logic for etymology chains and sense nesting.
+- **Separation of Concerns**: CSS (`entry.css`) and structure (`entry.html.hbs`) are decoupled from the TypeScript logic.
+
+#### 12.10.2 Typographic Neutrality (Fragment Architecture)
+HTML and Markdown outputs are designed as **fragments/snippets**, not standalone documents.
+- **Scoped Styles**: CSS targets the `.wiktionary-entry` class to prevent global pollution.
+- **Font Independence**: No `font-family` declarations are hardcoded; the snippet inherits the typeface of its host environment (e.g., an iOS app, a web dashboard, or a terminal emulator).
+- **Single-Column Flow**: Avoids forced multi-column layouts to ensure the snippet adapts naturally to its container width.
 
 ### 12.11 Playground as Authentic CLI Mirror
 The webapp's API Playground is designed to mirror the real CLI as closely as possible. The pseudo-terminal displays the exact command the user could run in a shell (`wiktionary-sdk γράφω --lang el --extract stem`) alongside the colour-coded output. This reinforces the playground's role as a teaching and exploration tool, not just a debugging panel, and makes the CLI feel immediately approachable. The macOS window chrome (traffic-light dots, centred window title) reinforces the terminal analogy.
