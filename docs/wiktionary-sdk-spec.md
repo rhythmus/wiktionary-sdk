@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v1.1)
+# Wiktionary SDK — Formal Specification (v2.0)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -17,13 +17,13 @@ Return:
 
 1) **verbatim** Wikitext extracted from Wiktionary via MediaWiki API  
 2) a **normalized JSON/YAML representation** derived *only* from explicit Wikitext/template data  
-3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)
+3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
+4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
 The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`), versioned per `VERSIONING.md`.
 
-**Roadmap note (non-normative):** this document specifies v1.1 behavior and
-data contracts. For planned post‑v1.1 hardening and further template coverage, 
-see `docs/ROADMAP.md`.
+**Roadmap note (non-normative):** this document specifies v2.0 behavior and
+data contracts. For the implementation history and completed stages, see `docs/ROADMAP.md`.
 
 ## 2. Data Sources
 
@@ -32,12 +32,18 @@ see `docs/ROADMAP.md`.
 - API endpoint: `https://en.wiktionary.org/w/api.php`
 - Fetch method:
   - `action=query`
-  - `prop=revisions|pageprops`
-  - `rvprop=content`
-  - `rvslots=main`
+  - `prop=revisions|pageprops|categories|images|langlinks|info`
+  - `rvprop=content`, `rvslots=main`
+  - `cllimit=50`, `imlimit=20`, `lllimit=20`
   - `redirects=1`
 
-**Rationale:** the English Wiktionary is used as the canonical parsing surface even for Greek entries.
+In addition to the Wikitext revision content, every API call now retrieves:
+
+- **`categories`**: structured list of page categories ("Category:" prefix stripped).
+- **`langlinks`**: links to parallel Wiktionary editions in other languages.
+- **`info`**: page-level metadata — `touched` (last edit timestamp), `length` (wikitext byte count), `pageid`, `lastrevid` (revision ID).
+
+**Rationale:** the English Wiktionary is used as the canonical parsing surface even for Greek entries. Structured categories and metadata are extracted from the API directly — this is far more reliable than trying to parse them from wikitext headings or prose.
 
 ### 2.2 Wikidata (optional enrichment)
 
@@ -72,21 +78,25 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "1.0.0"
+schema_version: "2.0.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
-debug: [...]   # optional; present when debugDecoders=true
+debug: [...]      # optional; present when debugDecoders=true
+metadata:          # page-level data from the API
+  categories: [...]
+  langlinks: [...]
+  info: { last_modified, length, pageid }
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Enables consumers to detect format
-  evolution.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.0.0"`.
 - `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `entries[i]`, listing which
-  decoder matched which templates and what fields it produced. **Rationale:**
-  enables developers to verify extraction correctness and diagnose missing
-  decoders without inspecting raw wikitext manually.
+  decoder matched which templates and what fields it produced.
+- `metadata` (optional): Page-level data fetched alongside the wikitext
+  (categories, langlinks, page info). Separate from per-entry `categories` and
+  `langlinks` which are filtered by language section.
 
 Each `Entry` contains:
 
@@ -100,24 +110,33 @@ Each `Entry` contains:
 | `etymology_index` | integer | Parsed from `===Etymology N===` headings |
 | `part_of_speech_heading` | string | Verbatim POS section heading |
 | `part_of_speech` | string? | From headword templates (`el-verb`, etc.) or heading mapping |
-| `pronunciation` | `{IPA?, audio?}` | From `{{IPA}}`, `{{el-IPA}}`, `{{audio}}` |
+| `pronunciation` | `Pronunciation` | From `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, `{{rhymes}}`, `{{homophones}}` |
 | `hyphenation` | `{syllables?, raw}` | From `{{hyphenation}}` |
-| `senses` | `Sense[]` | From `#` / `##` / `#:` definition lines |
-| `semantic_relations` | `SemanticRelations` | From `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}` |
-| `etymology` | `EtymologyData` | From `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` |
+| `senses` | `Sense[]` | From `#` / `##` / `#:` lines; includes `qualifier`, `labels`, `topics` |
+| `semantic_relations` | `SemanticRelations` | From `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}`, `{{cot}}`, `{{hol}}`, `{{mer}}`, `{{tro}}` |
+| `etymology` | `EtymologyData` | `chain[]` from `{{inh}}`, `{{der}}`, `{{bor}}`; `cognates[]` from `{{cog}}`; `raw_text` from preamble |
 | `usage_notes` | `string[]` | From `===Usage notes===` section text |
-| `form_of` | `FormOf` | From form-of templates (inflected forms only) |
-| `translations` | `Record<lang, TranslationItem[]>` | From `{{t}}`, `{{t+}}`, etc. Each item has `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params. |
-| `derived_terms` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Derived terms====` section |
-| `related_terms` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Related terms====` section |
-| `descendants` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Descendants====` section |
+| `references` | `string[]` | From `====References====` section text |
+| `form_of` | `FormOf` | From form-of templates; includes human-readable `label` field |
+| `translations` | `Record<lang, TranslationItem[]>` | From `{{t}}`, `{{t+}}`, etc. |
+| `headword_morphology` | `HeadwordMorphology` | Transitivity, aspect, voice, gender, principal parts from headword templates |
+| `alternative_forms` | `Array<{term, qualifier?, raw}>` | From `====Alternative forms====` section |
+| `see_also` | `string[]` | From `====See also====` section |
+| `anagrams` | `string[]` | From `====Anagrams====` section |
+| `inflection_table_ref` | `{template_name, raw}` | Name of the conjugation/declension template used |
+| `derived_terms` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Derived terms====` |
+| `related_terms` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Related terms====` |
+| `descendants` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Descendants====` |
 | `templates` | `Record<name, StoredTemplate[]>` | All template calls, stored verbatim |
-| `templates_all` | `StoredTemplateInstance[]` | Templates in document order with optional `start`, `end`, `line`. **Rationale:** preserves ordering and location for forensic traceability and click-to-source. |
-| `lemma_triggered_by_entry_id` | string? | When this lemma was resolved for an inflected form, the entry id that triggered it. **Rationale:** explicit linkage metadata for cycle-free lemma resolution. |
+| `templates_all` | `StoredTemplateInstance[]` | Templates in document order with optional `start`, `end`, `line` |
+| `lemma_triggered_by_entry_id` | string? | Entry id that triggered lemma resolution |
+| `categories` | `string[]` | API categories filtered by language section |
+| `langlinks` | `Array<{lang, title}>` | Interwiki links to other Wiktionary editions |
+| `metadata` | `{last_modified?, length?, pageid?}` | Page-level API metadata |
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
 
-**Mandatory traceability:**
+**Mandatory traceability** (`WiktionarySource`):
 
 ```yaml
 source:
@@ -127,7 +146,14 @@ source:
     language_section: Greek
     etymology_index: 1
     pos_heading: Verb
+    revision_id: 82341567
+    last_modified: "2026-03-15T10:22:00Z"
+    pageid: 2731423
 ```
+
+`revision_id`, `last_modified`, and `pageid` are populated from the API `info`
+block, enabling exact reproducibility (e.g. cache-busting by revision ID) and
+audit trails.
 
 ### 3.3 Sense structure
 
@@ -137,6 +163,10 @@ Definition lines are parsed into `Sense` objects:
 senses:
   - id: S1
     gloss: "to write"
+    gloss_raw: "to write (a letter)"
+    qualifier: "a letter"          # parenthetical after gloss
+    labels: ["colloquial"]         # from {{lb|el|colloquial}}
+    topics: ["linguistics"]        # topic domains from {{lb}}
     examples:
       - "He writes every day."
     subsenses:
@@ -148,7 +178,10 @@ senses:
 - `##` lines produce subsenses nested under the preceding sense (`S1.1`, `S1.2`, ...).
 - `#:` lines produce examples attached to the preceding sense.
 - Wiki markup (`[[links]]`, `'''bold'''`, `''italic''`, templates) is stripped from glosses.
-- `gloss_raw` (optional): the exact text after `#` / `##` before stripping. **Rationale:** enables consumers to apply custom stripping or retain verbatim source; supports forensic verification.
+- `gloss_raw` (optional): the exact text after `#` / `##` before stripping.
+- `qualifier` (optional): parenthetical text extracted from after the main gloss (e.g. "for traffic violations").
+- `labels` (optional): register/style labels from `{{lb|...}}` templates (e.g. `["colloquial", "figurative"]`).
+- `topics` (optional): topic domains from `{{lb|...}}` (e.g. `["law", "art"]`). Wiktionary uses a shared label-tag system; the decoder separates stylistic labels from topic labels heuristically.
 - Stripping is **brace-aware**: `[[link|display]]` → display, `[[link]]` → link; nested `{{...}}` removed correctly; no regex-induced duplication.
 
 ### 3.4 Semantic relations
@@ -160,23 +193,113 @@ semantic_relations:
       qualifier: formal
   antonyms:
     - term: σβήνω
+  coordinate_terms:
+    - term: αναγιγνώσκω
+  holonyms:
+    - term: γλώσσα
+  meronyms:
+    - term: γράμμα
+  troponyms:
+    - term: χαράζω
 ```
 
-Extracted from `{{syn|el|...}}`, `{{ant|el|...}}`, `{{hyper|el|...}}`, `{{hypo|el|...}}`. The optional `q=` named parameter maps to `qualifier`.
+| Field | Template | Notes |
+|-------|----------|-------|
+| `synonyms` | `{{syn}}` | |
+| `antonyms` | `{{ant}}` | |
+| `hypernyms` | `{{hyper}}` | |
+| `hyponyms` | `{{hypo}}` | |
+| `coordinate_terms` | `{{cot}}` | Peers at the same level (e.g. days of the week) |
+| `holonyms` | `{{hol}}` | Wholes that contain this term as a part |
+| `meronyms` | `{{mer}}` | Parts that make up this term |
+| `troponyms` | `{{tro}}` | Manner-of-action subtypes (e.g. "sprint" for "run") |
+
+All share the same shape: `term` (required), `qualifier?` from `q=` named param, `sense_id?` from `sense=`.
 
 ### 3.5 Etymology data
 
 ```yaml
 etymology:
-  links:
+  raw_text: "From Ancient Greek γράφω, from Proto-Greek *grápʰō."
+  chain:
     - template: inh
+      relation: inherited
       source_lang: grc
+      source_lang_name: Ancient Greek
       term: γράφω
       gloss: "to write"
       raw: "{{inh|el|grc|γράφω|t=to write}}"
+    - template: inh
+      relation: inherited
+      source_lang: grk-pro
+      source_lang_name: Proto-Greek
+      term: "*grápʰō"
+      raw: "{{inh|el|grk-pro|*grápʰō}}"
+  cognates:
+    - template: cog
+      relation: cognate
+      source_lang: la
+      term: scribo
+      raw: "{{cog|la|scribo}}"
 ```
 
-Extracted from `{{inh}}`, `{{der}}`, `{{bor}}`, `{{cog}}` and their long-form aliases. The `cog` template uses `pos[0]` as source language; the others use `pos[1]` (pos[0] being the target language).
+- `chain`: ancestors extracted from `{{inh}}` (inherited), `{{der}}` (derived), `{{bor}}` (borrowed), in template order. Each item has a `relation` field (`"inherited"` | `"borrowed"` | `"derived"`).
+- `cognates`: terms from `{{cog}}` templates, separated from the ancestor chain to avoid conflating direct ancestry with lateral kinship. `relation` is always `"cognate"`.
+- `raw_text`: the full etymology section prose (preamble text above the template chain), preserved verbatim for human readability and forensic traceability. **Rationale:** the `chain` gives the structured data; `raw_text` preserves editorial context and qualitative commentary.
+
+**Migration note:** the previous `links` field (a flat array mixing ancestors and cognates) is deprecated. `chain + cognates` is the canonical v2 structure. The `etymology()` library function reads both `chain` and legacy `links` for backwards compatibility.
+
+### 3.5b Pronunciation (extended)
+
+```yaml
+pronunciation:
+  IPA: "/ˈɣrafo/"
+  audio: "El-γράφω.ogg"
+  audio_url: "https://upload.wikimedia.org/wikipedia/commons/a/ab/El-γράφω.ogg"
+  romanization: "gráfo"
+  rhymes: ["-afo"]
+  homophones: []
+```
+
+- `audio_url`: resolved Wikimedia Commons download URL, derived from the audio filename using the standard MD5-based path algorithm. Consumers can use this directly without knowing the Commons URL structure. **Rationale:** avoids forcing downstream consumers to implement the same URL derivation logic.
+- `romanization`: transliteration of the headword (from `|tr=` parameter on headword templates).
+- `rhymes`: from `{{rhymes|...}}` templates in the Pronunciation section.
+- `homophones`: from `{{homophones|...}}` templates.
+
+### 3.5c Headword Morphology
+
+```yaml
+headword_morphology:
+  transitivity: both           # "transitive" | "intransitive" | "both"
+  aspect: imperfective         # "perfective" | "imperfective"
+  voice: active                # "active" | "passive" | "mediopassive"
+  gender: masculine            # for nouns/adjectives
+  principal_parts:
+    simple_past: έγραψα
+    future_active: θα γράψω
+    present_passive: γράφομαι
+```
+
+Extracted **directly from headword template parameters** — never guessed or inferred:
+
+- For verbs (`{{el-verb}}`): `tr=yes|intr=yes` → transitivity; `|past=`, `|fut=`, `|pres_pass=`, etc. → principal_parts.
+- For nouns (`{{el-noun}}`): `|g=m/f/n` → gender.
+- **Design choice:** if a parameter is absent from the template, the corresponding field is `undefined` (not guessed). This preserves the "no heuristics" contract.
+
+### 3.5d Form-of labels
+
+For inflected entries, `form_of.label` provides a human-readable description:
+
+```yaml
+form_of:
+  template: inflection of
+  lemma: γράφω
+  lang: el
+  tags: ["1", "s", "perf", "past", "actv", "indc"]
+  label: "1st pers. singular perfective past active indicative"
+```
+
+The `label` is composed from a `TAG_LABEL_MAP` dictionary mapping standard Wiktionary tags to English descriptors (e.g. `"1"` → `"1st pers."`, `"s"` → `"singular"`, `"perf"` → `"perfective"`).
 
 ### 3.6 Section link lists (Derived / Related / Descendants)
 
@@ -199,25 +322,61 @@ derived_terms:
 
 ### 3.7 Schema versioning
 
-The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The schema version (`1.0.0`) follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
+The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.0.0`** (a major bump from 1.x, reflecting the structural changes to `EtymologyData`, `SemanticRelations`, `Sense`, `Pronunciation`, `Entry`, and `FetchResult`). The version follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
+
+Human-readable schema examples are in `docs/schemata/`:
+- `verb-lemma.yaml`: annotated example for a verb lemma entry.
+- `verb-non-lemma.yaml`: annotated example for an inflected verb form.
+- `DictionaryEntry — proposed v2 schema.yaml`: comprehensive annotated field inventory with implementation status notes.
 
 ### 3.9 Convenience API & High-Level Wrappers
 
 The SDK provides a high-level functional layer above the raw `FetchResult` to simplify common lexicographical queries.
 
-| Wrapper | Type | Rationale |
-|---------|------|-----------|
-| `lemma(q, l)` | string | Resolves inflections to canonical lemmas. |
-| `ipa(q, l)` | string | Returns primary IPA transcription. |
-| `pronounce(q, l)` | string | Returns absolute audio URI (Commons). |
-| `synonyms(q, l)` | string[] | List of synonyms. |
-| `etymology(q, l)` | object | Structured lineage tree. |
-| `translate(q, l, t)` | string[] | Gloss-mode translation. |
-| `stem(q, l)` | WordStems | Logical stems extracted from templates. |
-| `conjugate(q, c, l)` | string[] or Record | Targeted cell (criteria given) or full paradigm table (empty criteria). |
-| `decline(q, c, l)` | string[] or Record | Targeted cell (criteria given) or full declension table (empty criteria). |
-| `morphology(q, l)` | GrammarTraits | Inferred grammar from POS and forms; seeds smart defaults. |
-| `inflect(q, c, l)` | string[] | (Internal) High-level coordinate extraction. |
+**Core wrappers** (pre-v2):
+
+| Wrapper | Return type | Notes |
+|---------|-------------|-------|
+| `lemma(q, l)` | `string` | Resolves inflections to canonical lemma. |
+| `ipa(q, l)` | `string\|null` | Primary IPA transcription. |
+| `pronounce(q, l)` | `string\|null` | Audio URL (prefers `audio_url`, falls back to filename or IPA). |
+| `hyphenate(q, l, opts)` | `string[]\|string\|null` | Syllable list or joined string. |
+| `synonyms(q, l)` | `string[]` | Synonyms list. |
+| `antonyms(q, l)` | `string[]` | Antonyms list. |
+| `hypernyms(q, l)` | `string[]` | Hypernyms. |
+| `hyponyms(q, l)` | `string[]` | Hyponyms. |
+| `translate(q, l, t)` | `string[]` | Gloss-mode translation. |
+| `etymology(q, l)` | `EtymologyStep[]` | Structured lineage (reads `chain` with `links` fallback). |
+| `partOfSpeech(q, l)` | `string\|null` | Normalized POS tag. |
+| `conjugate(q, l, c)` | `string[]\|Record\|null` | Full paradigm or targeted cell. |
+| `decline(q, l, c)` | `string[]\|Record\|null` | Full declension or targeted cell. |
+| `morphology(q, l)` | `GrammarTraits` | Inherent grammatical traits. |
+| `richEntry(q, l)` | `RichEntry` | Aggregate high-fidelity object. |
+| `stem(q, l)` | `WordStems` | Logical stems from templates. |
+
+**New in v2** (morphology, etymology, metadata, sections):
+
+| Wrapper | Return type | Notes |
+|---------|-------------|-------|
+| `principalParts(q, l)` | `Record<string,string>\|null` | Verb paradigm slots from headword template params. |
+| `gender(q, l)` | `"masculine"\|"feminine"\|"neuter"\|null` | Noun/adj grammatical gender. |
+| `transitivity(q, l)` | `"transitive"\|"intransitive"\|"both"\|null` | Verb transitivity. |
+| `alternativeForms(q, l)` | `Array<{term, qualifier?}>` | From `====Alternative forms====`. |
+| `seeAlso(q, l)` | `string[]` | From `====See also====`. |
+| `anagrams(q, l)` | `string[]` | From `====Anagrams====`. |
+| `usageNotes(q, l)` | `string[]` | From `===Usage notes===`. |
+| `derivedTerms(q, l)` | `SectionLinkItem[]` | From `====Derived terms====`. |
+| `relatedTerms(q, l)` | `SectionLinkItem[]` | From `====Related terms====`. |
+| `descendants(q, l)` | `SectionLinkItem[]` | From `====Descendants====`. |
+| `referencesSection(q, l)` | `string[]` | From `====References====`. |
+| `etymologyChain(q, l)` | `EtymologyLink[]` | Ancestor chain (inherited/borrowed/derived). |
+| `etymologyCognates(q, l)` | `EtymologyLink[]` | Cognate list from `{{cog}}`. |
+| `etymologyText(q, l)` | `string\|null` | Raw prose text of the etymology section. |
+| `categories(q, l)` | `string[]` | Language-filtered page categories. |
+| `langlinks(q, l)` | `Array<{lang,title}>` | Links to other Wiktionary editions (`interwiki` is an alias). |
+| `isCategory(q, cat, l)` | `boolean` | Checks if `cat` appears in the categories list. |
+| `pageMetadata(q, l)` | `object` | Raw page info (`last_modified`, `length`, `pageid`). |
+| `inflectionTableRef(q, l)` | `{template_name, raw}\|null` | Name of the conjugation/declension template. |
 
 ### 3.11 Morphological Extraction Methodology (The "Scribunto" Exception)
 
@@ -304,18 +463,24 @@ interface TemplateDecoder {
 - Decoders must not infer stems/endings/classes if not present.
 - All template calls are stored verbatim under `entry.templates`.
 
-**Current decoder families:**
+**Current decoder families (v2):**
 
 1. **Raw storage** (`store-raw-templates`): runs on every context; stores all templates verbatim.
-2. **Pronunciation**: `ipa`, `el-ipa`, `audio`, `hyphenation`.
+2. **Pronunciation** (extended): `ipa`, `el-ipa`, `audio` (now also resolves `audio_url`), `hyphenation`, `rhymes`, `homophones`, `romanization`.
 3. **Headword / POS**: `el-verb-head`, `el-noun-head`, `el-adj-head`, `el-adv-head`, `el-pron-head`, `el-numeral-head`, `el-participle-head`, `el-art-head`.
-4. **Form-of**: detects `inflection of`, `infl of`, `form of`, `alternative form of`, and 7 other form-of templates.
-5. **Translations**: parses `====Translations====` sections for `t`, `t+`, `tt`, `tt+`, `t-simple`.
-6. **Senses**: parses `#` / `##` / `#:` lines.
-7. **Semantic relations**: `syn`, `ant`, `hyper`, `hypo`.
-8. **Etymology**: `inh`, `der`, `bor`, `cog` (+ long-form aliases).
-9. **Usage notes**: extracts `===Usage notes===` section text.
-10. **Section links**: parses `====Derived terms====`, `====Related terms====`, `====Descendants====` for `{{l}}` and `{{link}}` templates; stores both `raw_text` and structured `items`.
+4. **Headword morphology** (new): `el-verb-morphology` (extracts `transitivity`, `principal_parts` from `{{el-verb}}` params); `el-noun-gender` (extracts `gender` from `{{el-noun}}`).
+5. **Form-of** (extended): detects `inflection of`, `infl of`, `form of`, `alternative form of`, and 7 other form-of templates; now produces a human-readable `label` from the `tags` array via `TAG_LABEL_MAP`.
+6. **Translations**: parses `====Translations====` sections for `t`, `t+`, `tt`, `tt+`, `t-simple`.
+7. **Senses** (extended): parses `#` / `##` / `#:` lines; now extracts `qualifier` from parenthetical text and `labels`/`topics` from `{{lb|...}}` templates on definition lines.
+8. **Semantic relations** (extended): `syn`, `ant`, `hyper`, `hypo`, and now also `cot` (coordinate terms), `hol` (holonyms), `mer` (meronyms), `tro` (troponyms).
+9. **Etymology v2**: produces `chain[]` (from `inh`, `der`, `bor`) and `cognates[]` (from `cog`) as separate arrays, each with a `relation` field; reads `etymology_raw_text` from parser for `raw_text`.
+10. **Usage notes**: extracts `===Usage notes===` section text.
+11. **References** (new): extracts `====References====` section text into `entry.references[]`.
+12. **Alternative forms** (new): parses `====Alternative forms====` section for `{{l}}`/`{{link}}` templates into `entry.alternative_forms[]`.
+13. **See also** (new): parses `====See also====` section into `entry.see_also[]`.
+14. **Anagrams** (new): parses `====Anagrams====` section for `{{l}}` templates into `entry.anagrams[]`.
+15. **Inflection table reference** (new): captures the raw inflection template call (e.g. `{{el-conj-γράφω}}`) into `entry.inflection_table_ref`.
+16. **Section links**: parses `====Derived terms====`, `====Related terms====`, `====Descendants====` for `{{l}}` and `{{link}}` templates; stores both `raw_text` and structured `items`.
 
 Each decoder may declare `handlesTemplates: string[]` for introspection; `registry.getHandledTemplates()` returns the union for coverage reporting.
 
@@ -441,13 +606,36 @@ Derived/Related/Descendants sections are stored with both `raw_text` (verbatim) 
 ### 12.11 Playground as Authentic CLI Mirror
 The webapp's API Playground is designed to mirror the real CLI as closely as possible. The pseudo-terminal displays the exact command the user could run in a shell (`wiktionary-sdk γράφω --lang el --extract stem`) alongside the colour-coded output. This reinforces the playground's role as a teaching and exploration tool, not just a debugging panel, and makes the CLI feel immediately approachable. The macOS window chrome (traffic-light dots, centred window title) reinforces the terminal analogy.
 
+### 12.12 API Enrichment: Structured Metadata Over Wikitext Parsing
+From v2.0, the API call is extended to fetch `categories`, `langlinks`, and `info` alongside the Wikitext revision. **Rationale:** fetching these fields from the structured MediaWiki API is more reliable than parsing them from Wikitext (e.g., categories appear in Wikitext as `[[Category:...]]` entries scattered throughout, and are easily missed). The API also returns the revision ID and last-modified timestamp in the same request at no extra cost, enabling consumers to implement cache invalidation by revision.
+
+**Design choice:** categories are filtered per language entry (entries only see categories relevant to their language section) using a heuristic that strips generic "Pages with..." administrative categories. The raw unfiltered list is available in `FetchResult.metadata.categories`.
+
+### 12.13 Etymology: Ancestors vs. Cognates
+Prior to v2, the `etymology.links` array mixed direct ancestors (`{{inh}}`, `{{der}}`, `{{bor}}`) with lateral cognates (`{{cog}}`). This was a design error: cognates are _not_ on the direct lineage path. In v2:
+- `chain[]` contains only direct ancestors, in template order, allowing consumers to traverse the lineage tree.
+- `cognates[]` contains only lateral cognates, for consumers who want cross-language comparison.
+- Each entry in both arrays has an explicit `relation` field (`"inherited"` | `"borrowed"` | `"derived"` | `"cognate"`) so consumers do not need to inspect the original template name.
+
+**Migration:** the `etymology()` library function reads `chain` first, falling back to the legacy `links` field.
+
+### 12.14 Headword Morphology: Template Parameters as Ground Truth
+Instead of inferring grammatical traits from the form or gloss, v2 extracts them directly from headword template parameters. **Rationale:** `{{el-verb|past=έγραψα|fut=θα γράψω|tr=yes|intr=yes}}` is an explicit, authoritative declaration by the Wiktionary editor. The parameter values are verbatim — they can be displayed directly to users and used to seed downstream morphological engines. If a parameter is absent, the field is `undefined`; the SDK makes no attempt to guess.
+
+### 12.15 Form-of Labels: TAG_LABEL_MAP
+The tag arrays produced by form-of templates (`["1", "s", "perf", "past", "actv", "indc"]`) are opaque to consumers unfamiliar with Wiktionary tagging conventions. The `label` field converts them to a natural-language phrase using a `TAG_LABEL_MAP` dictionary (`"perf"` → `"perfective"`, `"indc"` → `"indicative"`, etc.). **Design choice:** the raw `tags` array is always preserved alongside `label`, so consumers can apply their own formatting.
+
 ---
 
 **Artifacts:**
 - `src/index.ts`: Orchestration entry point.
-- `src/types.ts`: Canonical type definitions (`SCHEMA_VERSION = "1.0.0"`).
+- `src/types.ts`: Canonical type definitions (`SCHEMA_VERSION = "2.0.0"`).
+- `src/api.ts`: API fetch layer (enriched with categories, langlinks, info).
+- `src/registry.ts`: Decoder registry (16 decoder families in v2).
+- `src/library.ts`: Convenience wrappers (35+ exported functions).
 - `src/formatter.ts`: Multi-format output engine (`format()`, `FormatterStyle`, `registerStyle()`).
-- `schema/normalized-entry.schema.json`: Formal output schema.
+- `schema/normalized-entry.schema.json`: Formal output schema (v2.0.0).
+- `docs/schemata/`: Human-readable YAML schema examples and field inventory.
 - `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and CLI playground.
 - `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
 - `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.
@@ -456,8 +644,7 @@ The webapp's API Playground is designed to mirror the real CLI as closely as pos
 
 ## 13. Post-v1.0 roadmap (non-normative)
 
-This section is informational only; it does not change v1.0 requirements.
-For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
+This section is informational only. For the detailed staged plan, see `docs/ROADMAP.md`.
 
 **Completed (post-v1.0):**
 
@@ -583,3 +770,39 @@ For the detailed staged plan and acceptance criteria, see `docs/ROADMAP.md`.
   mapping to improve the reliability of multi-language scans.
 - **Webapp Integration**: Updated the React playground to use Auto-discovery by default,
   providing instant feedback on the SDK's ability to handle multi-entry pages like "bank".
+
+**Completed (v2.0 Comprehensive Schema Evolution & API Enrichment):**
+
+- **API Enrichment**: Extended `prop` to include `categories`, `langlinks`, and `info` on every
+  fetch. `FetchResult.metadata` now exposes all three. Per-entry `categories` and `langlinks`
+  are filtered by language section; `source.wiktionary.revision_id`, `last_modified`, and
+  `pageid` provide full audit provenance.
+- **Schema bump to v2.0.0**: Major version increment reflecting structural changes to
+  `EtymologyData`, `SemanticRelations`, `Sense`, `Pronunciation`, `Entry`, and `FetchResult`.
+  JSON Schema (`schema/normalized-entry.schema.json`) updated throughout.
+- **Etymology restructure**: `etymology.links` split into `chain[]` (ancestors) and
+  `cognates[]` (lateral cognates), each with an explicit `relation` field. `raw_text` preserves
+  the full etymology prose preamble.
+- **Headword morphology**: New `headword_morphology` field on `Entry` with `transitivity`,
+  `aspect`, `voice`, `gender`, and `principal_parts`, all extracted from headword template
+  params — never guessed.
+- **Pronunciation extended**: `audio_url` (resolved Commons URL), `romanization`, `rhymes`,
+  and `homophones` added to the `Pronunciation` interface.
+- **Sense enrichment**: `qualifier` (parenthetical text), `labels` (register tags from
+  `{{lb}}`), and `topics` (domain tags) added to `Sense`.
+- **Expanded semantic relations**: `coordinate_terms`, `holonyms`, `meronyms`, `troponyms`
+  added to `SemanticRelations` via `{{cot}}`, `{{hol}}`, `{{mer}}`, `{{tro}}`.
+- **New section decoders**: Alternative forms, See also, Anagrams, References, Inflection
+  table reference.
+- **Form-of labels**: `form_of.label` provides human-readable description from tag array
+  via `TAG_LABEL_MAP`.
+- **19 new convenience wrappers**: `principalParts()`, `gender()`, `transitivity()`,
+  `alternativeForms()`, `seeAlso()`, `anagrams()`, `usageNotes()`, `derivedTerms()`,
+  `relatedTerms()`, `descendants()`, `referencesSection()`, `etymologyChain()`,
+  `etymologyCognates()`, `etymologyText()`, `categories()`, `langlinks()`, `isCategory()`,
+  `pageMetadata()`, `inflectionTableRef()`.
+- **`richEntry()` updated**: now includes `coordinate_terms`, `holonyms`, `meronyms`,
+  `troponyms`, `references`, `aspect`, and `voice` from the enriched entry data.
+- **Test suite updated**: `test/phase2.test.ts`, `test/integration.test.ts`,
+  `test/library.test.ts`, `test/readme_examples.test.ts`, `test/auto.test.ts` updated
+  for new field names and shapes; new `test/enrichment.test.ts` for metadata extraction.
