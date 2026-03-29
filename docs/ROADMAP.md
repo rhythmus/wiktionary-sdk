@@ -188,6 +188,17 @@ This section records **intentionally partial** choices from the testing hardenin
 - **Data: RichEntry Expansion**
     - **Done:** Expanded the aggregate mapping to capture principal parts, structured citations, and usage notes for high-fidelity display.
 
+## 💎 Stage 21: Non-Lemma Morphological Rendering (v2.3.0 — Delivered)
+
+**Goal**: support the rendering of inflected forms with a professional redirect-style layout.
+
+- **Engine: Morphological Resolution**
+    - **Done:** Enhanced `richEntry()` to detect inflected variants, extract their specific morphological profiles, and resolve the parent lemma.
+- **Templates: Redirect-Style Layout**
+    - **Done:** Implemented `is-redirect` logic in HTML/Markdown templates to show the inflected form's analysis followed by the lemma's full record.
+- **Design: Academic Typography**
+    - **Done:** Added directional arrow (`→`) prefixes and hierarchical styling for grammatical redirects, matching premium printed dictionary standards.
+
 ## 🌍 Stage 18: Multi-lingual Expansion & Schema Consolidation (v2.1 — Delivered)
 
 **Goal**: transition from "Greek-only" to a multi-lingual foundation and formalize high-level API outputs.

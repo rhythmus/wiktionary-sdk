@@ -235,6 +235,9 @@ export async function decline(query: string, sourceLang: WikiLang = "Auto", crit
  * linguistic data for a given term.
  */
 export async function richEntry(query: string, lang: WikiLang = "Auto", pos: string = "Auto"): Promise<RichEntry | null> {
+    const originalResult = await wiktionary({ query, lang, pos });
+    const inflectedForm = originalResult.entries.find(e => e.type === "INFLECTED_FORM" && e.form === query);
+    
     const lemmaStr = await lemma(query, lang, pos);
     const result = await wiktionary({ query: lemmaStr, lang, pos });
     const lexeme = getMainLexeme(result);
@@ -244,8 +247,7 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
 
     // Optimize: Most data is already in lexeme. Just pull it.
     const morph = await morphology(query, lang, pos);
-    const etymStep = await etymology(query, lang, pos);
-
+    
     const syns = lexeme.semantic_relations?.synonyms?.map(s => ({ term: s.term })) || [];
     const ants = lexeme.semantic_relations?.antonyms?.map(a => ({ term: a.term })) || [];
     
@@ -258,7 +260,9 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
     }
 
     return {
-        headword: lexeme.form,
+        headword: inflectedForm ? query : lexeme.form,
+        type: inflectedForm ? "INFLECTED_FORM" : "LEXEME",
+        form_of: inflectedForm?.form_of,
         pos: entryPos,
         morphology: {
             ...morph,

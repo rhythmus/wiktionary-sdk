@@ -1,7 +1,7 @@
 # DictionaryEntry — Proposed v2 Schema
 # Full example: γράφω (Greek verb)
 
-schema_version: "2.1.0"
+schema_version: "2.3.0"
 
 # ── Identity ───────────────────────────────────────────────────────────────
 id: "el:γράφω#E0#verb#LEXEME"

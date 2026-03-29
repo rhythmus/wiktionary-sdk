@@ -2,7 +2,7 @@
  * The canonical version of the normalized output schema.
  * Follows Semantic Versioning (SemVer) principles.
  */
-export const SCHEMA_VERSION = "2.2.0";
+export const SCHEMA_VERSION = "2.3.0";
 
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
@@ -276,6 +276,8 @@ export interface InflectionTable {
 export interface RichEntry {
   headword: string;
   pos: string;
+  type?: EntryType;
+  form_of?: Entry["form_of"];
   morphology?: any;
   headword_morphology?: Entry["headword_morphology"];
   pronunciation?: Pronunciation;

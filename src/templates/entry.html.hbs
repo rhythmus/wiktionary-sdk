@@ -1,7 +1,18 @@
-<div class="wiktionary-entry">
+<div class="wiktionary-entry {{#if form_of}}is-redirect{{/if}}">
     <div class="entry-body">
         <div class="entry-head">
-            <span class="lemma">{{headword}}</span>
+            {{#if form_of}}
+            <div class="inflected-header">
+                <span class="lemma">{{headword}}</span>
+                <span class="inflection-label">{{form_of.label}} of:</span>
+            </div>
+            <div class="lemma-redirect">
+                <span class="etym-arrow">→</span>
+                <span class="lemma">{{form_of.lemma}}</span>
+            {{else}}
+                <span class="lemma">{{headword}}</span>
+            {{/if}}
+
             {{#if pronunciation.romanization}}
             <span class="romanization">({{pronunciation.romanization}})</span>
             {{/if}}
@@ -21,6 +32,10 @@
                 <b>Pronunciation:</b> 
                 [{{pronunciation.IPA}}]
             </div>
+            {{/if}}
+
+            {{#if form_of}}
+            </div> {{!-- end .lemma-redirect --}}
             {{/if}}
         </div>
 

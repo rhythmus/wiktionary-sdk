@@ -1,11 +1,23 @@
 /**
  * Verbatim Handlebars template for the high-fidelity HTML dictionary entry.
  * Designed as a font-agnostic fragment to be embedded in any host environment.
+ * Supports both primary LEXEME entries and INFLECTED_FORM redirects.
  */
-export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry">
+export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}is-redirect{{/if}}">
     <div class="entry-body">
         <div class="entry-head">
-            <span class="lemma">{{headword}}</span>
+            {{#if form_of}}
+            <div class="inflected-header">
+                <span class="lemma">{{headword}}</span>
+                <span class="inflection-label">{{form_of.label}} of:</span>
+            </div>
+            <div class="lemma-redirect">
+                <span class="etym-arrow">→</span>
+                <span class="lemma">{{form_of.lemma}}</span>
+            {{else}}
+                <span class="lemma">{{headword}}</span>
+            {{/if}}
+
             {{#if pronunciation.romanization}}
             <span class="romanization">({{pronunciation.romanization}})</span>
             {{/if}}
@@ -25,6 +37,10 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry">
                 <b>Pronunciation:</b> 
                 [{{pronunciation.IPA}}]
             </div>
+            {{/if}}
+
+            {{#if form_of}}
+            </div> {{!-- end .lemma-redirect --}}
             {{/if}}
         </div>
 
@@ -182,8 +198,13 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry">
 /**
  * Verbatim Handlebars template for the high-fidelity Markdown dictionary entry.
  * Designed for premium typographic density in terminal and documentation contexts.
+ * Supports both primary LEXEME entries and INFLECTED_FORM redirects.
  */
 export const MD_ENTRY_TEMPLATE = `# {{headword}}
+{{#if form_of}}**{{form_of.label}} of:**
+
+## → {{form_of.lemma}}
+{{/if}}
 {{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}**
 {{#if pronunciation.IPA}}*Pronunciation:* [{{pronunciation.IPA}}]{{/if}}
 
@@ -266,6 +287,7 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 /**
  * Premium CSS stylesheet for the HTML dictionary fragment.
  * Font-agnostic and scoped to .wiktionary-entry.
+ * Includes layout logic for inflected form redirects.
  */
 export const ENTRY_CSS = `:root {
     --bg-color: transparent;
@@ -313,6 +335,39 @@ export const ENTRY_CSS = `:root {
 
 .entry-head {
     margin-bottom: 1.5rem;
+}
+
+.inflected-header {
+    margin-bottom: 0.4rem;
+}
+
+.inflected-header .lemma {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.inflection-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-left: 0.5rem;
+}
+
+.lemma-redirect {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+}
+
+.lemma-redirect .lemma {
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.lemma-redirect .etym-arrow {
+    font-size: 1.4rem;
+    vertical-align: middle;
 }
 
 .lemma {

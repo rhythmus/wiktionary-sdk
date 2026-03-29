@@ -1,4 +1,8 @@
 # {{headword}}
+{{#if form_of}}**{{form_of.label}} of:**
+
+## → {{form_of.lemma}}
+{{/if}}
 {{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}**
 {{#if pronunciation.IPA}}*Pronunciation:* [{{pronunciation.IPA}}]{{/if}}
 

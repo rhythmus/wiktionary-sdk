@@ -416,6 +416,8 @@
       "properties": {
         "headword": { "type": "string" },
         "pos": { "type": "string" },
+        "type": { "$ref": "#/$defs/EntryType" },
+        "form_of": { "$ref": "#/$defs/FormOf" },
         "morphology": { "type": "object", "additionalProperties": true },
         "pronunciation": { "$ref": "#/$defs/Pronunciation" },
         "hyphenation": { "$ref": "#/$defs/Hyphenation" },
