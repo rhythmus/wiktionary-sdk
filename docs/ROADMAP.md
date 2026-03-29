@@ -13,7 +13,7 @@ This roadmap defines the remaining tasks for the v2.0 final release and the stra
 
 ---
 
-## 🏗️ Stage 14: v2.0 Final Release & Reliability (In Progress)
+## 🏗️ Stage 14: v2.0 Final Release & Reliability (Delivered)
 
 **Goal**: resolve infrastructure bottlenecks and ensure 100% parity with the Comprehensive Schema Proposal.
 
@@ -27,7 +27,7 @@ This roadmap defines the remaining tasks for the v2.0 final release and the stra
     - Conduct a full Unit Test audit using the v2-final specification as the ground truth.
     - Cross-verify `γράφω` and `έγραψε` output in the playground to ensure 100% field population.
 
-## 🚀 Stage 15: Deep Enrichment & Multi-language Robustness
+## 🚀 Stage 15: Deep Enrichment & Multi-language Robustness (Delivered)
 
 **Goal**: expand beyond the Greek-heavy focus and refine the structure of linguistic metadata.
 
@@ -36,7 +36,7 @@ This roadmap defines the remaining tasks for the v2.0 final release and the stra
 - **Language Priority Expansion**: expand the `LANG_PRIORITY` engine and language mapping for Dutch, German, French, and Russian.
 - **Audio URL Resolution**: standardize the file-to-URL resolution for audio templates beyond the Greek-specific ones.
 
-## 🧪 Stage 16: Advanced Integrations & Linguistic Research
+## 🧪 Stage 16: Advanced Integrations & Playground Overhaul (Delivered)
 
 **Goal**: research external data sources and integrate legacy linguistic mappings.
 
@@ -149,9 +149,26 @@ This section records **intentionally partial** choices from the testing hardenin
 
 ---
 
+## 💎 Stage 17: High-Fidelity Extraction & Interface Parity (v2.1 — Delivered)
+
+**Goal**: ensure the SDK ecosystem is perfectly synchronized and extracts every "buried" data point from Wiktionary/Wikidata.
+
+- **Data: High-Fidelity "Buried" Data**
+    - **Done:** Structured extraction of audio details (multiple files + labels), usage examples (with translation/transcription), internal/external page links, and Wikidata "instance of" (P31) / "subclass of" (P279) types.
+- **Infrastructure: Public API Synchronization**
+    - **Done:** Achieved 100% parity across `src/library.ts`, `webapp/src/App.tsx`, and `cli/index.ts` for all 35+ convenience wrappers.
+- **UI: API Playground Polish**
+    - **Done:** Reorganized the playground dropdown into semantic categories (`optgroup`) and implemented a dark-island monospace aesthetic for a professional "terminal-like" experience.
+- **Policy: Parity Mandate**
+    - **Done:** Added strict synchronization rules to `AGENTS.md` to prevent future parity drift.
+
+---
+
 ## 📜 Historical Stages (Delivered)
 *See [CHANGELOG.md](../CHANGELOG.md) for details.*
 
+- **Stage 17**: High-Fidelity Extraction, Interface Parity & v2.1 Schema.
+- **Stage 14-16**: v2.0 Final Release, Deep Enrichment & Playground Overhaul.
 - **Stage 13**: Comprehensive Schema v2.0, API Enrichment & Decoder Expansion.
 - **Stage 12**: Auto-discovery, Optional Filtering & Robust Parsing.
 - **Stage 11**: Compliance, Normalization & Doc Synchronization.

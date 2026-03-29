@@ -78,7 +78,7 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "2.0.0"
+schema_version: "2.1.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
@@ -90,7 +90,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.0.0"`.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.1.0"`.
 - `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `entries[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -132,6 +132,9 @@ Each `Entry` contains:
 | `lemma_triggered_by_entry_id` | string? | Entry id that triggered lemma resolution |
 | `categories` | `string[]` | API categories filtered by language section |
 | `langlinks` | `Array<{lang, title}>` | Interwiki links to other Wiktionary editions |
+| `page_links` | `string[]` | Internal wikilinks extracted from the page |
+| `external_links` | `string[]` | External HTTP links extracted from the page |
+| `instance_of` | `string[]` | Wikidata QIDs for "instance of" (P31) / "subclass of" (P279) |
 | `metadata` | `{last_modified?, length?, pageid?}` | Page-level API metadata |
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
@@ -168,7 +171,9 @@ senses:
     labels: ["colloquial"]         # from {{lb|el|colloquial}}
     topics: ["linguistics"]        # topic domains from {{lb}}
     examples:
-      - "He writes every day."
+      - text: "He writes every day."
+        translation: "Γράφει κάθε μέρα."
+        transcription: "Gráfei káthe méra."
     subsenses:
       - id: S1.1
         gloss: "to write by hand"
@@ -176,7 +181,7 @@ senses:
 
 - `#` lines produce top-level senses with sequential IDs (`S1`, `S2`, ...).
 - `##` lines produce subsenses nested under the preceding sense (`S1.1`, `S1.2`, ...).
-- `#:` lines produce examples attached to the preceding sense.
+- `#:` lines produce examples attached to the preceding sense. **Note:** From v2.1, examples are structured objects with optional `translation` and `transcription` extracted from `{{ux}}`, `{{quote}}`, and `{{eg}}` templates.
 - Wiki markup (`[[links]]`, `'''bold'''`, `''italic''`, templates) is stripped from glosses.
 - `gloss_raw` (optional): the exact text after `#` / `##` before stripping.
 - `qualifier` (optional): parenthetical text extracted from after the main gloss (e.g. "for traffic violations").
@@ -256,12 +261,17 @@ pronunciation:
   IPA: "/ˈɣrafo/"
   audio: "El-γράφω.ogg"
   audio_url: "https://upload.wikimedia.org/wikipedia/commons/a/ab/El-γράφω.ogg"
+  audio_details:
+    - filename: "El-γράφω.ogg"
+      url: "https://upload.wikimedia.org/wikipedia/commons/a/ab/El-γράφω.ogg"
+      label: "Audio (Greek)"
   romanization: "gráfo"
   rhymes: ["-afo"]
   homophones: []
 ```
 
-- `audio_url`: resolved Wikimedia Commons download URL, derived from the audio filename using the standard MD5-based path algorithm. Consumers can use this directly without knowing the Commons URL structure. **Rationale:** avoids forcing downstream consumers to implement the same URL derivation logic.
+- `audio_url`: resolved Wikimedia Commons download URL for the primary audio file.
+- `audio_details`: structured list of all audio files found, including their resolved URLs and any labels (e.g. dialect, speaker metadata) extracted from template parameters.
 - `romanization`: transliteration of the headword (from `|tr=` parameter on headword templates).
 - `rhymes`: from `{{rhymes|...}}` templates in the Pronunciation section.
 - `homophones`: from `{{homophones|...}}` templates.
@@ -322,7 +332,7 @@ derived_terms:
 
 ### 3.7 Schema versioning
 
-The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.0.0`** (a major bump from 1.x, reflecting the structural changes to `EtymologyData`, `SemanticRelations`, `Sense`, `Pronunciation`, `Entry`, and `FetchResult`). The version follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
+The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.1.0`** (a major bump from 1.x, with v2.1 adding high-fidelity "buried data" extraction). The version follows Semantic Versioning and is documented in `VERSIONING.md`. A `SCHEMA_VERSION` constant is exported from `src/types.ts`.
 
 Human-readable schema examples are in `docs/schemata/`:
 - `verb-lemma.yaml`: annotated example for a verb lemma entry.
@@ -377,6 +387,12 @@ The SDK provides a high-level functional layer above the raw `FetchResult` to si
 | `isCategory(q, cat, l)` | `boolean` | Checks if `cat` appears in the categories list. |
 | `pageMetadata(q, l)` | `object` | Raw page info (`last_modified`, `length`, `pageid`). |
 | `inflectionTableRef(q, l)` | `{template_name, raw}\|null` | Name of the conjugation/declension template. |
+| `audioDetails(q, l)` | `AudioDetail[]` | Full list of audio files with URLs and labels. |
+| `exampleDetails(q, l)` | `Example[]` | Structured usage examples with translations. |
+| `isInstance(q, qid, l)` | `boolean` | Checks if entry belongs to Wikidata instance `qid`. |
+| `wikipediaLink(q, l)` | `string\|null` | Direct link to the corresponding Wikipedia article. |
+| `internalLinks(q, l)` | `string[]` | List of internal wikilinks on the page. |
+| `externalLinks(q, l)` | `string[]` | List of external HTTP links on the page. |
 
 ### 3.11 Morphological Extraction Methodology (The "Scribunto" Exception)
 
