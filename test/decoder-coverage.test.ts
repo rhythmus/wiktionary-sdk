@@ -20,6 +20,11 @@ const DECODER_EVIDENCE_ALLOWLIST = new Set<string>([
   "alternative-forms",
   "see-also",
   "anagrams",
+  "wikidata-p31",
+  "nl-adj-head",
+  "nl-verb-head",
+  "de-adj-head",
+  "de-verb-head",
 ]);
 
 function collectTextFiles(dir: string, acc: string[] = []): string[] {
