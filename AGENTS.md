@@ -31,6 +31,12 @@ A custom parser handles nested `{{...}}` structures.
     - `cli/index.ts`: Added to the `extract` router in `main()`.
 - **Reason**: To ensure that the Web API Playground and the terminal CLI are always on par with the underlying NPM package.
 
+### 5. Schema Synchronization (High-Fidelity Parity)
+- **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
+    - `schema/normalized-entry.schema.json`: Update the JSON Schema to match the new structure.
+    - `docs/schemata/*.yaml`: Update the reference YAML models (e.g., `DictionaryEntry.yaml`) to ensure documentation parity.
+- **Reason**: To maintain the SDK's promise of a deterministic, machine-readable output that external consumers can rely on for validation.
+
 ---
 
 ## ⚖️ Rigid Constraints & "No Heuristics" Policy
