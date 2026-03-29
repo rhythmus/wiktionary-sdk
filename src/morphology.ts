@@ -141,8 +141,17 @@ export async function conjugate(query: string, criteria: Partial<ConjugateCriter
     if (!result.rawLanguageBlock) return [];
 
     const templates = parseTemplates(result.rawLanguageBlock);
-    const conjug = templates.find(t => t.name.startsWith("el-conjug-") || t.name.startsWith("el-verb-"));
-    if (!conjug) return [];
+    const conjug = templates.find(t => 
+        t.name.startsWith("el-conjug-") || t.name.startsWith("el-verb-") || t.name.startsWith("el-conj-")
+    );
+    if (!conjug) {
+        // Fallback: If we have principal_parts extracted in registry, use those
+        const lexeme = result.entries.find(e => e.headword_morphology?.principal_parts);
+        if (lexeme?.headword_morphology?.principal_parts) {
+            return lexeme.headword_morphology.principal_parts;
+        }
+        return [];
+    }
 
     const apiResult = await mwFetchJson("https://en.wiktionary.org/w/api.php", {
         action: "parse", format: "json", origin: "*", text: conjug.raw, prop: "text", contentmodel: "wikitext"
@@ -217,9 +226,17 @@ export async function decline(query: string, criteria: Partial<DeclineCriteria> 
     const nominalTpl = templates.find(t => 
         t.name.startsWith("el-noun-") || t.name.startsWith("el-adj-") || 
         t.name.startsWith("el-nM-") || t.name.startsWith("el-nF-") || 
-        t.name.startsWith("el-nN-") || t.name.startsWith("el-decl-")
+        t.name.startsWith("el-nN-") || t.name.startsWith("el-decl-") ||
+        t.name.startsWith("el-proper-noun-")
     );
-    if (!nominalTpl) return [];
+    if (!nominalTpl) {
+        // Fallback: If we have stem extracted in registry, use it
+        const lexeme = result.entries.find(e => e.headword_morphology?.principal_parts?.stem);
+        if (lexeme?.headword_morphology?.principal_parts?.stem) {
+            return { singular: { nominative: [lexeme.headword_morphology.principal_parts.stem] } };
+        }
+        return [];
+    }
 
     const apiResult = await mwFetchJson("https://en.wiktionary.org/w/api.php", {
         action: "parse", format: "json", origin: "*", text: nominalTpl.raw, prop: "text", contentmodel: "wikitext"

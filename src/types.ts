@@ -214,7 +214,15 @@ export interface Entry {
     principal_parts?: Record<string, string>;
   };
   /** Entries from the ====Alternative forms==== section. */
-  alternative_forms?: Array<{ term: string; qualifier?: string; raw: string }>;
+  alternative_forms?: Array<{ 
+    term: string; 
+    qualifier?: string; 
+    raw: string;
+    /** The specific type of alternative form (e.g. "polytonic", "archaic"). */
+    type?: string;
+    /** Labels associated with the variant (e.g. ["rare", "poetic"]). */
+    labels?: string[];
+  }>;
   /** Terms from the ====See also==== section. */
   see_also?: string[];
   /** Anagrams of this word. */

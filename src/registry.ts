@@ -148,6 +148,61 @@ registry.register({
     },
 });
 
+/** --- Alternative forms section --- **/
+registry.register({
+    id: "alternative-forms-section",
+    handlesTemplates: [],
+    matches: (ctx) => /^=+\s*Alternative forms\s*=+/im.test(ctx.posBlockWikitext),
+    decode: (ctx) => {
+        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Alternative forms");
+        if (!section) return {};
+        
+        const lines = section.raw.split("\n").filter(l => l.includes("{{") || l.includes("[["));
+        const alternative_forms: Array<{ term: string; qualifier?: string; raw: string; type?: string; labels?: string[] }> = [];
+        
+        for (const line of lines) {
+            const tpls = parseTemplates(line);
+            
+            // 1. Handle {{alt form of}}, {{polytonic form of}}, etc.
+            const variantTpl = tpls.find(t => 
+                t.name.includes("form of") || t.name === "alt form" || t.name === "polytonic variant"
+            );
+            
+            if (variantTpl) {
+                const pos = variantTpl.params.positional ?? [];
+                const term = pos[1] || pos[0] || "";
+                if (!term) continue;
+                
+                const type = variantTpl.name.replace(" form of", "").replace(" variant", "").trim();
+                const labels = variantTpl.params.named?.["q"] ? [variantTpl.params.named["q"]] : [];
+                
+                alternative_forms.push({
+                    term,
+                    raw: line.trim(),
+                    type,
+                    labels: labels.length > 0 ? labels : undefined
+                });
+                continue;
+            }
+            
+            // 2. Handle generic list items with [[links]]
+            const linkMatch = line.match(/\[\[([^|\]]+)(?:\|[^\]]+)?\]\]/);
+            if (linkMatch) {
+                const term = linkMatch[1];
+                const qualifierMatch = line.match(/\(([^)]+)\)/);
+                alternative_forms.push({
+                    term,
+                    raw: line.trim(),
+                    qualifier: qualifierMatch ? qualifierMatch[1] : undefined
+                });
+            }
+        }
+        
+        if (alternative_forms.length === 0) return {};
+        return { entry: { alternative_forms } };
+    },
+});
+
 registry.register({
     id: "el-adj-head",
     handlesTemplates: ["el-adj"],
@@ -426,6 +481,8 @@ const LB_TOPIC_LABELS = new Set([
     "politics", "philosophy", "theater", "architecture", "history", "archaeology",
     "military", "nautical", "geometry", "economics", "finance", "logic", "astronomy",
     "geography", "geology", "meteorology", "psychology", "sociology", "literature",
+    "archaic", "dialectal", "poetic", "rare", "colloquial", "slang", "figurative",
+    "polytonic", "monotonic", "katharevousa", "demotic", "informal", "formal",
 ]);
 
 /** Extracts labels and topics from a {{lb|lang|label1|label2|...}} template. */
@@ -1191,9 +1248,9 @@ registry.register({
 registry.register({
     id: "inflection-table-ref",
     handlesTemplates: [],
-    matches: (ctx) => ctx.templates.some(t => t.name.startsWith("el-conj-") || t.name.startsWith("el-decl-")),
+    matches: (ctx) => ctx.templates.some(t => t.name.startsWith("el-conj-") || t.name.startsWith("el-decl-") || t.name.startsWith("el-conjug-") || t.name.startsWith("el-nN-") || t.name.startsWith("el-nM-") || t.name.startsWith("el-nF-")),
     decode: (ctx) => {
-        const t = ctx.templates.find(t => t.name.startsWith("el-conj-") || t.name.startsWith("el-decl-"));
+        const t = ctx.templates.find(t => t.name.startsWith("el-conj-") || t.name.startsWith("el-decl-") || t.name.startsWith("el-conjug-") || t.name.startsWith("el-nN-") || t.name.startsWith("el-nM-") || t.name.startsWith("el-nF-"));
         if (!t) return {};
         return {
             entry: {
@@ -1204,4 +1261,55 @@ registry.register({
             },
         };
     },
+});
+
+/** --- High-Fidelity Greek Inflection Stems --- **/
+registry.register({
+    id: "el-verb-stems",
+    handlesTemplates: ["el-conjug-1st", "el-conjug-2nd", "el-conjug-passive-1st", "el-conjug-passive-2nd"],
+    matches: (ctx) => ctx.templates.some(t => t.name.startsWith("el-conjug-")),
+    decode: (ctx) => {
+        const t = ctx.templates.find(t => t.name.startsWith("el-conjug-"));
+        if (!t) return {};
+        const named = t.params.named ?? {};
+        const principal_parts: Record<string, string> = {};
+        
+        // Map stems to principal parts
+        if (named.present) principal_parts["present"] = named.present + "ω";
+        if (named["a-simplepast"]) principal_parts["aorist_active"] = named["a-simplepast"] + "α";
+        if (named["p-simplepast"]) principal_parts["aorist_passive"] = named["p-simplepast"] + "α";
+        if (named["p-perf-part"]) principal_parts["perfect_passive_participle"] = named["p-perf-part"] + "μένος";
+        if (named["a-dependent"]) principal_parts["dependent_active"] = named["a-dependent"] + "ω";
+        if (named["p-dependent"]) principal_parts["dependent_passive"] = named["p-dependent"] + "ω";
+        
+        return {
+            entry: {
+                headword_morphology: {
+                    principal_parts: Object.keys(principal_parts).length > 0 ? principal_parts : undefined
+                }
+            }
+        };
+    }
+});
+
+registry.register({
+    id: "el-noun-stems",
+    handlesTemplates: [],
+    matches: (ctx) => ctx.templates.some(t => t.name.startsWith("el-nN-") || t.name.startsWith("el-nM-") || t.name.startsWith("el-nF-")),
+    decode: (ctx) => {
+        const t = ctx.templates.find(t => t.name.startsWith("el-nN-") || t.name.startsWith("el-nM-") || t.name.startsWith("el-nF-"));
+        if (!t) return {};
+        const stem = t.params.positional?.[0] || "";
+        if (!stem) return {};
+        
+        return {
+            entry: {
+                headword_morphology: {
+                    principal_parts: {
+                        "stem": stem
+                    }
+                }
+            }
+        };
+    }
 });
