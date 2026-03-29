@@ -2,7 +2,7 @@
  * The canonical version of the normalized output schema.
  * Follows Semantic Versioning (SemVer) principles.
  */
-export const SCHEMA_VERSION = "2.3.0";
+export const SCHEMA_VERSION = "2.4.0";
 
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
@@ -166,6 +166,8 @@ export interface Entry {
     lemma: string | null;
     lang: string;
     tags: string[];
+    /** The specific subclass of form-of (e.g. "misspelling", "abbreviation", "plural"). */
+    subclass?: string;
     /** Human-readable label rendered from the tag array, e.g. "1st pers. singular perfective past". */
     label?: string;
     named: Record<string, string>;

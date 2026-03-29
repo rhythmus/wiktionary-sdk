@@ -320,10 +320,14 @@ registry.register({
         const named = t.params.named ?? {};
         const label = tagsToLabel(tags);
         const isVariant = VARIANT_TEMPLATES.has(t.name);
+        
+        // Compute subclass from template name (e.g. "misspelling of" -> "misspelling")
+        const subclass = t.name.replace(" of", "").replace(" form", "").trim().toLowerCase();
+
         return {
             entry: {
                 type: isVariant ? "FORM_OF" : "INFLECTED_FORM",
-                form_of: { template: t.name, lemma, lang, tags, named, ...(label ? { label } : {}) },
+                form_of: { template: t.name, lemma, lang, tags, named, subclass, ...(label ? { label } : {}) },
             },
         };
     },
@@ -802,7 +806,7 @@ const ETYMOLOGY_ANCESTOR_TEMPLATES = new Set([
 const ETYMOLOGY_COGNATE_TEMPLATES = new Set(["cog", "cognate", "noncognate", "nc"]);
 const ALL_ETYMOLOGY_TEMPLATES = new Set([...ETYMOLOGY_ANCESTOR_TEMPLATES, ...ETYMOLOGY_COGNATE_TEMPLATES]);
 
-const TEMPLATE_RELATION_MAP: Record<string, EtymologyLink["relation"]> = {
+const TEMPLATE_RELATION_MAP: Record<string, string> = {
     inh: "inherited", inherited: "inherited",
     der: "derived",  derived: "derived",
     bor: "borrowed", borrowed: "borrowed",
@@ -810,13 +814,17 @@ const TEMPLATE_RELATION_MAP: Record<string, EtymologyLink["relation"]> = {
     clipping: "clipping",
     "short for": "clipping",
     abbreviation: "clipping",
-    affix: "derived",
-    compound: "derived",
-    prefix: "derived",
-    suffix: "derived",
-    confix: "derived",
-    blend: "derived",
+    affix: "affix",
+    compound: "compound",
+    prefix: "prefix",
+    suffix: "suffix",
+    confix: "confix",
+    blend: "blend",
     cog: "cognate", cognate: "cognate", noncognate: "cognate", nc: "cognate",
+    // These might appear in etymology sections too
+    "alternative form of": "alternative",
+    "alt form": "alternative",
+    "alt form of": "alternative",
 };
 
 registry.register({
