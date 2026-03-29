@@ -118,6 +118,8 @@ Examples:
   wiktionary-sdk γράφω
   wiktionary-sdk έγραψε --extract translate --target nl
   wiktionary-sdk έγραψες --extract conjugate --props '{"number":"plural"}'
+  wiktionary-sdk Σωκράτης --extract isInstance --props '{"qid":"Q5"}'
+  wiktionary-sdk γράφω --extract rhymes
   wiktionary-sdk γράφω --lang el --format json
   wiktionary-sdk --batch terms.txt --format yaml --output results.yaml
 `);
@@ -189,12 +191,15 @@ async function main(): Promise<void> {
               result = await wrapper(term, opts.lang, opts.targetLang, opts.props);
           } else if (["wikipediaLink"].includes(opts.extract)) {
               result = await wrapper(term, opts.lang, opts.targetLang);
+          } else if (["isInstance"].includes(opts.extract)) {
+              result = await wrapper(term, opts.props?.qid || "Q5", opts.lang);
           } else if (["conjugate", "decline"].includes(opts.extract)) {
               result = await wrapper(term, opts.props || {}, opts.lang);
           } else if (["hyphenate"].includes(opts.extract)) {
-              result = await wrapper(term, opts.lang, opts.props);
+              result = await wrapper(term, opts.lang, opts.props, opts.preferredPos);
           } else {
-              result = await wrapper(term, opts.lang);
+              // Most functions now support (term, lang, pos)
+              result = await wrapper(term, opts.lang, opts.preferredPos);
           }
       } else {
           result = await wiktionary({

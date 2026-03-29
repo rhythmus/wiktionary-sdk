@@ -25,6 +25,12 @@ A custom parser handles nested `{{...}}` structures.
 - `LEXEME`: A lemma (e.g., γράφω).
 - `INFLECTED_FORM`: A specific form (e.g., έγραψε) that maps to a lemma.
 
+### 4. Interface Synchronization (Public API Parity)
+- **Strict Rule**: Any new convenience function added to `src/library.ts` MUST be immediately implemented in both:
+    - `webapp/src/App.tsx`: Added to `API_METHODS` and `handleApiExecute`.
+    - `cli/index.ts`: Added to the `extract` router in `main()`.
+- **Reason**: To ensure that the Web API Playground and the terminal CLI are always on par with the underlying NPM package.
+
 ---
 
 ## ⚖️ Rigid Constraints & "No Heuristics" Policy
