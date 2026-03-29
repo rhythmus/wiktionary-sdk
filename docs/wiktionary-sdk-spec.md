@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v2.0)
+# Wiktionary SDK — Formal Specification (v2.1)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -105,7 +105,7 @@ Each `Entry` contains:
 | `id` | string | Generated from lang, title, etymology index, POS heading, entry type |
 | `language` | WikiLang | Input parameter |
 | `query` | string | Input parameter |
-| `type` | `LEXEME \| INFLECTED_FORM` | Determined by presence of form-of templates |
+| `type` | `LEXEME \| INFLECTED_FORM \| FORM_OF` | Determined by presence of form-of templates |
 | `form` | string | Page title |
 | `etymology_index` | integer | Parsed from `===Etymology N===` headings |
 | `part_of_speech_heading` | string | Verbatim POS section heading |
@@ -134,7 +134,8 @@ Each `Entry` contains:
 | `langlinks` | `Array<{lang, title}>` | Interwiki links to other Wiktionary editions |
 | `page_links` | `string[]` | Internal wikilinks extracted from the page |
 | `external_links` | `string[]` | External HTTP links extracted from the page |
-| `instance_of` | `string[]` | Wikidata QIDs for "instance of" (P31) / "subclass of" (P279) |
+| `instance_of` | `string[]` | Wikidata QIDs for "instance of" (P31) |
+| `subclass_of` | `string[]` | Wikidata QIDs for "subclass of" (P279) |
 | `metadata` | `{last_modified?, length?, pageid?}` | Page-level API metadata |
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
@@ -341,9 +342,13 @@ Human-readable schema examples are in `docs/schemata/`:
 
 ### 3.9 Convenience API & High-Level Wrappers
 
-The SDK provides a high-level functional layer above the raw `FetchResult` to simplify common lexicographical queries.
+The SDK provides a high-level functional layer above the raw `FetchResult` to simplify common lexicographical queries. High-level structures like **`RichEntry`** and **`InflectionTable`** provide an aggregate view of a term.
 
-**Core wrappers** (pre-v2):
+#### 3.9.1 `RichEntry` (The Aggregate Profile)
+A `RichEntry` is a comprehensive, flattened representation of a linguistic term, combining lemma-level metadata with its full inflectional and semantic profile. It is the primary return type for `richEntry()`.
+
+#### 3.9.2 `InflectionTable` (The Structured Paradigm)
+An `InflectionTable` is a hierarchical representation of a grammatical paradigm (e.g., all forms of a verb across mood, tense, and voice). It is returned by `conjugate()` and `decline()` when called in "full-table" mode (empty criteria).
 
 | Wrapper | Return type | Notes |
 |---------|-------------|-------|
@@ -387,9 +392,12 @@ The SDK provides a high-level functional layer above the raw `FetchResult` to si
 | `isCategory(q, cat, l)` | `boolean` | Checks if `cat` appears in the categories list. |
 | `pageMetadata(q, l)` | `object` | Raw page info (`last_modified`, `length`, `pageid`). |
 | `inflectionTableRef(q, l)` | `{template_name, raw}\|null` | Name of the conjugation/declension template. |
-| `audioDetails(q, l)` | `AudioDetail[]` | Full list of audio files with URLs and labels. |
+| `audioGallery(q, l)` | `AudioDetail[]` | Full list of audio files with URLs and labels. |
+| `audioDetails(q, l)` | `AudioDetail[]` | Alias for `audioGallery` (deprecated). |
 | `exampleDetails(q, l)` | `Example[]` | Structured usage examples with translations. |
+| `citations(q, l)` | `Example[]` | Literary citations extracted from `{{quote-book}}` etc. |
 | `isInstance(q, qid, l)` | `boolean` | Checks if entry belongs to Wikidata instance `qid`. |
+| `isSubclass(q, qid, l)` | `boolean` | Checks if entry belongs to Wikidata subclass `qid`. |
 | `wikipediaLink(q, l)` | `string\|null` | Direct link to the corresponding Wikipedia article. |
 | `internalLinks(q, l)` | `string[]` | List of internal wikilinks on the page. |
 | `externalLinks(q, l)` | `string[]` | List of external HTTP links on the page. |
@@ -483,13 +491,13 @@ interface TemplateDecoder {
 
 1. **Raw storage** (`store-raw-templates`): runs on every context; stores all templates verbatim.
 2. **Pronunciation** (extended): `ipa`, `el-ipa`, `audio` (now also resolves `audio_url`), `hyphenation`, `rhymes`, `homophones`, `romanization`.
-3. **Headword / POS**: `el-verb-head`, `el-noun-head`, `el-adj-head`, `el-adv-head`, `el-pron-head`, `el-numeral-head`, `el-participle-head`, `el-art-head`.
-4. **Headword morphology** (new): `el-verb-morphology` (extracts `transitivity`, `principal_parts` from `{{el-verb}}` params); `el-noun-gender` (extracts `gender` from `{{el-noun}}`).
-5. **Form-of** (extended): detects `inflection of`, `infl of`, `form of`, `alternative form of`, and 7 other form-of templates; now produces a human-readable `label` from the `tags` array via `TAG_LABEL_MAP`.
+3. **Headword / POS**: `el-verb-head`, `el-noun-head`, `el-adj-head`, `el-adv-head`, `el-pron-head`, `el-numeral-head`, `el-participle-head`, `el-art-head`, **`nl-noun-head`**, **`nl-verb-head`**, **`nl-adj-head`**, **`de-noun-head`**, **`de-verb-head`**, **`de-adj-head`**.
+4. **Headword morphology** (new): `el-verb-morphology` (extracts `transitivity`, `principal_parts` from `{{el-verb}}` params); `el-noun-gender` (extracts `gender` from `{{el-noun}}`); **`nl-noun-head`** (extracts `gender` from `{{nl-noun}}`); **`de-noun-head`** (extracts `gender` from `{{de-noun}}`).
+5. **Form-of** (extended): detects `inflection of`, `infl of`, `form of`, `alternative form of`, and 7 other form-of templates; now produces a human-readable `label` from the `tags` array via `TAG_LABEL_MAP`. **New:** Distinguishes between `INFLECTED_FORM` and `FORM_OF` based on template semantics (variants/abbreviations vs. grammatical inflections).
 6. **Translations**: parses `====Translations====` sections for `t`, `t+`, `tt`, `tt+`, `t-simple`.
-7. **Senses** (extended): parses `#` / `##` / `#:` lines; now extracts `qualifier` from parenthetical text and `labels`/`topics` from `{{lb|...}}` templates on definition lines.
-8. **Semantic relations** (extended): `syn`, `ant`, `hyper`, `hypo`, and now also `cot` (coordinate terms), `hol` (holonyms), `mer` (meronyms), `tro` (troponyms).
-9. **Etymology v2**: produces `chain[]` (from `inh`, `der`, `bor`) and `cognates[]` (from `cog`) as separate arrays, each with a `relation` field; reads `etymology_raw_text` from parser for `raw_text`.
+7. **Senses**: parses `#` / `##` / `#:` lines; now extracts `qualifier` from parenthetical text and `labels`/`topics` from `{{lb|...}}` templates on definition lines.
+8. **Semantic relations**: `syn`, `ant`, `hyper`, `hypo`, and now also `cot` (coordinate terms), `hol` (holonyms), `mer` (meronyms), `tro` (troponyms).
+9. **Etymology v2**: produces `chain[]` (from `inh`, `der`, `bor`) and `cognates[]` (from `cog`) as separate arrays; now supports compositional templates like **`affix`**, **`compound`**, **`back-formation`**, and **`clipping`**.
 10. **Usage notes**: extracts `===Usage notes===` section text.
 11. **References** (new): extracts `====References====` section text into `entry.references[]`.
 12. **Alternative forms** (new): parses `====Alternative forms====` section for `{{l}}`/`{{link}}` templates into `entry.alternative_forms[]`.
@@ -659,8 +667,26 @@ These are **verification artifacts**, not part of the runtime contract:
 - **Parser invariants** (`test/parser.invariants.test.ts`): structural checks on `parseTemplates(wikitext, true)` (raw slice equals source span, non-overlapping regions, nesting). **Rationale:** guards the brace-aware parser independent of linguistic content.
 
 ### 12.19 Convenience aliases (`phonetic`, `derivations`)
-- **`phonetic()`** is an alias for **`ipa()`** (identical behavior).
-- **`derivations()`** is an alias for **`derivedTerms()`** (identical behavior). Both return `derived_terms.items` from the main lexeme (typically `{ term, … }[]`, not bare strings). **Rationale:** aligns README/spec naming with a single implementation; avoids duplicate maintenance.
+
+The SDK provides several aliases for common linguistic operations to improve DevX. For example, `phonetic()` is an alias for the primary `pronounce()` result, and `derivations()` aggregates results from `derivedTerms()` and `etymologyChain()` into a combined view.
+
+### 12.20 Rationale for Multi-Audio Galleries
+
+**Problem**: MediaWiki's `{{audio}}` templates are often used to list multiple regional variations (e.g., London / ˈlʌndən / and New York / ˈlʌndən /). Standard scrapers typically flatten these to a single file, causing loss of dialectal data.
+
+**Solution**: The SDK's `audio_details` structure (v2.1) treats audio as a collection rather than a scalar. By extracting labels like "US", "UK", or "Netherlands", we preserve the linguistic geographic context, making the SDK suitable for accent analysis and localized TTS pipelines.
+
+### 12.21 Rationale for Structured Citations
+
+**Problem**: Usage examples in dictionary entries are typically a mix of prescriptive phrases (`{{ux}}`) and descriptive literary citations (`{{quote-book}}`). Treating both as simple strings fails to capture the metadata (author, year, work) essential for philological research.
+
+**Solution**: The SDK distinguishes between these types at the decoder level. By mapping `author`, `year`, and `source` to the `Example` object, we transition from a "string-based example" model to a "structured literary corpus" model, enabling quantitative analysis of citation frequency and historical usage directly from the dictionary source.
+
+### 12.22 Rationale for Ontological Depth (P31 vs P279)
+
+**Problem**: Lexical entries are often categorized in Wikidata using both `instance of` (P31) and `subclass of` (P279). Most basic integrations only fetch P31, missing the broader categorical hierarchy (e.g., "dog" is a *subclass* of "canid", not an *instance* of it).
+
+**Solution**: In v2.1, the SDK explicitly separates `instance_of` and `subclass_of` in the enrichment layer. This ensures that callers can differentiate between specific entities (tokens) and categorical types (concepts), which is critical for knowledge graph construction and semantic search.
 
 ---
 

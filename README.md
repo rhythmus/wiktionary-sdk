@@ -2,7 +2,7 @@
 
 > Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia and Wikimedia
 
-Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries**.
+Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries** and initial support for **Dutch (NL)** and **German (DE)**.
 
 The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).
 
@@ -298,13 +298,12 @@ format(lineage, { mode: "markdown" }); // "grk-pro ***grépʰō** ← el **γρ�
   standard regex is insufficient for Wikitext. Parameter splitting preserves
   pipes inside both `[[...]]` and `{{...}}`; only splits on `|` when both
   depths are zero.
-- **Registry of Template Decoders** — a decentralized, pure-function architecture where each supported template family has its own decoder. Adding support for a new template means registering one function; no changes to the parser or orchestrator.
-- **Pronunciation** — `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, and `{{hyphenation}}` templates are decoded. Audio filenames are mapped to Wikimedia Commons URLs, and **regional dialect labels** are captured from template parameters.
-- **Structured Examples** — definition lines (`#`, `##`, `#:`) are parsed into structured `Sense` objects. When `{{ux}}` or `{{quote}}` are used, the SDK extracts **translation, author, year, and source**.
+- **Pronunciation** — `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, and `{{hyphenation}}` templates are decoded. The SDK supports **audio galleries**, capturing all dialectal files (US, UK, Au) from a section into `audio_details` with regional labels.
+- **Senses & Citations** — entry lines (`#`, `##`, `#:`) are parsed into structured `Sense` objects. The engine provides specialized support for **structured citations** (`{{quote-book}}`, `{{ux}}`, etc.), extracting **author, year, source, and passage** alongside the translation.
 - **Translations** — `{{t}}`, `{{t+}}`, `{{tt}}`, `{{tt+}}`, `{{t-simple}}` templates are extracted from `====Translations====` sections. Each item has `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params. Grouped by language.
-- **Usage notes** — `===Usage notes===` section text is captured verbatim.
+- **Wikidata Enrichment** — Deep integration with the Wikidata API to extract **Instance Of (P31)** and **Subclass Of (P279)** relationships, alongside multilingual labels, descriptions, and sitelinks.
 - **Lemma resolution** — inflected forms are automatically linked back to their lemma entry via form-of template parameters (explicit only, no guessing).
-- **Wikidata enrichment** — optional QID, multilingual labels, descriptions, sitelinks, and P18 image thumbnails via the Wikidata API.
+- **Usage notes** — `===Usage notes===` section text is captured verbatim.
 
 ### ⚙️ Infrastructure
 
@@ -456,12 +455,12 @@ The registry currently supports decoders for:
 
 | Category | Templates |
 |----------|-----------|
-| Headword / POS | `el-verb`, `el-noun`, `el-adj`, `el-adv`, `el-pron`, `el-numeral`, `el-part`, `el-art` |
+| Headword / POS | `el-verb`, `el-noun`, `el-adj`, `el-adv`, `el-pron`, `el-numeral`, `el-part`, `el-art`, **`nl-noun`**, **`nl-verb`**, **`nl-adj`**, **`de-noun`**, **`de-verb`**, **`de-adj`** |
 | Pronunciation | `IPA`, `el-IPA`, `audio`, `hyphenation` |
 | Form-of | `inflection of`, `infl of`, `form of`, `alternative form of`, `alt form`, `misspelling of`, `abbreviation of`, `short for`, `clipping of`, `diminutive of`, `augmentative of` |
 | Translations | `t`, `t+`, `tt`, `tt+`, `t-simple` |
 | Semantic relations | `syn`, `ant`, `hyper`, `hypo` |
-| Etymology | `inh`, `der`, `bor`, `cog` (+ long-form aliases) |
+| Etymology | `inh`, `der`, `bor`, `cog` (+ long-form aliases), **`back-formation`**, **`clipping`**, **`affix`**, **`compound`** |
 | Senses | `#` / `##` / `#:` definition line parsing |
 | Usage notes | `===Usage notes===` section extraction |
 | Section links | `l`, `link` in `====Derived terms====`, `====Related terms====`, `====Descendants====` |

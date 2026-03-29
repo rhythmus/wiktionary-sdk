@@ -162,6 +162,32 @@ This section records **intentionally partial** choices from the testing hardenin
 - **Policy: Parity Mandate**
     - **Done:** Added strict synchronization rules to `AGENTS.md` to prevent future parity drift.
 
+## 💎 Stage 19: Buried Data Extraction (v2.2 — Delivered)
+
+**Goal**: surface linguistic data currently ignored or flattened by the SDK, including multi-audio galleries and structured literary citations.
+
+- **Pronunciation: Audio Galleries**
+    - **Done:** Captures all dialectal audio files (US, UK, Au) from multiple `{{audio}}` templates into a structured gallery.
+- **Senses: Structured Citations**
+    - **Done:** Decodes literary metadata (author, year, source, passage) from `{{quote-book}}`, `{{quote-journal}}`, etc.
+- **Ontology: Subclass Relationships**
+    - **Done:** Extracts Wikidata `subclass_of` (P279) to complement `instance_of` (P31).
+- **Interface: Playground & CLI Parity**
+    - **Done:** Added `audioGallery()`, `citations()`, and `isSubclass()` to all public interfaces.
+
+## 🌍 Stage 18: Multi-lingual Expansion & Schema Consolidation (v2.1 — Delivered)
+
+**Goal**: transition from "Greek-only" to a multi-lingual foundation and formalize high-level API outputs.
+
+- **Languages: Dutch & German (NL/DE)**
+    - **Done:** Bootstrapped `nl-noun-head`, `nl-verb-head`, `de-noun-head`, etc. with gender extraction for nominals.
+- **Classification: Variant vs. Inflection**
+    - **Done:** Refined `EntryType` logic to distinguish between grammatical inflections (`INFLECTED_FORM`) and lexical variants/abbreviations (`FORM_OF`).
+- **Schema: High-Fidelity Consolidations**
+    - **Done:** Added formal JSON Schema definitions for `RichEntry` and `InflectionTable` to ensure parity with the high-level convenience API.
+- **Etymology: Compositional Relations**
+    - **Done:** Expanded `TEMPLATE_RELATION_MAP` to handle `affix`, `compound`, `back-formation`, and `clipping`.
+
 ---
 
 ## 📜 Historical Stages (Delivered)
