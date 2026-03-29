@@ -65,19 +65,9 @@ function mergePatches(patches: any[]) {
     return out;
 }
 
-export const FORM_OF_TEMPLATES = new Set([
+export const INFLECTION_TEMPLATES = new Set([
     "infl of",
     "inflection of",
-    "alternative form of",
-    "alt form",
-    "alt form of",
-    "form of",
-    "misspelling of",
-    "abbreviation of",
-    "short for",
-    "clipping of",
-    "diminutive of",
-    "augmentative of",
     "plural of",
     "noun form of",
     "verb form of",
@@ -90,6 +80,21 @@ export const FORM_OF_TEMPLATES = new Set([
     "command of",
     "imperative of",
 ]);
+
+export const VARIANT_TEMPLATES = new Set([
+    "alternative form of",
+    "alt form",
+    "alt form of",
+    "form of",
+    "misspelling of",
+    "abbreviation of",
+    "short for",
+    "clipping of",
+    "diminutive of",
+    "augmentative of",
+]);
+
+export const FORM_OF_TEMPLATES = new Set([...INFLECTION_TEMPLATES, ...VARIANT_TEMPLATES]);
 
 export const registry = new DecoderRegistry();
 
@@ -205,6 +210,78 @@ registry.register({
     decode: (_ctx) => ({ entry: { part_of_speech: "article" } }),
 });
 
+/** --- Dutch (NL) Headword Decoders --- **/
+
+registry.register({
+    id: "nl-adj-head",
+    handlesTemplates: ["nl-adj"],
+    matches: (ctx) => ctx.templates.some((t) => t.name === "nl-adj"),
+    decode: (_ctx) => ({ entry: { part_of_speech: "adjective" } }),
+});
+
+registry.register({
+    id: "nl-noun-head",
+    handlesTemplates: ["nl-noun", "nl-noun-dim", "nl-noun-dim-tant"],
+    matches: (ctx) => ctx.templates.some((t) => ["nl-noun", "nl-noun-dim", "nl-noun-dim-tant"].includes(t.name)),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => ["nl-noun", "nl-noun-dim", "nl-noun-dim-tant"].includes(t.name));
+        if (!t) return {};
+        const pos = t.params.positional ?? [];
+        const rawGender = t.params.named?.g || pos[0] || "";
+        const gender = GENDER_MAP[rawGender.toLowerCase()] || (rawGender.toLowerCase() === "c" ? "common" : null);
+        return {
+            entry: {
+                part_of_speech: "noun",
+                ...(gender !== null && { headword_morphology: { gender } }),
+            },
+        };
+    },
+});
+
+registry.register({
+    id: "nl-verb-head",
+    handlesTemplates: ["nl-verb"],
+    matches: (ctx) => ctx.templates.some((t) => t.name === "nl-verb"),
+    decode: (_ctx) => ({ entry: { part_of_speech: "verb" } }),
+});
+
+/** --- German (DE) Headword Decoders --- **/
+
+registry.register({
+    id: "de-adj-head",
+    handlesTemplates: ["de-adj"],
+    matches: (ctx) => ctx.templates.some((t) => t.name === "de-adj"),
+    decode: (_ctx) => ({ entry: { part_of_speech: "adjective" } }),
+});
+
+registry.register({
+    id: "de-noun-head",
+    handlesTemplates: ["de-noun", "de-proper noun"],
+    matches: (ctx) => ctx.templates.some((t) => ["de-noun", "de-proper noun"].includes(t.name)),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => ["de-noun", "de-proper noun"].includes(t.name));
+        if (!t) return {};
+        const pos = t.params.positional ?? [];
+        // de-noun|gender,genitive,plural
+        const fullParam = pos[0] || "";
+        const rawGender = fullParam.split(",")[0] || "";
+        const gender = GENDER_MAP[rawGender.toLowerCase()] || null;
+        return {
+            entry: {
+                part_of_speech: "noun",
+                ...(gender !== null && { headword_morphology: { gender } }),
+            },
+        };
+    },
+});
+
+registry.register({
+    id: "de-verb-head",
+    handlesTemplates: ["de-verb"],
+    matches: (ctx) => ctx.templates.some((t) => t.name === "de-verb"),
+    decode: (_ctx) => ({ entry: { part_of_speech: "verb" } }),
+});
+
 /** --- Form-of / lemma resolution triggers --- **/
 
 /** Maps morph tag shortcodes → English words for human-readable labels. */
@@ -242,9 +319,10 @@ registry.register({
         const tags = pos.slice(2).filter(Boolean);
         const named = t.params.named ?? {};
         const label = tagsToLabel(tags);
+        const isVariant = VARIANT_TEMPLATES.has(t.name);
         return {
             entry: {
-                type: "INFLECTED_FORM",
+                type: isVariant ? "FORM_OF" : "INFLECTED_FORM",
                 form_of: { template: t.name, lemma, lang, tags, named, ...(label ? { label } : {}) },
             },
         };
@@ -442,25 +520,38 @@ function parseSenses(lines: string[]): Sense[] {
             
             // Check for structured example templates
             const tpls = parseTemplates(raw);
-            const ux = tpls.find(t => ["ux", "usex", "quote", "quote-book", "quote-journal"].includes(t.name));
+            const ux = tpls.find(t => ["ux", "usex", "quote", "quote-book", "quote-journal", "quote-web", "quote-video game"].includes(t.name.toLowerCase()));
             if (ux) {
                 const pos = ux.params.positional ?? [];
                 const named = ux.params.named ?? {};
+                
+                let text = "";
+                let translation = "";
+                
+                if (ux.name.toLowerCase().includes("quote")) {
+                    text = named.text || named.passage || pos[2] || pos[1] || "";
+                    translation = named.translation || named.t || pos[3] || "";
+                } else {
+                    // ux / usex: pos[0]=lang, pos[1]=text, pos[2]=translation
+                    text = named.text || pos[1] || "";
+                    translation = named.translation || named.t || pos[2] || "";
+                }
+
                 const example: any = {
-                    text: stripWikiMarkup(named.text || pos[1] || pos[2] || "").trim(),
-                    translation: stripWikiMarkup(named.translation || named.t || pos[2] || pos[3] || "").trim(),
+                    text: stripWikiMarkup(text).trim(),
+                    translation: stripWikiMarkup(translation).trim(),
                     transliteration: named.tr || undefined,
                     author: named.author || undefined,
                     year: named.year || undefined,
-                    source: named.source || undefined,
+                    source: named.source || named.title || undefined,
                     raw: ux.raw
                 };
-                // Clean up if pos[2] was actually the translation
-                if (example.text === example.translation && pos.length > 2) {
-                    example.text = stripWikiMarkup(pos[1]).trim();
-                    example.translation = stripWikiMarkup(pos[2]).trim();
+                
+                if (example.text) {
+                    parent.examples.push(example);
+                } else {
+                    parent.examples.push(stripWikiMarkup(raw));
                 }
-                parent.examples.push(example);
             } else {
                 parent.examples.push(stripWikiMarkup(raw));
             }
@@ -605,10 +696,11 @@ registry.register({
     },
 });
 
-const GENDER_MAP: Record<string, "masculine" | "feminine" | "neuter"> = {
+const GENDER_MAP: Record<string, "masculine" | "feminine" | "neuter" | "common"> = {
     m: "masculine", masc: "masculine", masculine: "masculine",
     f: "feminine", fem: "feminine", feminine: "feminine",
     n: "neuter", neut: "neuter", neuter: "neuter",
+    c: "common", common: "common",
 };
 
 registry.register({
@@ -702,7 +794,11 @@ registry.register({
 
 /** --- Phase 2.3: Structured etymology & cognates (v2) --- **/
 
-const ETYMOLOGY_ANCESTOR_TEMPLATES = new Set(["inh", "inherited", "der", "derived", "bor", "borrowed"]);
+const ETYMOLOGY_ANCESTOR_TEMPLATES = new Set([
+    "inh", "inherited", "der", "derived", "bor", "borrowed",
+    "back-formation", "clipping", "short for", "abbreviation",
+    "affix", "compound", "prefix", "suffix", "confix", "blend"
+]);
 const ETYMOLOGY_COGNATE_TEMPLATES = new Set(["cog", "cognate", "noncognate", "nc"]);
 const ALL_ETYMOLOGY_TEMPLATES = new Set([...ETYMOLOGY_ANCESTOR_TEMPLATES, ...ETYMOLOGY_COGNATE_TEMPLATES]);
 
@@ -710,6 +806,16 @@ const TEMPLATE_RELATION_MAP: Record<string, EtymologyLink["relation"]> = {
     inh: "inherited", inherited: "inherited",
     der: "derived",  derived: "derived",
     bor: "borrowed", borrowed: "borrowed",
+    "back-formation": "back-formation",
+    clipping: "clipping",
+    "short for": "clipping",
+    abbreviation: "clipping",
+    affix: "derived",
+    compound: "derived",
+    prefix: "derived",
+    suffix: "derived",
+    confix: "derived",
+    blend: "derived",
     cog: "cognate", cognate: "cognate", noncognate: "cognate", nc: "cognate",
 };
 
@@ -780,24 +886,38 @@ registry.register({
     handlesTemplates: ["audio"],
     matches: (ctx) => ctx.templates.some((t) => t.name === "audio"),
     decode: (ctx) => {
-        const t = ctx.templates.find((t) => t.name === "audio");
-        if (!t) return {};
-        const file = t.params.positional[1] || t.params.positional[0] || undefined;
-        if (!file) return {};
-        // Resolve to Wikimedia Commons full URL (no MD5 path — use simple direct URL)
-        const normalizedName = file.replace(/ /g, "_");
-        const audio_url = `https://upload.wikimedia.org/wikipedia/commons/${normalizedName}`;
-        const tr = t.params.named?.tr;
-        const label = t.params.positional[2] || t.params.named?.label || t.params.named?.p || undefined;
-        
-        const details = { url: audio_url, label, filename: file };
+        const audioTpls = ctx.templates.filter((t) => t.name === "audio");
+        if (audioTpls.length === 0) return {};
+
+        const audio_details: Array<{ url: string; label?: string; filename: string }> = [];
+        let firstAudio: string | undefined;
+        let firstAudioUrl: string | undefined;
+        let firstRomanization: string | undefined;
+
+        for (const t of audioTpls) {
+            const file = t.params.positional[1] || t.params.positional[0] || undefined;
+            if (!file) continue;
+            const normalizedName = file.replace(/ /g, "_");
+            const audio_url = `https://upload.wikimedia.org/wikipedia/commons/${normalizedName}`;
+            const label = t.params.positional[2] || t.params.named?.label || t.params.named?.p || undefined;
+            
+            if (!firstAudio) {
+                firstAudio = file;
+                firstAudioUrl = audio_url;
+                firstRomanization = t.params.named?.tr;
+            }
+            audio_details.push({ url: audio_url, label, filename: file });
+        }
+
+        if (audio_details.length === 0) return {};
+
         return { 
             entry: { 
                 pronunciation: { 
-                    audio: file, 
-                    audio_url, 
-                    audio_details: [details], 
-                    ...(tr && { romanization: tr }) 
+                    audio: firstAudio, 
+                    audio_url: firstAudioUrl, 
+                    audio_details, 
+                    ...(firstRomanization && { romanization: firstRomanization }) 
                 } 
             } 
         };

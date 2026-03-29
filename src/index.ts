@@ -20,7 +20,7 @@ import {
     langToLanguageName,
     languageNameToLang,
 } from "./parser";
-import { registry, FORM_OF_TEMPLATES } from "./registry";
+import { registry, FORM_OF_TEMPLATES, VARIANT_TEMPLATES } from "./registry";
 import { deepMerge, commonsThumbUrl } from "./utils";
 
 /**
@@ -56,7 +56,11 @@ function lemmaKey(lang: WikiLang, lemma: string) {
     return `${lang}:${lemma}`;
 }
 
-async function wiktionaryRecursive({
+/**
+ * Core engine: fetches, parses, and decodes a term recursively resolving lemmas.
+ * @internal
+ */
+export async function wiktionaryRecursive({
     query,
     lang = "Auto",
     pos = "Auto",
@@ -310,10 +314,12 @@ async function wiktionaryRecursive({
                         };
                         ent.wikidata.media.thumbnail = commonsThumbUrl(filename, 420);
                     }
-                    const p31 = wd.claims?.P31;
-                    if (Array.isArray(p31)) {
-                        ent.wikidata.instance_of = p31.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
-                    }
+                    // Extract types (P31 Instance Of and P279 Subclass Of)
+                    const p31 = wd.claims?.P31 ?? [];
+                    ent.wikidata.instance_of = p31.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
+                    
+                    const p279 = wd.claims?.P279 ?? [];
+                    ent.wikidata.subclass_of = p279.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
                 }
             } catch (err: any) {
                 (ent as any).wikidata_error = String(err?.message || err);
@@ -368,6 +374,7 @@ async function wiktionaryRecursive({
 
 function guessEntryTypeFromTemplates(templates: any[]) {
     for (const t of templates) {
+        if (VARIANT_TEMPLATES.has(t.name)) return "FORM_OF";
         if (FORM_OF_TEMPLATES.has(t.name)) return "INFLECTED_FORM";
     }
     return "LEXEME";
