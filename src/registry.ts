@@ -251,6 +251,18 @@ registry.register({
     },
 });
 
+/** --- Wikidata P31 Instance Of --- **/
+registry.register({
+    id: "wikidata-p31",
+    handlesTemplates: [],
+    matches: (ctx) => !!ctx.page.pageprops?.wikibase_item,
+    decode: (ctx) => {
+        // This is a placeholder since index.ts handles the actual fetching, 
+        // but it signals that we care about this field.
+        return {};
+    },
+});
+
 /** --- Translation parsing --- **/
 function parseTranslationsFromBlock(wikitext: string) {
     const lines = wikitext.split("\n");
@@ -422,11 +434,36 @@ function parseSenses(lines: string[]): Sense[] {
             continue;
         }
 
-        const exMatch = line.match(/^#:\s*(.+)$/);
+        const exMatch = line.match(/^#[:*]+\s*(.+)$/);
         if (exMatch && senses.length > 0) {
             const parent = senses[senses.length - 1];
             if (!parent.examples) parent.examples = [];
-            parent.examples.push(stripWikiMarkup(exMatch[1]));
+            const raw = exMatch[1];
+            
+            // Check for structured example templates
+            const tpls = parseTemplates(raw);
+            const ux = tpls.find(t => ["ux", "usex", "quote", "quote-book", "quote-journal"].includes(t.name));
+            if (ux) {
+                const pos = ux.params.positional ?? [];
+                const named = ux.params.named ?? {};
+                const example: any = {
+                    text: stripWikiMarkup(named.text || pos[1] || pos[2] || "").trim(),
+                    translation: stripWikiMarkup(named.translation || named.t || pos[2] || pos[3] || "").trim(),
+                    transliteration: named.tr || undefined,
+                    author: named.author || undefined,
+                    year: named.year || undefined,
+                    source: named.source || undefined,
+                    raw: ux.raw
+                };
+                // Clean up if pos[2] was actually the translation
+                if (example.text === example.translation && pos.length > 2) {
+                    example.text = stripWikiMarkup(pos[1]).trim();
+                    example.translation = stripWikiMarkup(pos[2]).trim();
+                }
+                parent.examples.push(example);
+            } else {
+                parent.examples.push(stripWikiMarkup(raw));
+            }
         }
     }
 
@@ -751,7 +788,19 @@ registry.register({
         const normalizedName = file.replace(/ /g, "_");
         const audio_url = `https://upload.wikimedia.org/wikipedia/commons/${normalizedName}`;
         const tr = t.params.named?.tr;
-        return { entry: { pronunciation: { audio: file, audio_url, ...(tr && { romanization: tr }) } } };
+        const label = t.params.positional[2] || t.params.named?.label || t.params.named?.p || undefined;
+        
+        const details = { url: audio_url, label, filename: file };
+        return { 
+            entry: { 
+                pronunciation: { 
+                    audio: file, 
+                    audio_url, 
+                    audio_details: [details], 
+                    ...(tr && { romanization: tr }) 
+                } 
+            } 
+        };
     },
 });
 

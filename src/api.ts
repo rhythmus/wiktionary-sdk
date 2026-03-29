@@ -30,6 +30,9 @@ export function normalizeWiktionaryQueryPage(page: any, requestedTitle: string) 
         pageid: page?.pageid,
         lastrevid: page?.lastrevid,
     };
+    const images = (page?.images ?? []).map((img: any) => img.title);
+    const page_links = (page?.links ?? []).map((l: any) => l.title);
+    const external_links = (page?.extlinks ?? []).map((l: any) => l.url);
     const exists = !page?.missing;
     const normalizedTitle = (page?.title ?? requestedTitle).normalize("NFC");
     return {
@@ -38,6 +41,9 @@ export function normalizeWiktionaryQueryPage(page: any, requestedTitle: string) 
         wikitext,
         pageprops,
         categories,
+        images,
+        page_links,
+        external_links,
         langlinks,
         info,
         pageid: page?.pageid ?? null,
@@ -62,12 +68,14 @@ export async function fetchWikitextEnWiktionary(title: string) {
         format: "json",
         formatversion: "2",
         origin: "*",
-        prop: "revisions|pageprops|categories|images|langlinks|info",
+        prop: "revisions|pageprops|categories|images|langlinks|info|links|extlinks",
         rvprop: "content",
         rvslots: "main",
-        cllimit: "50",
-        imlimit: "20",
-        lllimit: "20",
+        cllimit: "100",
+        imlimit: "50",
+        lllimit: "50",
+        pllimit: "100",
+        ellimit: "100",
         redirects: "1",
         titles: title,
     });

@@ -13,6 +13,8 @@ export interface Pronunciation {
   audio?: string;
   /** Resolved Wikimedia Commons download URL for the audio file. */
   audio_url?: string;
+  /** Detailed audio resources with dialect/location labels. */
+  audio_details?: Array<{ url: string; label?: string; filename: string }>;
   /** Romanized form of the headword (e.g. "gráfo" for γράφω). */
   romanization?: string;
   /** Rhyming words or sounds. */
@@ -50,6 +52,18 @@ export interface WikidataEnrichment {
     commons_file?: string;
     thumbnail?: string;
   };
+  /** Wikidata P31 'Instance Of' claims (e.g. ['Q1084', 'Q215380']). */
+  instance_of?: string[];
+}
+
+export interface Example {
+  text: string;
+  translation?: string;
+  transliteration?: string;
+  author?: string;
+  year?: string;
+  source?: string;
+  raw?: string;
 }
 
 export interface Sense {
@@ -62,7 +76,7 @@ export interface Sense {
   labels?: string[];
   /** Topic domains from {{lb|...}}, e.g. ["law", "art"]. */
   topics?: string[];
-  examples?: string[];
+  examples?: Array<string | Example>;
   subsenses?: Sense[];
 }
 
@@ -205,6 +219,13 @@ export interface Entry {
     template_name: string;
     raw: string;
   };
+
+  /** All external links extracted from the page. */
+  external_links?: string[];
+  /** All Wiktionary page titles linked from this article. */
+  page_links?: string[];
+  /** List of image filenames/URLs found on the page (from MW prop=images). */
+  images?: string[];
 
   wikidata?: WikidataEnrichment;
   resolved_for_query?: string;

@@ -18,8 +18,11 @@ etymology_index: 0              # Which etymology block (0-indexed)
 # ── Pronunciation ──────────────────────────────────────────────────────────
 pronunciation:
   IPA: "/ˈɣrafo/"
-  audio: "El-γράφω.ogg"
   audio_url: "https://upload.wikimedia.org/wikipedia/commons/..."
+  audio_details:
+    - url: "https://upload.wikimedia.org/wikipedia/commons/..."
+      label: "Audio (Greece)"
+      filename: "El-γράφω.ogg"
   romanization: "gráfo"
   rhymes: ["-afo"]
   homophones: []
@@ -86,7 +89,10 @@ senses:
     labels: []
     topics: []
     examples:
-      - "Γράφω ένα γράμμα."
+      - text: "Γράφω ένα γράμμα."
+        translation: "I am writing a letter."
+        raw: "{{ux|el|Γράφω ένα γράμμα.|t=I am writing a letter.}}"
+      - "Simple string example"
   - id: "S2"
     gloss: "to record"
     gloss_raw: "to [[record]]"
@@ -149,6 +155,11 @@ translations:
 inflection_table_ref:
   template_name: "el-conj-γράφω"
   raw: "{{el-conj-γράφω}}"
+  
+# ── Connectivity Metadata (Buried API Data) ──────────────────────────────
+external_links: ["https://lsj.gr/wiki/γράφω"]
+page_links: ["γράμμα", "μολύβι"]
+images: ["File:Writing_hand.jpg"]
 
 # ── Inflected Form Details (only present when type = INFLECTED_FORM) ───────
 form_of:
@@ -173,6 +184,7 @@ wikidata:
     P18: "Writing.jpg"
     commons_file: "File:Writing.jpg"
     thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/..."
+  instance_of: ["Q1084", "Q215380"]  # Wikidata P31: Verb, Activity
 
 # ── Categories ───────────────────────────────────────────────────────────
 categories:

@@ -30,6 +30,19 @@
           "format": "uri",
           "description": "Resolved Wikimedia Commons download URL for the audio file."
         },
+        "audio_details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "label": { "type": "string", "description": "Regional label, e.g. 'UK', 'Netherlands'." },
+              "filename": { "type": "string" }
+            },
+            "required": ["url", "filename"]
+          },
+          "description": "Detailed audio resources with dialect/location labels."
+        },
         "romanization": {
           "type": "string",
           "description": "Romanized form of the headword, e.g. 'gráfo' for γράφω."
@@ -120,9 +133,27 @@
         "labels": { "type": "object", "additionalProperties": { "$ref": "#/$defs/LabelValue" } },
         "descriptions": { "type": "object", "additionalProperties": { "$ref": "#/$defs/LabelValue" } },
         "sitelinks": { "type": "object", "additionalProperties": { "$ref": "#/$defs/SitelinkValue" } },
-        "media": { "$ref": "#/$defs/WikidataMedia" }
+        "media": { "$ref": "#/$defs/WikidataMedia" },
+        "instance_of": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^Q\\d+$" },
+          "description": "Wikidata P31 'Instance Of' claims."
+        }
       },
       "additionalProperties": false
+    },
+    "Example": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "translation": { "type": "string" },
+        "transliteration": { "type": "string" },
+        "author": { "type": "string" },
+        "year": { "type": "string" },
+        "source": { "type": "string" },
+        "raw": { "type": "string" }
+      },
+      "required": ["text"]
     },
     "TemplateParams": {
       "type": "object",
@@ -250,7 +281,15 @@
           "items": { "type": "string" },
           "description": "Topic domains from {{lb}}, e.g. ['law', 'computing']."
         },
-        "examples": { "type": "array", "items": { "type": "string" } },
+        "examples": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/Example" }
+            ]
+          }
+        },
         "subsenses": { "type": "array", "items": { "$ref": "#/$defs/Sense" } }
       },
       "additionalProperties": false
@@ -425,6 +464,21 @@
           "required": ["template_name", "raw"],
           "additionalProperties": false,
           "description": "Reference to the inflection template used."
+        },
+        "external_links": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" },
+          "description": "All external links extracted from the page."
+        },
+        "page_links": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "All Wiktionary page titles linked from this article."
+        },
+        "images": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of image filenames/URLs found on the page."
         },
         "wikidata": { "$ref": "#/$defs/WikidataEnrichment" },
         "resolved_for_query": { "type": "string" },

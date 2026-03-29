@@ -2,6 +2,7 @@ import { wiktionary } from "./index";
 import { mwFetchJson } from "./api";
 import { stripWikiMarkup } from "./registry";
 import { morphology as getMorphology, conjugate as runConjugate, decline as runDecline } from "./morphology";
+import { commonsThumbUrl } from "./utils";
 import type { WikiLang, FetchResult, Entry, RichEntry } from "./types";
 import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
 
@@ -182,6 +183,14 @@ export async function hyphenate(query: string, sourceLang: WikiLang = "Auto", op
     if (options.format === "array") return syllables;
     if (options.separator || options.format === "string") return syllables.join(options.separator || "-");
     return syllables; // Default is array now per README, but keeping backward compatibility logic if needed.
+}
+
+/**
+ * Returns the number of syllables.
+ */
+export async function syllableCount(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<number> {
+    const syllables = await hyphenate(query, sourceLang, { format: "array" }, pos);
+    return syllables ? syllables.length : 0;
 }
 
 /**
@@ -382,6 +391,95 @@ export async function gender(query: string, sourceLang: WikiLang = "Auto"): Prom
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
     const lexeme = getMainLexeme(result);
     return lexeme?.headword_morphology?.gender || null;
+}
+
+/**
+ * Returns all rhyming words listed for the term.
+ */
+export async function rhymes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    const lexeme = result.entries.find(e => e.pronunciation?.rhymes);
+    return lexeme?.pronunciation?.rhymes || [];
+}
+
+/**
+ * Returns all homophones listed for the term.
+ */
+export async function homophones(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    const lexeme = result.entries.find(e => e.pronunciation?.homophones);
+    return lexeme?.pronunciation?.homophones || [];
+}
+
+/**
+ * Returns a list of all images used on the Wiktionary page and the primary Wikidata image.
+ */
+export async function allImages(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    const images: string[] = [];
+    if (lexeme?.wikidata?.media?.thumbnail) images.push(lexeme.wikidata.media.thumbnail);
+    if (lexeme?.images) {
+        for (const img of lexeme.images) {
+            images.push(commonsThumbUrl(img, 420));
+        }
+    }
+    return Array.from(new Set(images));
+}
+
+/**
+ * Returns all external links found on the page.
+ */
+export async function externalLinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.external_links || [];
+}
+
+/**
+ * Returns all Wiktionary term titles linked from this article.
+ */
+export async function internalLinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    return lexeme?.page_links || [];
+}
+
+/**
+ * Returns detailed audio objects with URLs and dialect labels.
+ */
+export async function audioDetails(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Array<{ url: string; label?: string; filename: string }>> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    const lexeme = result.entries.find(e => e.pronunciation?.audio_details);
+    return lexeme?.pronunciation?.audio_details || [];
+}
+
+/**
+ * Returns structured usage examples (prose + metadata).
+ */
+export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    const lexeme = getMainLexeme(result);
+    if (!lexeme || !lexeme.senses) return [];
+    const examples: any[] = [];
+    for (const sense of lexeme.senses) {
+        if (sense.examples) {
+            for (const ex of sense.examples) {
+                if (typeof ex === "object") examples.push(ex);
+            }
+        }
+    }
+    return examples;
+}
+
+/**
+ * Checks if a Wikidata item is an instance of a specific QID.
+ */
+export async function isInstance(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<boolean> {
+    const result = await wiktionary({ query, lang: sourceLang });
+    const lexeme = getMainLexeme(result);
+    return (lexeme?.wikidata?.instance_of || []).includes(qid);
 }
 
 /**
