@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiktionary SDK: Exhaustive Typographic Specimen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fdfcf8;
+            --text-color: #1a1a1a;
+            --accent-color: #7c2d12; /* Deep Brick */
+            --label-color: #4b5563;
+            --border-color: #e5e7eb;
+            --font-serif: 'EB Garamond', serif;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-serif);
+            line-height: 1.45;
+            padding: 4rem 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 2px solid var(--text-color);
+            padding-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .sdk-version {
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--label-color);
+        }
+
+        article {
+            column-count: 2;
+            column-gap: 3rem;
+            column-rule: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 768px) {
+            article {
+                column-count: 1;
+            }
+        }
+
+        .entry-head {
+            break-inside: avoid;
+            margin-bottom: 1.5rem;
+        }
+
+        .lemma {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+
+        .romanization {
+            font-size: 1.4rem;
+            font-style: italic;
+            color: var(--label-color);
+        }
+
+        .pos {
+            font-size: 1rem;
+            font-weight: 700;
+            font-variant: small-caps;
+            color: var(--accent-color);
+            display: block;
+            margin-top: -0.2rem;
+        }
+
+        .morphology-summary {
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            margin: 0.5rem 0;
+            color: #444;
+        }
+
+        .morphology-summary b {
+            font-variant: small-caps;
+            font-family: var(--font-serif);
+            font-size: 1rem;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            font-variant: small-caps;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.2rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+            letter-spacing: 0.05em;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+            break-inside: avoid;
+        }
+
+        /* Senses Styling */
+        .senses {
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .sense-item {
+            margin-bottom: 1.2rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .sense-num {
+            position: absolute;
+            left: 0;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .gloss {
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+
+        .definition {
+            font-size: 0.95rem;
+            color: #333;
+            margin-top: 0.2rem;
+            display: block;
+        }
+
+        .example {
+            display: block;
+            margin: 0.5rem 0 0.5rem 1rem;
+            font-size: 0.95rem;
+            border-left: 2px solid var(--border-color);
+            padding-left: 0.8rem;
+            font-style: italic;
+        }
+
+        .example-trans {
+            font-style: normal;
+            color: var(--label-color);
+            font-size: 0.85rem;
+            display: block;
+            margin-top: 0.1rem;
+        }
+
+        .example-cite {
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--label-color);
+            margin-right: 0.4rem;
+        }
+
+        /* Lexical Network */
+        .lexical-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.4rem 1rem;
+            font-size: 0.95rem;
+        }
+
+        .rel-label {
+            font-variant: small-caps;
+            font-weight: 700;
+            color: var(--label-color);
+            text-align: right;
+        }
+
+        .rel-terms {
+            font-style: italic;
+        }
+
+        /* Etymology Chain */
+        .etym-chain {
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .etym-arrow {
+            color: var(--accent-color);
+            font-weight: bold;
+            margin: 0 0.2rem;
+        }
+
+        .cognate-list {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 0.5rem;
+        }
+
+        /* Bibliography & Side Metadata */
+        .bib-footer {
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px double var(--text-color);
+            font-family: var(--font-sans);
+            font-size: 0.8rem;
+            color: var(--label-color);
+            column-span: all;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .bib-list span {
+            margin-right: 1.5rem;
+        }
+
+        .metadata-pill {
+            display: inline-block;
+            background: #f3f4f6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-right: 0.5rem;
+        }
+
+        .tag {
+            font-family: var(--font-sans);
+            font-size: 0.7rem;
+            background: #eee;
+            padding: 1px 4px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+            vertical-align: middle;
+            margin-right: 3px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>Wiktionary SDK <span style="font-style: italic; color: var(--accent-color);">Lexicographer Edition</span></div>
+        <div class="sdk-version">Schema v2.1.0 • Entry: grc/γράφω</div>
+    </header>
+
+    <article>
+        <div class="entry-head">
+            <span class="lemma">γράφω</span>
+            <span class="romanization">(gráphō)</span>
+            <span class="pos">v. trans. & intran.</span>
+            
+            <div class="morphology-summary">
+                <b>Principal Parts:</b> 
+                <i>fut.</i> γράψω, 
+                <i>aor.</i> ἔγραψα, 
+                <i>perf.</i> γέγραφα, 
+                <i>perf. pass.</i> γέγραμμαι, 
+                <i>aor. pass.</i> ἐγράφην.
+            </div>
+            
+            <div style="font-size: 0.9rem; margin-top: 0.5rem;">
+                <b>Pronunciation:</b> 
+                [ɡrá.pʰɔː] (Attic, c. 5th BC); 
+                [ˈɣra.fo] (Koine/Modern)
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>I. Etymology & Origins</h2>
+            <div class="etym-chain">
+                <b>Proto-Hellenic</b> *grápʰō <span class="etym-arrow">←</span> 
+                <b>Proto-Indo-European</b> *gerbʰ- (“to scratch”).
+            </div>
+            <div class="cognate-list">
+                <span class="rel-label">Cognates:</span> 
+                <span class="rel-terms">Old English <b>ceorfan</b> (to carve), German <b>kerben</b> (to notch), Armenian <b>керуам</b> (to scrape).</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>II. Senses & Citations</h2>
+            <ul class="senses">
+                <li class="sense-item">
+                    <span class="sense-num">1.</span>
+                    <span class="gloss">Graphical Representation.</span>
+                    <span class="definition">To scratch, draw, or delineate lines on a surface; to graze.</span>
+                    <span class="example">
+                        <span class="example-cite">Hom. Il. 17. 599</span>
+                        ἐπιλίγδην <b>γράψεν</b>
+                        <span class="example-trans">it grazed [the shoulder] slightly.</span>
+                    </span>
+                    <span class="example">
+                        <span class="example-cite">Hdt. 4. 88</span>
+                        <b>γράψας</b> ἐς πίνακα πᾶσαν τὴν γέфуран
+                        <span class="example-trans">having painted the whole bridge on a tablet.</span>
+                    </span>
+                </li>
+                <li class="sense-item">
+                    <span class="sense-num">2.</span>
+                    <span class="gloss">Writing & Composition.</span>
+                    <span class="definition">To express by written characters; to record, register, or enroll.</span>
+                    <span class="example">
+                        <span class="example-cite">Thuc. 1. 1</span>
+                        Θουκυδίδης Ἀθηναῖος <b>ξυνέγραψε</b> τὸν πόλεμον
+                        <span class="example-trans">Thucydides the Athenian wrote the history of the war.</span>
+                    </span>
+                    <span style="font-size: 0.85rem; padding-left: 1rem; display: block;">
+                        <span class="tag">Law</span> 2b. To propose a law (v. mid. γράφομαι).
+                    </span>
+                </li>
+                <li class="sense-item">
+                    <span class="sense-num">3.</span>
+                    <span class="gloss">Judicial Action.</span>
+                    <span class="definition"><span class="tag">Attic Law</span> To bring a public indictment; to prosecute.</span>
+                    <span class="example">
+                        <b>γράφεσθαί τινα γραφήν</b>
+                        <span class="example-trans">to bring a public action against someone.</span>
+                    </span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>III. Lexical Network</h2>
+            <div class="lexical-grid">
+                <div class="rel-label">Synonyms</div>
+                <div class="rel-terms">χαράσσω, ἱστορέω, τυπόω</div>
+                
+                <div class="rel-label">Antonyms</div>
+                <div class="rel-terms">ἀπαλείφω, ἐξαλείφω</div>
+                
+                <div class="rel-label">Derived</div>
+                <div class="rel-terms">γραφή, γραμματεύς, διάγραμμα, ἐπιγραφή, -γραφία</div>
+
+                <div class="rel-label">Descendants</div>
+                <div class="rel-terms">Latin <i>graphium</i>, English <i>graph</i>, <i>-graphy</i>.</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>IV. Usage Notes</h2>
+            <div style="font-size: 0.95rem;">
+                <p>Originally referred to the act of scratching on bark or tablets (cf. Mycenaean <i>ka-ra-wi</i>). In Attic prose, distinguished from <b>γράφειν νόμον</b> (to write/draft) vs. <b>γράφεσθαι νόμον</b> (to move for adoption).</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>V. Ontological Proof</h2>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <span class="metadata-pill">Wikidata Q11651</span>
+                <span class="metadata-pill">Instance: Human activity</span>
+                <span class="metadata-pill">Subclass: Communication</span>
+                <span class="metadata-pill">Images: 12 assets</span>
+            </div>
+        </div>
+
+        <div class="bib-footer">
+            <div class="bib-list">
+                <span><b>LSJ</b> p. 361</span>
+                <span><b>Montanari GE</b> v.1, p. 502</span>
+                <span><b>Beekes EDG</b> p. 285</span>
+            </div>
+            <div>Generated by SDK v2.1.0 • Jan 2024</div>
+        </div>
+    </article>
+
+</body>
+</html>

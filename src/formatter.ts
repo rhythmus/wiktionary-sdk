@@ -1,7 +1,10 @@
 import type { EtymologyStep } from "./library";
 import type { GrammarTraits } from "./morphology";
 import type { WordStems } from "./stem";
-import type { Sense, RichEntry, InflectionTable } from "./types";
+import { Sense, RichEntry, InflectionTable, SCHEMA_VERSION, EtymologyData } from "./types";
+import Handlebars from "handlebars";
+import fs from "fs";
+import path from "path";
 
 /**
  * Supported output formats for the generic formatter.
@@ -21,7 +24,7 @@ export interface FormatterStyle {
     /** Formats the linguistic stem aliases of a word. */
     stems(stems: WordStems, options: FormatOptions): string;
     /** Formats the etymological lineage steps. */
-    etymology(steps: EtymologyStep[], options: FormatOptions): string;
+    etymology(data: EtymologyData | EtymologyStep[], options: FormatOptions): string;
     /** Formats lexical definitions/senses. */
     senses(senses: Sense[], options: FormatOptions): string;
     /** Formats a full inflectional paradigm table. */
@@ -86,9 +89,10 @@ export function format(data: any, options: FormatOptions = {}): string {
         return style.array(data as string[], options);
     }
 
-    // 4. Handle Etymology Steps (Array of {lang, form})
-    if (Array.isArray(data) && data.length > 0 && "lang" in data[0] && "form" in data[0]) {
-        return style.etymology(data as EtymologyStep[], options);
+    // 4. Handle Etymology Steps (Array of {lang, form}) or data object
+    if ((Array.isArray(data) && data.length > 0 && "lang" in data[0] && "form" in data[0]) || 
+        (typeof data === "object" && data !== null && ("chain" in data || "cognates" in data))) {
+        return style.etymology(data as any, options);
     }
 
     // 5. Handle Senses (Definitions)
@@ -137,9 +141,15 @@ class TextStyle implements FormatterStyle {
         if (stems.aliases.length === 0) return "Stems: (none)";
         return `Stems: ${stems.aliases.join(", ")}`;
     }
-    etymology(steps: EtymologyStep[], _options: FormatOptions): string {
-        if (steps.length === 0) return "(none)";
-        return steps.map(s => `${s.lang} ${s.form}`).join(" < ");
+    etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
+        if (Array.isArray(data)) {
+            if (data.length === 0) return "(none)";
+            return data.map(s => `${s.lang} ${s.form}`).join(" < ");
+        }
+        if (!data || (!data.chain && !data.cognates)) return "(none)";
+        const chain = (data.chain || []).map((s: any) => `${s.source_lang_name || s.source_lang} ${s.term}`).join(" < ");
+        const cogs = (data.cognates || []).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} ${s.term}`).join(", ");
+        return [chain, cogs].filter(Boolean).join("; ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
         if (senses.length === 0) return "(none)";
@@ -170,6 +180,59 @@ class TextStyle implements FormatterStyle {
     }
 }
 
+// ---------------------------------------------------------
+// HANDLEBARS SETUP
+// ---------------------------------------------------------
+
+const templatesDir = path.join(__dirname, "templates");
+
+function loadTemplate(filename: string): string {
+    const filePath = path.join(templatesDir, filename);
+    if (!fs.existsSync(filePath)) {
+        // Fallback for production/dist environments if templates aren't copied
+        return "";
+    }
+    return fs.readFileSync(filePath, "utf-8");
+}
+
+// Register Helpers
+Handlebars.registerHelper("join", (arr: string[] | undefined, sep: string) => {
+    if (!arr) return "";
+    return arr.join(sep);
+});
+
+Handlebars.registerHelper("addOne", (index: number) => {
+    return index + 1;
+});
+
+Handlebars.registerHelper("toUpperCase", (str: string | undefined) => {
+    return str ? str.toUpperCase() : "";
+});
+
+Handlebars.registerHelper("currentDate", () => {
+    return new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
+});
+
+Handlebars.registerHelper("ifCond", function (this: any, v1: any, operator: string, v2: any, options: Handlebars.HelperOptions) {
+    switch (operator) {
+        case "==": return (v1 == v2) ? options.fn(this) : options.inverse(this);
+        case "===": return (v1 === v2) ? options.fn(this) : options.inverse(this);
+        case "!=": return (v1 != v2) ? options.fn(this) : options.inverse(this);
+        case "!==": return (v1 !== v2) ? options.fn(this) : options.inverse(this);
+        case "<": return (v1 < v2) ? options.fn(this) : options.inverse(this);
+        case "<=": return (v1 <= v2) ? options.fn(this) : options.inverse(this);
+        case ">": return (v1 > v2) ? options.fn(this) : options.inverse(this);
+        case ">=": return (v1 >= v2) ? options.fn(this) : options.inverse(this);
+        case "&&": return (v1 && v2) ? options.fn(this) : options.inverse(this);
+        case "||": return (v1 || v2) ? options.fn(this) : options.inverse(this);
+        default: return options.inverse(this);
+    }
+});
+
+const htmlEntryTemplate = Handlebars.compile(loadTemplate("entry.html.hbs"));
+const mdEntryTemplate = Handlebars.compile(loadTemplate("entry.md.hbs"));
+const entryCss = loadTemplate("entry.css");
+
 /**
  * Markdown Style
  */
@@ -183,9 +246,15 @@ class MarkdownStyle extends TextStyle {
         const items = stems.aliases.map(s => `\`${s}\``);
         return `Stems: ${items.join(", ")}`;
     }
-    etymology(steps: EtymologyStep[], _options: FormatOptions): string {
-        if (steps.length === 0) return "*(none)*";
-        return steps.map(s => `${s.lang} **${s.form}**`).join(" ← ");
+    etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
+        if (Array.isArray(data)) {
+            if (data.length === 0) return "*(none)*";
+            return data.map(s => `${s.lang} **${s.form}**`).join(" ← ");
+        }
+        if (!data || (!data.chain && !data.cognates)) return "*(none)*";
+        const chain = (data.chain || []).map((s: any) => `${s.source_lang_name || s.source_lang} **${s.term}**`).join(" ← ");
+        const cogs = (data.cognates || []).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} **${s.term}**`).join(", ");
+        return [chain, cogs].filter(Boolean).join("; ");
     }
     table(table: InflectionTable, options: FormatOptions, depth = 0): string {
         const indent = "  ".repeat(depth);
@@ -198,15 +267,13 @@ class MarkdownStyle extends TextStyle {
         }).join("\n");
     }
     rich(entry: RichEntry, options: FormatOptions): string {
-        const parts: string[] = [];
-        parts.push(`# ${entry.headword}`);
-        parts.push(`*${entry.pos}*`);
-        if (entry.morphology) parts.push(`**Grammar**: ${this.grammar(entry.morphology, options)}`);
-        if (entry.pronunciation?.IPA) parts.push(`**IPA**: \`${entry.pronunciation.IPA}\``);
-        if (entry.etymology) parts.push(`**Etymology**: ${this.etymology(entry.etymology, options)}`);
-        if (entry.senses) parts.push(`### Definitions\n${this.senses(entry.senses, options)}`);
-        if (entry.inflection_table) parts.push(`### Inflection\n${this.table(entry.inflection_table, options)}`);
-        return parts.join("\n\n");
+        // Use Handlebars template for the "Gold Standard" markdown design
+        const context = {
+            ...entry,
+            schema_version: SCHEMA_VERSION,
+            standalone: options.mode === "markdown"
+        };
+        return mdEntryTemplate(context);
     }
     nullValue(): string {
         return "`null`";
@@ -252,16 +319,43 @@ class HtmlStyle extends TextStyle {
         }).join("");
     }
     rich(entry: RichEntry, options: FormatOptions): string {
-        return `
-            <div class="rich-entry">
-                <h1>${entry.headword}</h1>
-                <div class="pos"><i>${entry.pos}</i></div>
-                <div class="morph">${this.grammar(entry.morphology || {}, options)}</div>
-                <hr/>
-                <div class="senses">${this.senses(entry.senses || [], options)}</div>
-                <div class="inflection">${this.table(entry.inflection_table || {}, options)}</div>
-            </div>
-        `;
+        const standalone = options.mode === "html";
+        const context = {
+            ...entry,
+            schema_version: SCHEMA_VERSION,
+            standalone
+        };
+
+        let html = htmlEntryTemplate(context);
+
+        if (standalone) {
+            // If standalone, wrap in basic HTML structure with the premium CSS
+            return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${entry.headword} - Wiktionary Entry</title>
+    <style>
+        ${entryCss}
+        body.dictionary-entry-standalone {
+            background-color: #fdfcf8;
+            color: #1a1a1a;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="dictionary-entry-standalone">
+    ${html}
+</body>
+</html>
+            `.trim();
+        }
+
+        return html;
     }
     nullValue(): string {
         return "<code>null</code>";
@@ -301,9 +395,15 @@ class AnsiStyle extends TextStyle {
         const items = stems.aliases.map(s => `${this.C.bold}${this.C.green}${s}${this.C.reset}`);
         return `${this.C.bold}Stems${this.C.reset}: ${items.join(", ")}`;
     }
-    etymology(steps: EtymologyStep[], _options: FormatOptions): string {
-        if (steps.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
-        return steps.map(s => `${this.C.cyan}${s.lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.form}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+    etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
+        if (Array.isArray(data)) {
+            if (data.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
+            return data.map(s => `${this.C.cyan}${s.lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.form}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+        }
+        if (!data || (!data.chain && !data.cognates)) return `${this.C.dim}(none)${this.C.reset}`;
+        const chain = (data.chain || []).map((s: any) => `${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+        const cogs = (data.cognates || []).map((s: any) => `cog. ${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(", ");
+        return [chain, cogs].filter(Boolean).join("; ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
         if (senses.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
@@ -368,9 +468,15 @@ class TerminalHtmlStyle extends HtmlStyle {
         const items = stems.aliases.map(s => `<span class="${this.C.fontBold}" style="color: ${this.C.green}">${s}</span>`);
         return `<span class="${this.C.fontBold}">Stems</span>: ${items.join(", ")}`;
     }
-    etymology(steps: EtymologyStep[], _options: FormatOptions): string {
-        if (steps.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
-        return steps.map(s => `<span style="color: ${this.C.cyan}">${s.lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.form}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+    etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
+        if (Array.isArray(data)) {
+            if (data.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
+            return data.map(s => `<span style="color: ${this.C.cyan}">${s.lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.form}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+        }
+        if (!data || (!data.chain && !data.cognates)) return `<span style="color: ${this.C.dim}">(none)</span>`;
+        const chain = (data.chain || []).map((s: any) => `<span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+        const cogs = (data.cognates || []).map((s: any) => `cog. <span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(", ");
+        return [chain, cogs].filter(Boolean).join("; ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
         if (senses.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
