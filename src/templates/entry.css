@@ -1,0 +1,227 @@
+:root {
+    --bg-color: transparent;
+    --text-color: inherit;
+    --accent-color: #7c2d12; /* Deep Brick */
+    --label-color: #4b5563;
+    --border-color: #e5e7eb;
+}
+
+.wiktionary-entry {
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    max-width: 100%;
+}
+
+.wiktionary-entry i, 
+.wiktionary-entry em {
+    font-style: italic;
+}
+
+.wiktionary-entry b, 
+.wiktionary-entry strong {
+    font-weight: bold;
+}
+
+.wiktionary-entry small {
+    font-size: 0.85em;
+}
+
+.entry-header {
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.8rem;
+    color: var(--label-color);
+}
+
+.sdk-version {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.entry-head {
+    margin-bottom: 1.5rem;
+}
+
+.lemma {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+}
+
+.romanization {
+    font-size: 1.3rem;
+    font-style: italic;
+    color: var(--label-color);
+}
+
+.pos {
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant: small-caps;
+    color: var(--accent-color);
+    display: block;
+    margin-top: -0.1rem;
+}
+
+.morphology-summary {
+    font-size: 0.9em;
+    margin: 0.4rem 0;
+    color: #444;
+}
+
+.morphology-summary b {
+    font-variant: small-caps;
+    font-size: 1.1em;
+}
+
+.entry-body h2 {
+    font-size: 1.1rem;
+    font-variant: small-caps;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.2rem;
+    margin-top: 1.8rem;
+    margin-bottom: 0.8rem;
+    color: var(--accent-color);
+    letter-spacing: 0.05em;
+}
+
+.section {
+    margin-bottom: 1.8rem;
+}
+
+/* Senses Styling */
+.senses {
+    padding-left: 0;
+    list-style: none;
+}
+
+.sense-item {
+    margin-bottom: 1.2rem;
+    position: relative;
+    padding-left: 1.8rem;
+}
+
+.sense-num {
+    position: absolute;
+    left: 0;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.gloss {
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.definition {
+    font-size: 0.95rem;
+    color: #333;
+    margin-top: 0.2rem;
+    display: block;
+}
+
+.example {
+    display: block;
+    margin: 0.4rem 0 0.4rem 1rem;
+    font-size: 0.95rem;
+    border-left: 2px solid var(--border-color);
+    padding-left: 0.8rem;
+    font-style: italic;
+}
+
+.example-trans {
+    font-style: normal;
+    color: var(--label-color);
+    font-size: 0.85rem;
+    display: block;
+    margin-top: 0.1rem;
+}
+
+.example-cite {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--label-color);
+    margin-right: 0.4rem;
+}
+
+/* Lexical Network */
+.lexical-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem 1rem;
+    font-size: 0.95rem;
+}
+
+.rel-label {
+    font-variant: small-caps;
+    font-weight: 700;
+    color: var(--label-color);
+    text-align: right;
+}
+
+.rel-terms {
+    font-style: italic;
+}
+
+/* Etymology Chain */
+.etym-chain {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.lang-tag {
+    font-weight: 700;
+}
+
+.etym-arrow {
+    color: var(--accent-color);
+    font-weight: bold;
+    margin: 0 0.3rem;
+}
+
+.cognate-list {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 0.4rem;
+}
+
+/* Bibliography & Side Metadata */
+.bib-footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px double var(--border-color);
+    font-size: 0.85rem;
+    color: var(--label-color);
+    display: flex;
+    justify-content: space-between;
+}
+
+.bib-list span {
+    margin-right: 1.5rem;
+}
+
+.metadata-pill {
+    display: inline-block;
+    background: #f3f4f6;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    font-weight: 500;
+}
+
+.tag {
+    font-size: 0.8em;
+    background: #eee;
+    padding: 1px 4px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+    vertical-align: middle;
+    margin-right: 4px;
+}
