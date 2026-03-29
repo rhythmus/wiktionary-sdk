@@ -49,7 +49,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
             <h2>I. Etymology & Origins</h2>
             <div class="etym-chain">
                 {{#each etymology.chain}}
-                <b class="lang-tag">{{source_lang_name}}</b> {{term}} {{#if gloss}}({{gloss}}){{/if}}
+                <b>{{source_lang_name}}</b> {{term}} {{#if gloss}}({{gloss}}){{/if}}
                 {{#unless @last}}<span class="etym-arrow">{{etymSymbol relation}}</span>{{/unless}}
                 {{/each}}
             </div>
@@ -76,7 +76,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
                     {{#if labels}}
                     <span class="tag">{{join labels ", "}}</span>
                     {{/if}}
-                    <span class="gloss">{{gloss}}.</span>
+                    {{#if gloss}}<span class="gloss">{{gloss}}.</span>{{/if}}
                     {{#if definition}}
                     <span class="definition">{{definition}}</span>
                     {{/if}}
@@ -112,7 +112,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
         </div>
         {{/if}}
 
-        {{#if relations}}
+        {{#if (or relations derived_terms.items descendants.items)}}
         <div class="section">
             <h2>III. Lexical Network</h2>
             <div class="lexical-grid">
@@ -292,8 +292,8 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 export const ENTRY_CSS = `:root {
     --bg-color: transparent;
     --text-color: inherit;
-    --accent-color: #7c2d12; /* Deep Brick */
-    --label-color: #4b5563;
+    --accent-color: inherit;
+    --label-color: inherit;
     --border-color: #e5e7eb;
 }
 
@@ -313,24 +313,8 @@ export const ENTRY_CSS = `:root {
     font-weight: bold;
 }
 
-.wiktionary-entry small {
-    font-size: 0.85em;
-}
-
-.entry-header {
-    margin-bottom: 2rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 0.8rem;
-    color: var(--label-color);
-}
-
-.sdk-version {
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+.entry-body {
+    padding: 0;
 }
 
 .entry-head {
@@ -348,93 +332,70 @@ export const ENTRY_CSS = `:root {
 
 .inflection-label {
     font-size: 1.1rem;
-    font-weight: 600;
-    color: #374151;
+    font-style: italic;
+    color: var(--label-color);
     margin-left: 0.5rem;
 }
 
 /* Subclass-specific styling */
 .inflected-header.misspelling .lemma {
     text-decoration: underline wavy #ef4444; /* Red Wiggle */
-    color: #b91c1c;
 }
 
 .inflected-header.abbreviation .lemma {
     font-variant: small-caps;
     letter-spacing: 0.05em;
-    color: #4b5563;
-}
-
-.inflected-header.clipping .lemma {
-    font-style: italic;
-    color: #4b5563;
-}
-
-.inflected-header.diminutive .lemma {
-    color: #0891b2; /* Cyan tint */
-}
-
-.inflected-header.augmentative .lemma {
-    color: #b45309; /* Amber tint */
 }
 
 .lemma-redirect {
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
-    margin-top: 0.2rem;
 }
 
 .lemma-redirect .lemma {
-    font-size: 1.6rem;
+    font-size: 2.2rem;
     font-weight: 700;
 }
 
 .lemma-redirect .etym-arrow {
-    font-size: 1.4rem;
-    vertical-align: middle;
+    font-size: 1.8rem;
 }
 
 .lemma {
-    font-size: 2.2rem;
+    font-size: 2.4rem;
     font-weight: 700;
-    margin-right: 0.5rem;
 }
 
 .romanization {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-style: italic;
-    color: var(--label-color);
 }
 
 .pos {
     font-size: 1rem;
     font-weight: 700;
     font-variant: small-caps;
-    color: var(--accent-color);
     display: block;
-    margin-top: -0.1rem;
 }
 
 .morphology-summary {
-    font-size: 0.9em;
-    margin: 0.4rem 0;
-    color: #444;
+    font-size: 0.85rem;
+    margin: 0.5rem 0;
 }
 
 .morphology-summary b {
     font-variant: small-caps;
-    font-size: 1.1em;
+    font-size: 1rem;
 }
 
-.entry-body h2 {
+h2 {
     font-size: 1.1rem;
     font-variant: small-caps;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.2rem;
     margin-top: 1.8rem;
     margin-bottom: 0.8rem;
-    color: var(--accent-color);
     letter-spacing: 0.05em;
 }
 
@@ -458,17 +419,15 @@ export const ENTRY_CSS = `:root {
     position: absolute;
     left: 0;
     font-weight: 700;
-    color: var(--accent-color);
 }
 
 .gloss {
-    font-weight: 600;
-    font-size: 1.05rem;
+    font-weight: 500;
+    font-size: 1.1rem;
 }
 
 .definition {
     font-size: 0.95rem;
-    color: #333;
     margin-top: 0.2rem;
     display: block;
 }
@@ -484,16 +443,13 @@ export const ENTRY_CSS = `:root {
 
 .example-trans {
     font-style: normal;
-    color: var(--label-color);
     font-size: 0.85rem;
     display: block;
-    margin-top: 0.1rem;
 }
 
 .example-cite {
-    font-size: 0.8em;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: var(--label-color);
     margin-right: 0.4rem;
 }
 
@@ -508,7 +464,6 @@ export const ENTRY_CSS = `:root {
 .rel-label {
     font-variant: small-caps;
     font-weight: 700;
-    color: var(--label-color);
     text-align: right;
 }
 
@@ -518,16 +473,11 @@ export const ENTRY_CSS = `:root {
 
 /* Etymology Chain */
 .etym-chain {
-    font-size: 0.95rem;
+    font-size: 1rem;
     line-height: 1.4;
 }
 
-.lang-tag {
-    font-weight: 700;
-}
-
 .etym-arrow {
-    color: var(--accent-color);
     font-weight: bold;
     margin: 0 0.3rem;
 }
@@ -544,8 +494,7 @@ export const ENTRY_CSS = `:root {
     margin-top: 3rem;
     padding-top: 1.5rem;
     border-top: 1px double var(--border-color);
-    font-size: 0.85rem;
-    color: var(--label-color);
+    font-size: 0.8rem;
     display: flex;
     justify-content: space-between;
 }
@@ -565,7 +514,7 @@ export const ENTRY_CSS = `:root {
 }
 
 .tag {
-    font-size: 0.8em;
+    font-size: 0.7rem;
     background: #eee;
     padding: 1px 4px;
     border-radius: 2px;

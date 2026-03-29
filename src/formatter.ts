@@ -73,8 +73,8 @@ export function format(data: any, options: FormatOptions = {}): string {
         return style.nullValue();
     }
 
-    // 1. Handle Rich Entries (RichEntry)
-    if (typeof data === "object" && "headword" in data && "inflection_table" in data) {
+    // 1. Handle Rich Entries (RichEntry) or raw Entries
+    if (typeof data === "object" && data !== null && ("headword" in data || "form" in data) && ("senses" in data || "inflection_table" in data || "inflection_table_ref" in data)) {
         return style.rich(data as RichEntry, options);
     }
 
@@ -189,6 +189,10 @@ Handlebars.registerHelper("join", (arr: string[] | undefined, sep: string) => {
     return arr.join(sep);
 });
 
+Handlebars.registerHelper("or", (v1: any, v2: any) => {
+    return v1 || v2;
+});
+
 Handlebars.registerHelper("addOne", (index: number) => {
     return index + 1;
 });
@@ -264,10 +268,12 @@ class MarkdownStyle extends TextStyle {
             return `${indent}- **${key}**: ${valStr}`;
         }).join("\n");
     }
-    rich(entry: RichEntry, options: FormatOptions): string {
+    rich(entry: any, options: FormatOptions): string {
         // Use Handlebars template for the "Gold Standard" markdown design
         const context = {
             ...entry,
+            headword: entry.headword || entry.form,
+            pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
             schema_version: SCHEMA_VERSION,
             standalone: options.mode === "markdown"
         };
@@ -316,10 +322,12 @@ class HtmlStyle extends TextStyle {
             return `<div>${indent}${key}: <code>${valStr}</code></div>`;
         }).join("");
     }
-    rich(entry: RichEntry, options: FormatOptions): string {
+    rich(entry: any, options: FormatOptions): string {
         const standalone = options.mode === "html";
         const context = {
             ...entry,
+            headword: entry.headword || entry.form,
+            pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
             schema_version: SCHEMA_VERSION,
             standalone
         };
@@ -492,12 +500,15 @@ class TerminalHtmlStyle extends HtmlStyle {
             return `<div>${indent}<span style="color: ${this.C.cyan}">${key}</span>: ${valStr}</div>`;
         }).join("");
     }
-    rich(entry: RichEntry, options: FormatOptions): string {
+    rich(entry: any, options: FormatOptions): string {
+        const headword = (entry.headword || entry.form || "Unknown").toUpperCase();
+        const pos = entry.pos || entry.part_of_speech || entry.part_of_speech_heading || "unknown";
+        
         return `
             <div style="font-family: monospace; line-height: 1.5;">
-                <div class="${this.C.fontBold}" style="color: ${this.C.magenta}; font-size: 1.25em;">== ${entry.headword.toUpperCase()} (${entry.pos}) ==</div>
+                <div class="${this.C.fontBold}" style="color: ${this.C.magenta}; font-size: 1.25em;">== ${headword} (${pos}) ==</div>
                 <br/>
-                <div><span class="${this.C.fontBold}">Grammar</span>: ${this.grammar(entry.morphology || {}, options)}</div>
+                <div><span class="${this.C.fontBold}">Grammar</span>: ${this.grammar(entry.morphology || entry.headword_morphology || {}, options)}</div>
                 ${entry.pronunciation?.IPA ? `<div><span class="${this.C.fontBold}">IPA</span>: <span style="color: ${this.C.cyan}">${entry.pronunciation.IPA}</span></div>` : ""}
                 ${entry.etymology ? `<div><span class="${this.C.fontBold}">Etymology</span>: ${this.etymology(entry.etymology, options)}</div>` : ""}
                 <br/>
@@ -506,7 +517,7 @@ class TerminalHtmlStyle extends HtmlStyle {
                 <br/>
                 <div class="${this.C.fontBold}" style="color: ${this.C.yellow}">Inflection Paradigm:</div>
                 <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px;">
-                    ${this.table(entry.inflection_table || {}, options)}
+                    ${this.table(entry.inflection_table || entry.inflection_table_ref || {}, options)}
                 </div>
             </div>
         `;
@@ -547,5 +558,6 @@ function formatGrammarBase(traits: Partial<GrammarTraits>): string {
 registerStyle("text", new TextStyle());
 registerStyle("markdown", new MarkdownStyle());
 registerStyle("html", new HtmlStyle());
+registerStyle("html-fragment", new HtmlStyle());
 registerStyle("ansi", new AnsiStyle());
 registerStyle("terminal-html", new TerminalHtmlStyle());

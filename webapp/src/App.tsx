@@ -12,6 +12,11 @@ import {
   citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
   categories, langlinks, inflectionTableRef, gender, transitivity
 } from '@engine/index';
+import { ENTRY_CSS } from '@engine/templates/templates';
+function langName(lang: string) {
+  const m: Record<string, string> = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
+  return m[lang] || lang;
+}
 import type { Entry, WikiLang, DecoderDebugEvent } from '@engine/types';
 import { format } from '@engine/formatter';
 
@@ -85,10 +90,7 @@ const POS_OPTIONS = [
   { value: 'adverb', label: 'Adverb' },
 ];
 
-const langName = (lang: string) => {
-  const m: Record<string, string> = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
-  return m[lang] || lang;
-};
+// Removed duplicate langName helper
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface DecoderMatch {
@@ -225,7 +227,9 @@ const App: React.FC = () => {
   }, [query, lang, prefPos, compareMode, compareLang, debugMode]);
 
   // Initial fetch on mount
-  useEffect(() => { handleSearch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { 
+    handleSearch(); 
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── YAML rendering helpers ───────────────────────────────────────────────
   const formatYaml = (data: any) => {
@@ -291,11 +295,49 @@ const App: React.FC = () => {
   }, [debugMode, results, selectedEntryIdx, debugEvents]);
 
   const currentEntry = results[selectedEntryIdx] || results[0];
+
+  // Render high-fidelity HTML for the current entry (Gold Standard v2.4.0)
+  const highFidelityHtml = useMemo(() => {
+    if (!currentEntry) return '';
+    try {
+      // For INFLECTED_FORM, we want to "borrow" the lemma case
+      let renderContext = currentEntry;
+      if (currentEntry.type === 'INFLECTED_FORM' && currentEntry.form_of?.lemma) {
+        // Find the corresponding lemma in the current results
+        const lemmaEntry = results.find(e => 
+          e.form === currentEntry.form_of?.lemma && 
+          e.type === 'LEXEME' &&
+          (e.part_of_speech === currentEntry.part_of_speech || !currentEntry.part_of_speech)
+        );
+        if (lemmaEntry) {
+          // Merge: use lemma's senses/etym but preserve inflected form's analysis
+          renderContext = {
+            ...lemmaEntry,
+            ...currentEntry,
+            headword: currentEntry.form, // The query term
+            // Ensure we use lemma's rich data if inflected form is sparse
+            senses: currentEntry.senses?.length ? currentEntry.senses : lemmaEntry.senses,
+            etymology: currentEntry.etymology?.chain?.length ? currentEntry.etymology : lemmaEntry.etymology,
+            semantic_relations: lemmaEntry.semantic_relations,
+            inflection_table: lemmaEntry.inflection_table_ref ? lemmaEntry.inflection_table_ref : (currentEntry as any).inflection_table,
+          } as any;
+        }
+      }
+
+      // Use 'html-fragment' to avoid the full <html>/<body> wrapper
+      return format(renderContext, { mode: 'html-fragment' });
+    } catch (e) {
+      console.error("Format error:", e);
+      return '';
+    }
+  }, [currentEntry, results]);
+
   const pills = SUGGESTED_PROPS[apiMethod] ?? DEFAULT_PILLS;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 4rem' }}>
+      <style>{ENTRY_CSS}</style>
 
       {/* ── GitHub Corner ── */}
       <a href="https://github.com/rhythmus/wiktionary-sdk" className="github-corner" aria-label="View source on GitHub" target="_blank" rel="noopener noreferrer">
@@ -374,31 +416,17 @@ const App: React.FC = () => {
       <AnimatePresence>
         {currentEntry && (
           <motion.div
-            key={currentEntry.form}
+            key={currentEntry.form + selectedEntryIdx}
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="dict-card"
             style={{ marginBottom: '1.5rem' }}
           >
-            {/* Headword + IPA */}
-            <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.25rem 1rem', marginBottom: '0.5rem' }}>
-              <span className="dict-lemma">{currentEntry.form || query}</span>
-              {currentEntry.pronunciation?.IPA && (
-                <span className="dict-ipa">/{currentEntry.pronunciation.IPA}/</span>
-              )}
-            </div>
+            {/* Render handle-bars based high-fidelity output */}
+            <div dangerouslySetInnerHTML={{ __html: highFidelityHtml }} />
 
-            {/* PoS pill */}
-            {(currentEntry.part_of_speech_heading || currentEntry.part_of_speech) && (
-              <div>
-                <span className="dict-pos-tag">
-                  {currentEntry.part_of_speech_heading || currentEntry.part_of_speech}
-                </span>
-              </div>
-            )}
-
-            {/* Entry switcher pills */}
+            {/* Entry switcher pills - Moved below the rendered content */}
             {results.length > 1 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '2rem', borderTop: '1px solid var(--page-border)', paddingTop: '1.25rem' }}>
                 {results.map((r, i) => (
                   <button key={i} className={`dict-entry-pill${i === selectedEntryIdx ? ' active' : ''}`} onClick={() => setSelectedEntryIdx(i)}>
                     Entry {i + 1}: {r.part_of_speech || r.part_of_speech_heading}
