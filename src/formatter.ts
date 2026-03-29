@@ -3,8 +3,7 @@ import type { GrammarTraits } from "./morphology";
 import type { WordStems } from "./stem";
 import { Sense, RichEntry, InflectionTable, SCHEMA_VERSION, EtymologyData } from "./types";
 import Handlebars from "handlebars";
-import fs from "fs";
-import path from "path";
+import { HTML_ENTRY_TEMPLATE, MD_ENTRY_TEMPLATE, ENTRY_CSS } from "./templates/templates";
 
 /**
  * Supported output formats for the generic formatter.
@@ -184,17 +183,6 @@ class TextStyle implements FormatterStyle {
 // HANDLEBARS SETUP
 // ---------------------------------------------------------
 
-const templatesDir = path.join(__dirname, "templates");
-
-function loadTemplate(filename: string): string {
-    const filePath = path.join(templatesDir, filename);
-    if (!fs.existsSync(filePath)) {
-        // Fallback for production/dist environments if templates aren't copied
-        return "";
-    }
-    return fs.readFileSync(filePath, "utf-8");
-}
-
 // Register Helpers
 Handlebars.registerHelper("join", (arr: string[] | undefined, sep: string) => {
     if (!arr) return "";
@@ -229,9 +217,9 @@ Handlebars.registerHelper("ifCond", function (this: any, v1: any, operator: stri
     }
 });
 
-const htmlEntryTemplate = Handlebars.compile(loadTemplate("entry.html.hbs"));
-const mdEntryTemplate = Handlebars.compile(loadTemplate("entry.md.hbs"));
-const entryCss = loadTemplate("entry.css");
+const htmlEntryTemplate = Handlebars.compile(HTML_ENTRY_TEMPLATE);
+const mdEntryTemplate = Handlebars.compile(MD_ENTRY_TEMPLATE);
+const entryCss = ENTRY_CSS;
 
 /**
  * Markdown Style
