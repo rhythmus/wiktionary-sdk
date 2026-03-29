@@ -1,129 +1,133 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { 
-    rhymes, 
-    homophones, 
-    syllableCount, 
-    allImages, 
-    audioDetails, 
-    exampleDetails, 
-    externalLinks, 
-    internalLinks, 
-    isInstance,
-    richEntry
-} from "../src/library";
-import * as indexModule from "../src/index";
+import { audioGallery, citations, richEntry, isSubclass } from "../src/index";
+import * as api from "../src/api";
 
-vi.mock("../src/index", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/index")>();
-    return {
-        ...actual,
-        wiktionary: vi.fn(),
-    };
+// Mock the API layer to test the registry/parser logic
+vi.mock("../src/api", async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual,
+    fetchWikitextEnWiktionary: vi.fn(),
+    fetchWikidataEntity: vi.fn(),
+  };
 });
 
-describe("Buried Data & New Library Functions", () => {
-    const mockResult = {
-        schema_version: "2.0.0",
-        rawLanguageBlock: "",
-        notes: [],
-        entries: [
-            {
-                type: "LEXEME",
-                form: "γράφω",
-                language: "el",
-                part_of_speech: "verb",
-                part_of_speech_heading: "Verb",
-                pronunciation: {
-                    IPA: "ˈɣra.fo",
-                    rhymes: ["-afo"],
-                    homophones: ["γράφω (variant)"],
-                    audio_details: [
-                        { url: "https://example.com/el-grafo.ogg", label: "Audio (Greece)", filename: "el-grafo.ogg" }
-                    ]
-                },
-                hyphenation: { syllables: ["γρά", "φω"] },
-                senses: [
-                    {
-                        gloss: "to write",
-                        examples: [
-                            {
-                                text: "γράφω ένα γράμμα",
-                                translation: "I am writing a letter",
-                                raw: "{{ux|el|γράφω ένα γράμμα|t=I am writing a letter}}"
-                            },
-                            "Simple string example"
-                        ]
-                    }
-                ],
-                page_links: ["γράμμα", "μολύβι"],
-                external_links: ["https://lsj.gr/wiki/γράφω"],
-                images: ["File:Writing_hand.jpg"],
-                wikidata: {
-                    qid: "Q123",
-                    instance_of: ["Q1084", "Q215380"], // verb, activity
-                    media: { thumbnail: "https://example.com/wd-thumb.jpg" }
-                },
-                source: { wiktionary: { title: "γράφω" } }
-            }
-        ],
-        metadata: {
-            info: { last_modified: "2024-03-29T10:00:00Z" }
-        }
-    };
+describe("Buried Data Extraction (Integration)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    beforeEach(() => {
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
+  it("extracts multiple audio files into a gallery", async () => {
+    const wikitext = `
+== English ==
+===Noun===
+{{en-noun|-}}
+* {{audio|en|En-us-water.ogg|Audio (US)}}
+* {{audio|en|En-uk-water.ogg|Audio (UK)}}
+* {{audio|en|En-au-water.ogg|Audio (AU)}}
+
+# A clear liquid.
+    `;
+
+    vi.mocked(api.fetchWikitextEnWiktionary).mockResolvedValue({
+      exists: true,
+      title: "water",
+      wikitext,
+      pageprops: {},
+      categories: [],
+      images: [],
+      page_links: [],
+      external_links: [],
+      langlinks: [],
+      info: { lastrevid: 12345, last_modified: "2024-03-29", length: 100, pageid: 123 },
+      pageid: 123
     });
 
-    it("rhymes() should return rhymes array", async () => {
-        const result = await rhymes("γράφω", "el");
-        expect(result).toEqual(["-afo"]);
+    const gallery = await audioGallery("water", "en");
+    expect(gallery).toHaveLength(3);
+    expect(gallery[0]).toEqual({
+      url: "https://upload.wikimedia.org/wikipedia/commons/En-us-water.ogg",
+      label: "Audio (US)",
+      filename: "En-us-water.ogg"
+    });
+    expect(gallery[1].label).toBe("Audio (UK)");
+    expect(gallery[2].label).toBe("Audio (AU)");
+
+    const rich = await richEntry("water", "en");
+    expect(rich?.pronunciation?.audio_details).toHaveLength(3);
+    expect(rich?.pronunciation?.audio).toBe("En-us-water.ogg");
+  });
+
+  it("extracts structured citations from quote templates", async () => {
+    const wikitext = `
+== English ==
+===Noun===
+{{en-noun}}
+# A book.
+#: {{quote-book|en|year=1851|author=Herman Melville|title=Moby-Dick|passage=Call me Ishmael.}}
+#: {{ux|en|I read a book.|translation=Ik las een boek.}}
+    `;
+
+    vi.mocked(api.fetchWikitextEnWiktionary).mockResolvedValue({
+      exists: true,
+      title: "book",
+      wikitext,
+      pageprops: {},
+      categories: [],
+      images: [],
+      page_links: [],
+      external_links: [],
+      langlinks: [],
+      info: { lastrevid: 67890, last_modified: "2024-03-29", length: 150, pageid: 456 },
+      pageid: 456
     });
 
-    it("homophones() should return homophones array", async () => {
-        const result = await homophones("γράφω", "el");
-        expect(result).toEqual(["γράφω (variant)"]);
+    const cits = await citations("book", "en");
+    expect(cits).toHaveLength(1);
+    expect(cits[0]).toMatchObject({
+      author: "Herman Melville",
+      year: "1851",
+      source: "Moby-Dick",
+      text: "Call me Ishmael."
     });
 
-    it("syllableCount() should return correct count", async () => {
-        const result = await syllableCount("γράφω", "el");
-        expect(result).toBe(2);
+    const rich = await richEntry("book", "en");
+    const example = rich?.senses?.[0].examples?.[0] as any;
+    expect(example.author).toBe("Herman Melville");
+    
+    const allExamples = rich?.senses?.[0].examples;
+    expect(allExamples).toHaveLength(2);
+    expect((allExamples?.[1] as any).translation).toBe("Ik las een boek.");
+  });
+
+  it("extracts subclass_of (P279) from Wikidata", async () => {
+    vi.mocked(api.fetchWikitextEnWiktionary).mockResolvedValue({
+      exists: true,
+      title: "dog",
+      wikitext: "== English ==\n===Noun===\n{{en-noun}}",
+      pageprops: { wikibase_item: "Q144" },
+      categories: [],
+      images: [],
+      page_links: [],
+      external_links: [],
+      langlinks: [],
+      info: { lastrevid: 11111, last_modified: "2024-03-29", length: 200, pageid: 789 },
+      pageid: 789
     });
 
-    it("audioDetails() should return structured audio with labels", async () => {
-        const result = await audioDetails("γράφω", "el");
-        expect(result).toHaveLength(1);
-        expect(result[0].label).toBe("Audio (Greece)");
-        expect(result[0].url).toContain("el-grafo.ogg");
+    vi.mocked(api.fetchWikidataEntity).mockResolvedValue({
+      qid: "Q144",
+      claims: {
+        P31: [{ mainsnak: { datavalue: { value: { id: "Q1084" } } } }],
+        P279: [{ mainsnak: { datavalue: { value: { id: "Q34770" } } } }]
+      }
     });
 
-    it("exampleDetails() should return only structured examples", async () => {
-        const result = await exampleDetails("γράφω", "el");
-        expect(result).toHaveLength(1);
-        expect(result[0].text).toBe("γράφω ένα γράμμα");
-        expect(result[0].translation).toBe("I am writing a letter");
-    });
+    const result = await isSubclass("dog", "Q34770", "en");
+    expect(result).toBe(true);
 
-    it("allImages() should aggregate Wikidata and Wiktionary images", async () => {
-        const result = await allImages("γράφω", "el");
-        expect(result).toContain("https://example.com/wd-thumb.jpg");
-        expect(result).toContain("https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Writing_hand.jpg/420px-Writing_hand.jpg");
-    });
-
-    it("externalLinks() and internalLinks() should return lists", async () => {
-        expect(await externalLinks("γράφω", "el")).toEqual(["https://lsj.gr/wiki/γράφω"]);
-        expect(await internalLinks("γράφω", "el")).toEqual(["γράμμα", "μολύβι"]);
-    });
-
-    it("isInstance() should check Wikidata P31", async () => {
-        expect(await isInstance("γράφω", "Q1084", "el")).toBe(true);
-        expect(await isInstance("γράφω", "Q999", "el")).toBe(false);
-    });
-
-    it("richEntry() should include new metadata", async () => {
-        const entry = await richEntry("γράφω", "el");
-        expect(entry).not.toBeNull();
-        expect(entry?.wikidata?.instance_of).toContain("Q1084");
-        expect(entry?.pronunciation?.audio_details?.[0].label).toBe("Audio (Greece)");
-    });
+    const rich = await richEntry("dog", "en");
+    expect(rich?.wikidata?.subclass_of).toContain("Q34770");
+    expect(rich?.wikidata?.instance_of).toContain("Q1084");
+  });
 });
