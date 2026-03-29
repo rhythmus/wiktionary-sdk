@@ -1,0 +1,93 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden: fixture → wiktionary (offline) > basic-verb Greek lexeme 1`] = `
+[
+  {
+    "etymology": {
+      "chain": [
+        {
+          "relation": "inherited",
+          "source_lang": "grc",
+          "term": "γράφω",
+        },
+      ],
+    },
+    "form": "golden-basic-verb",
+    "hyphenation": undefined,
+    "language": "el",
+    "part_of_speech": undefined,
+    "semantic_relations": undefined,
+    "senses": [],
+  },
+  {
+    "etymology": {
+      "chain": [
+        {
+          "relation": "inherited",
+          "source_lang": "grc",
+          "term": "γράφω",
+        },
+        {
+          "relation": "inherited",
+          "source_lang": "grc",
+          "term": "γράφω",
+        },
+      ],
+    },
+    "form": "golden-basic-verb",
+    "hyphenation": [
+      "γρά",
+      "φω",
+    ],
+    "language": "el",
+    "part_of_speech": "verb",
+    "semantic_relations": {
+      "antonyms": [
+        "σβήνω",
+      ],
+      "synonyms": [
+        "σημειώνω",
+        "καταγράφω",
+      ],
+    },
+    "senses": [
+      {
+        "gloss": "to write",
+        "subsenses": [
+          {
+            "gloss": "to write by hand",
+          },
+          {
+            "gloss": "to type",
+          },
+        ],
+      },
+      {
+        "gloss": "to record something",
+        "subsenses": [],
+      },
+    ],
+  },
+]
+`;
+
+exports[`golden: fixture → wiktionary (offline) > form-of-inflected Greek INFLECTED_FORM 1`] = `
+[
+  {
+    "form": "golden-form-of",
+    "form_of": {
+      "lang": "el",
+      "lemma": "γράφω",
+      "tags": [
+        "1",
+        "s",
+        "pres",
+        "ind",
+        "act",
+      ],
+    },
+    "language": "el",
+    "type": "INFLECTED_FORM",
+  },
+]
+`;

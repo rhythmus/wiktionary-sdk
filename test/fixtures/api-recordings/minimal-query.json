@@ -1,0 +1,22 @@
+{
+  "query": {
+    "pages": [
+      {
+        "pageid": 999001,
+        "title": "SnapshotLemma",
+        "touched": "2026-01-01T00:00:00Z",
+        "length": 120,
+        "lastrevid": 1,
+        "revisions": [
+          {
+            "slots": {
+              "main": {
+                "content": "==Greek==\n\n===Etymology===\nFrom {{inh|el|grc|γράφω|t=to write}}.\n\n===Verb===\n{{el-verb}}\n\n# to [[write]]\n# to [[record]]\n\n{{syn|el|σημειώνω}}\n"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
