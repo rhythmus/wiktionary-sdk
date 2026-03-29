@@ -264,8 +264,8 @@ code {
   border: 1px solid rgba(217, 70, 239, 0.25);
   border-radius: 10px;
   color: var(--dk-text);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.81rem;
   height: 38px;
   padding: 0 12px;
   box-sizing: border-box;

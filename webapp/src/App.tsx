@@ -6,18 +6,50 @@ import {
   wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms,
   etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
   derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
-  partOfSpeech, usageNotes, translate, richEntry
+  partOfSpeech, usageNotes, translate, richEntry,
+  rhymes, homophones, syllableCount, allImages, audioDetails, exampleDetails,
+  externalLinks, internalLinks, isInstance, alternativeForms, seeAlso, anagrams,
+  descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
+  categories, langlinks, inflectionTableRef, gender, transitivity
 } from '@engine/index';
 import type { Entry, WikiLang, DecoderDebugEvent } from '@engine/types';
 import { format } from '@engine/formatter';
 
 // ── SDK method registry ──────────────────────────────────────────────────────
 const API_METHODS: Record<string, any> = {
-  lemma, ipa, pronounce, hyphenate, synonyms, antonyms, etymology, stem,
-  morphology, conjugate, decline, hypernyms, hyponyms, derivedTerms,
-  relatedTerms, wikidataQid, wikipediaLink, image, partOfSpeech,
-  usageNotes, translate, richEntry
+  // Core / Senses
+  richEntry, translate, partOfSpeech, usageNotes,
+  // Phonology & Morphology
+  lemma, ipa, pronounce, hyphenate, rhymes, homophones, syllableCount,
+  stem, morphology, conjugate, decline, gender, transitivity,
+  // Relations & Connectivity
+  synonyms, antonyms, hypernyms, hyponyms,
+  derivedTerms, relatedTerms, descendants,
+  alternativeForms, seeAlso, anagrams,
+  internalLinks, externalLinks,
+  // Media & Metadata
+  image, allImages, audioDetails, exampleDetails,
+  // Wikidata & Global
+  wikidataQid, wikipediaLink, isInstance,
+  categories, langlinks, inflectionTableRef,
+  referencesSection, etymologyChain, etymologyCognates, etymologyText,
+  etymology
 };
+
+/**
+ * Semantic grouping for the Target Wrapper dropdown.
+ * Mirrors the organization in README.md and the v2 Schema.
+ */
+const API_GROUPS = [
+  { label: 'Identity & Senses', methods: ['richEntry', 'lemma', 'partOfSpeech', 'usageNotes'] },
+  { label: 'Pronunciation', methods: ['ipa', 'pronounce', 'rhymes', 'homophones', 'audioDetails'] },
+  { label: 'Morphology', methods: ['stem', 'morphology', 'conjugate', 'decline', 'gender', 'transitivity', 'inflectionTableRef'] },
+  { label: 'Hyphenation', methods: ['hyphenate', 'syllableCount'] },
+  { label: 'Etymology', methods: ['etymology', 'etymologyChain', 'etymologyCognates', 'etymologyText'] },
+  { label: 'Relations', methods: ['synonyms', 'antonyms', 'hypernyms', 'hyponyms', 'derivedTerms', 'relatedTerms', 'descendants', 'alternativeForms', 'seeAlso', 'anagrams'] },
+  { label: 'Media & Connections', methods: ['image', 'allImages', 'internalLinks', 'externalLinks', 'exampleDetails'] },
+  { label: 'Wikidata & Global', methods: ['wikidataQid', 'isInstance', 'wikipediaLink', 'translate', 'categories', 'langlinks', 'referencesSection'] },
+];
 
 // ── Dynamic prop pills per method ────────────────────────────────────────────
 const SUGGESTED_PROPS: Record<string, string[]> = {
@@ -28,6 +60,7 @@ const SUGGESTED_PROPS: Record<string, string[]> = {
   morphology: ['{}'],
   richEntry: ['{}'],
   wikipediaLink: ['{"target":"en"}', '{"target":"el"}'],
+  isInstance: ['{"qid":"Q5"}', '{"qid":"Q1084"}'],
 };
 const DEFAULT_PILLS = ['{}'];
 
@@ -137,11 +170,14 @@ const App: React.FC = () => {
       const fn = API_METHODS[apiMethod];
       let res;
       if (['conjugate', 'decline', 'translate', 'wikipediaLink'].includes(apiMethod)) {
-        res = await fn(query, lang, (propsObj as any)?.target, propsObj);
+        res = await fn(query, lang, (propsObj as any)?.target || (propsObj as any)?.qid, propsObj);
+      } else if (apiMethod === 'isInstance') {
+        res = await fn(query, (propsObj as any)?.qid || "Q5", lang);
       } else if (['hyphenate'].includes(apiMethod)) {
-        res = await fn(query, lang, propsObj);
+        res = await fn(query, lang, propsObj, prefPos);
       } else {
-        res = await fn(query, lang);
+        // Most functions now support (query, lang, pos)
+        res = await fn(query, lang, prefPos);
       }
       setApiResult(res);
       // Format for the terminal using the colour-coded terminal-html style
@@ -405,8 +441,12 @@ const App: React.FC = () => {
           {/* Controls row — all three on the exact same flex line */}
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select className="dk-select" style={{ flexShrink: 0, width: 170 }} value={apiMethod} onChange={(e) => handleMethodChange(e.target.value)}>
-              {Object.keys(API_METHODS).sort().map((m) => (
-                <option key={m} value={m}>{m}()</option>
+              {API_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.methods.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <input
