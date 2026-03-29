@@ -625,12 +625,33 @@ Instead of inferring grammatical traits from the form or gloss, v2 extracts them
 ### 12.15 Form-of Labels: TAG_LABEL_MAP
 The tag arrays produced by form-of templates (`["1", "s", "perf", "past", "actv", "indc"]`) are opaque to consumers unfamiliar with Wiktionary tagging conventions. The `label` field converts them to a natural-language phrase using a `TAG_LABEL_MAP` dictionary (`"perf"` → `"perfective"`, `"indc"` → `"indicative"`, etc.). **Design choice:** the raw `tags` array is always preserved alongside `label`, so consumers can apply their own formatting.
 
+### 12.16 Offline API normalization (`normalizeWiktionaryQueryPage`)
+`fetchWikitextEnWiktionary` maps one MediaWiki `query.pages[]` object (JSON `formatversion=2`) into the normalized page record (`wikitext`, `categories`, `langlinks`, `info`, `pageprops`, `exists`, `title`, `pageid`). That mapping is implemented as **`normalizeWiktionaryQueryPage(page, requestedTitle)`** in `src/api.ts` and reused by the fetch function.
+
+**Rationale:** keeps a single source of truth for field extraction (NFC on wikitext, Category prefix stripping, etc.). **Use cases:** unit tests can feed synthetic or recorded JSON without HTTP; `tools/refresh-api-recording.ts` can refresh `test/fixtures/api-recordings/` for drift checks.
+
+### 12.17 Unit-test harness: stub `src/api`, not the network
+Default `npm test` must remain **offline**. Tests should prefer **`vi.mock("../src/api")`** with `fetchWikitextEnWiktionary` / `fetchWikidataEntity` (and `mwFetchJson` when exercising foreign wikis) returning fixture wikitext or minimal pages, then call the **real** `wiktionary()` so the parser and registry run on real wikitext.
+
+**Partial `vi.mock("../src/index")` caveat:** replacing only the exported `wiktionary` with `vi.fn()` does not reliably replace the `wiktionary` binding inside `library.ts` (circular module graph with `importOriginal`). Helpers such as `lemma()`, `interwiki()`, `pageMetadata()`, and `stem()` may still invoke the **real** fetch path unless `api` is stubbed. **Design choice:** document this in `test/README.md` and `AGENTS.md` so new tests do not reintroduce live `en.wiktionary.org` calls or reliance on the in-memory cache to mask them.
+
+### 12.18 Quality gates: goldens, decoder coverage, parser invariants
+These are **verification artifacts**, not part of the runtime contract:
+
+- **Golden snapshots** (`test/golden/entry-snapshots.test.ts`): fixture wikitext + mocked API → real `wiktionary()` → stable projection of LEXEME / INFLECTED_FORM fields compared to committed `.snap` files. **Rationale:** catches unintended decoder or merge regressions without asserting full AST dumps.
+- **Decoder coverage** (`test/decoder-coverage.test.ts`): each registry decoder `id` must appear in the `test/` corpus (template names in fixtures, or explicit allowlist with rationale). **Rationale:** new decoders are not silently untested.
+- **Parser invariants** (`test/parser.invariants.test.ts`): structural checks on `parseTemplates(wikitext, true)` (raw slice equals source span, non-overlapping regions, nesting). **Rationale:** guards the brace-aware parser independent of linguistic content.
+
+### 12.19 Convenience aliases (`phonetic`, `derivations`)
+- **`phonetic()`** is an alias for **`ipa()`** (identical behavior).
+- **`derivations()`** is an alias for **`derivedTerms()`** (identical behavior). Both return `derived_terms.items` from the main lexeme (typically `{ term, … }[]`, not bare strings). **Rationale:** aligns README/spec naming with a single implementation; avoids duplicate maintenance.
+
 ---
 
 **Artifacts:**
 - `src/index.ts`: Orchestration entry point.
 - `src/types.ts`: Canonical type definitions (`SCHEMA_VERSION = "2.0.0"`).
-- `src/api.ts`: API fetch layer (enriched with categories, langlinks, info).
+- `src/api.ts`: API fetch layer (enriched with categories, langlinks, info); `normalizeWiktionaryQueryPage` for tests/replay.
 - `src/registry.ts`: Decoder registry (16 decoder families in v2).
 - `src/library.ts`: Convenience wrappers (35+ exported functions).
 - `src/formatter.ts`: Multi-format output engine (`format()`, `FormatterStyle`, `registerStyle()`).
@@ -750,8 +771,8 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   brackets (`[]`) are missing in the wikitext template.
 - **Hyphenation Support**: Confirmed `hyphenate()` returns arrays by default and supports 
   the `{ format: 'string' }` option for full flexibility.
-- **API Aliases**: Added `phonetic()` and `derivations()` as semantic aliases for high-level 
-  wrappers.
+- **API Aliases**: `phonetic()` is an alias for `ipa()`. `derivations()` is an alias for
+  `derivedTerms()` (same signature; returns `derived_terms.items`, typically `{ term, … }[]`).
 
 **Completed (v1.4 Auto-discovery & PoS Filtering):**
 
@@ -805,4 +826,8 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   `troponyms`, `references`, `aspect`, and `voice` from the enriched entry data.
 - **Test suite updated**: `test/phase2.test.ts`, `test/integration.test.ts`,
   `test/library.test.ts`, `test/readme_examples.test.ts`, `test/auto.test.ts` updated
-  for new field names and shapes; new `test/enrichment.test.ts` for metadata extraction.
+  for new field names and shapes; `test/enrichment.test.ts` for metadata extraction;
+  offline API stubs in enrichment/auto/stem/library tests; `test/golden/` snapshots,
+  `test/decoder-coverage.test.ts`, `test/parser.invariants.test.ts`,
+  `test/network-replay.test.ts`, `test/fixtures/api-recordings/`; `vitest` default run
+  excludes `test/bench.test.ts` (`npm run test:perf`); see `test/README.md`.

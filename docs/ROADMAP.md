@@ -1,140 +1,160 @@
-# Wiktionary SDK: Implementation Roadmap (post-v1.0)
+# Wiktionary SDK: Implementation Roadmap (v2.0 & Beyond)
 
-This roadmap proposes the next implementation stages for the
-`wiktionary-sdk` ecosystem.
+This roadmap defines the remaining tasks for the v2.0 final release and the strategic goals for future development.
 
 ## Principles (non-negotiable)
 
 - **Extraction, not inference**: only extract what is explicitly present in
   Wikitext/template parameters.
 - **Traceability**: every structured field must be traceable to a source
-  template, line, or section; store verbatim raw text alongside decoded data
-  when practical.
+  template, line, or section.
 - **Registry-first**: mapping/decoding logic lives in `src/registry.ts`, not in
   the parser or orchestration layer.
 
 ---
 
-**Stage 9: Morphological API & Technical Documentation (Delivered)**
-- Implementation of `conjugate()`, `decline()`, `stem()`, and `morphology()`.
-- Added technical deep-dive documentation into Scribunto/Lua runtime.
-- Formalized project rebranding to **Wiktionary SDK**.
+## 🏗️ Stage 14: v2.0 Final Release & Reliability (In Progress)
 
-**Stage 10: Formatter Engine, Morphology Corrections & Playground Overhaul (Delivered)**
+**Goal**: resolve infrastructure bottlenecks and ensure 100% parity with the Comprehensive Schema Proposal.
 
-- Added `src/formatter.ts`: polymorphic `format()` function with `text`, `markdown`, `html`,
-  `ansi`, and `terminal-html` registered styles. `FormatterStyle` interface is public and
-  pluggable via `registerStyle()`.
-- Fixed `conjugate()` / `decline()` empty-criteria mode: returns full structured paradigm table
-  (`Record<string, any>`) instead of an empty array.
-- Fixed `morphology()`: non-linguistic entries (Pronunciation, References, etc.) are now
-  filtered before form matching; case-insensitive match; LEXEME entries seed POS-appropriate
-  grammatical defaults.
-- Fixed row-header matching in `conjugate()` to accept ordinal suffixes (`1st sg`, `2nd pl`, …).
-- CLI: `--format ansi` added; smart TTY default selects ANSI when stdout is interactive.
-- Webapp: dual-theme UI (light dictionary + dark inspector); salve-style left-aligned Inter
-  header with inline bold name and descriptor; macOS traffic-light terminal chrome.
-- Webapp: pseudo-terminal renders exact CLI command (`~ wiktionary-sdk γράφω --extract stem`)
-  before colour-coded `terminal-html` output.
-- Webapp: GitHub corner (tholman-style with octocat wag animation).
-- Webapp: removed misleading Wikidata checkbox; `enrich: true` hardcoded for playground.
+- **Infrastructure: Test suite (largely delivered)**
+    - **Done:** `enrichment.test.ts`, `auto.test.ts`, `stem.test.ts`, and `library.test.ts` stub `src/api` so default `npm test` avoids live HTTP; perf tests split (`test:perf` / `test:all`); golden snapshots, decoder-coverage guard, parser invariants, offline API replay, and `test/README.md` are in place.
+    - **Remaining:** consolidation of hybrid mocks in `library.test.ts`, shrinking decoder allowlists, and optional items documented in [Testing suite: deferred work and follow-ups](#testing-suite-deferred-work-and-follow-ups) below.
+- **Registry: Final Refinements**
+    - Ensure subsense labeling (register/domain) is fully functional for all indentation levels.
+    - Expand `TAG_LABEL_MAP` for 100% coverage of common Wiktionary morphological tags.
+- **QA: Final Verification**
+    - Conduct a full Unit Test audit using the v2-final specification as the ground truth.
+    - Cross-verify `γράφω` and `έγραψε` output in the playground to ensure 100% field population.
 
-**Stage 11: Compliance, Normalization & Doc Synchronization (Delivered)**
+## 🚀 Stage 15: Deep Enrichment & Multi-language Robustness
 
-- **README Compliance Suite**: Integrated `test/readme_examples.test.ts` to ensure 100% parity
-  between documentation and implementation.
-- **Unicode Normalization (NFC)**: Forced all inputs (queries) and outputs (wikitext, titles) to
-  NFC normalization in `src/api.ts` and `src/index.ts`, resolving cross-platform comparison
-  failures.
-- **Lemma Resolution Prioritization**: Updated `src/library.ts` to favor `INFLECTED_FORM` entries
-  when searching for a lemma, preventing metadata blocks from intercepting resolution.
-- **Robust IPA Decoding**: Updated `src/registry.ts` to find IPA even if slashes (`/`) or 
-  brackets (`[]`) are missing in the wikitext template.
-- **Hyphenation Support**: Confirmed `hyphenate()` returns arrays by default and supports 
-  the `{ format: 'string' }` option for full flexibility.
-- **API Aliases**: Added `phonetic()` and `derivations()` as semantic aliases for high-level 
-  wrappers.
+**Goal**: expand beyond the Greek-heavy focus and refine the structure of linguistic metadata.
 
-**Stage 12: Auto-discovery, Optional Filtering & Robust Parsing (Delivered)**
+- **Sense Qualifiers**: implement structured extraction of parenthetical register/usage qualifiers (e.g., "(nautical)", "(colloquial)") into the `qualifier` field.
+- **Etymology Prose**: populate the `raw_text` field for etymology blocks systematically across all language sections.
+- **Language Priority Expansion**: expand the `LANG_PRIORITY` engine and language mapping for Dutch, German, French, and Russian.
+- **Audio URL Resolution**: standardize the file-to-URL resolution for audio templates beyond the Greek-specific ones.
 
-- **Auto-discovery Mode**: Implemented `lang="Auto"` as the default, enabling the SDK to scan
-  and aggregate entries across all language sections found on a page.
-- **Language Priority Engine**: Introduced a `LANG_PRIORITY` map to ensure results are 
-  consistently sorted (Greek > Ancient Greek > English).
-- **Optional PoS Filtering**: Added `pos` as an optional parameter (defaulting to `"Auto"`)
-  supporting both precise PoS matching and broad discovery.
-- **Robust H3-H5 Parser**: Refactored the core segmentation logic to use symmetrical regex
-  for all heading levels from H3 to H5, resolving missing PoS blocks in complex etymologies.
-- **Cross-Language Resolution**: Optimized `lemma()` and convenience wrappers to operate
-  seamlessly across multiple languages in Auto mode, while maintaining language-affinity
-  during recursive resolution.
-- **Expanded Language Mapping**: Added support for 15+ additional languages in the internal
-  mapping to improve the reliability of multi-language scans.
-- **Webapp Integration**: Updated the React playground to use Auto-discovery by default,
-  providing instant feedback on the SDK's ability to handle multi-entry pages like "bank".
+## 🧪 Stage 16: Advanced Integrations & Linguistic Research
 
-**Stage 13: Comprehensive Schema v2.0, API Enrichment & Decoder Expansion (Delivered)**
+**Goal**: research external data sources and integrate legacy linguistic mappings.
 
-- **API Enrichment** (`src/api.ts`, `src/index.ts`): Extended `prop` parameter to include
-  `categories`, `langlinks`, and `info` alongside `revisions|pageprops`. New fields from
-  the API response: `categories[]` (page categories, "Category:" stripped), `langlinks[]`
-  (links to other Wiktionary editions), and `info` object (`touched` as `last_modified`,
-  `length`, `pageid`, `lastrevid`). These are propagated to `FetchResult.metadata` (unfiltered)
-  and to each `Entry` (`categories` filtered by language section, `langlinks`, and `metadata`).
-  `source.wiktionary.revision_id`, `last_modified`, and `pageid` populated on every entry.
+- **External Data**: research Wiktionary RDF/SPARQL endpoints for potential hybrid extraction.
+- **Legacy Mappings**: integrate Dutch-Russian and Greek-Dutch mappings derived from prior AI-assisted research (see `docs/AI agents chat history/`).
+- **Webapp Polish**: add a "Schema Inspector" to the playground to help users understand the v2 structure interactively.
 
-- **Schema v2.0.0** (`src/types.ts`, `schema/normalized-entry.schema.json`): Major version
-  bump. Key interface changes:
-  - `Pronunciation`: added `audio_url`, `romanization`, `rhymes`, `homophones`.
-  - `WiktionarySource`: added `revision_id`, `last_modified`, `pageid`.
-  - `Sense`: added `qualifier`, `labels`, `topics`.
-  - `SemanticRelations`: added `coordinate_terms`, `holonyms`, `meronyms`, `troponyms`.
-  - `EtymologyData`: replaced `links` with `chain` + `cognates`; added `raw_text`.
-  - `EtymologyLink`: added `relation` field (`"inherited"` | `"borrowed"` | `"derived"` | `"cognate"`).
-  - `Entry`: added `headword_morphology`, `alternative_forms`, `see_also`, `anagrams`,
-    `references`, `inflection_table_ref`, `categories`, `langlinks`, `metadata`.
-  - `form_of`: added `label` (human-readable from tag array).
-  - `FetchResult`: added `metadata` block.
-  - JSON Schema updated throughout to match.
+---
 
-- **Parser enhancement** (`src/parser.ts`): Etymology preamble text is now preserved as
-  `etymology_raw_text` on each etymology block and passed through `DecodeContext`.
+## Testing suite: deferred work and follow-ups
 
-- **New decoders** (`src/registry.ts`):
-  - `form-of` (extended): produces `label` from `tags[]` via `TAG_LABEL_MAP` + `tagsToLabel()`.
-  - `etymology-v2`: splits `chain[]` (inh/der/bor) and `cognates[]` (cog); adds `relation`
-    field and populates `raw_text` from the preamble.
-  - `el-verb-morphology`: extracts `transitivity` (`tr`/`intr` params) and `principal_parts`
-    (past/fut/pres_pass/etc.) from `{{el-verb}}`.
-  - `el-noun-gender`: extracts `gender` from `{{el-noun}}` `g=` param.
-  - `alternative-forms`: parses `====Alternative forms====` via `{{l}}`/`{{link}}`.
-  - `see-also`: parses `====See also====` section.
-  - `anagrams`: parses `====Anagrams====` section via `{{l}}`.
-  - `references`: extracts `====References====` section text.
-  - `inflection-table-ref`: captures the conjugation/declension template call.
-  - `senses` (extended): extracts `qualifier` from parenthetical text and `labels`/`topics`
-    from `{{lb|...}}` on definition lines.
-  - `semantic-relations` (extended): adds `cot`, `hol`, `mer`, `tro` template families.
-  - `pronunciation` (extended): adds `audio_url` (resolved Commons URL), `romanization`,
-    `rhymes`, `homophones`.
+This section records **intentionally partial** choices from the testing hardening pass, **deferred** work, and **optional improvements**. Ground rules and scripts live in [`test/README.md`](../test/README.md); agent context in [`AGENTS.md`](../AGENTS.md).
 
-- **New library wrappers** (`src/library.ts`):
-  `principalParts()`, `gender()`, `transitivity()`, `alternativeForms()`, `seeAlso()`,
-  `anagrams()`, `usageNotes()`, `derivedTerms()`, `relatedTerms()`, `descendants()`,
-  `referencesSection()`, `etymologyChain()`, `etymologyCognates()`, `etymologyText()`,
-  `categories()`, `langlinks()` (alias: `interwiki`), `isCategory()`, `pageMetadata()`,
-  `inflectionTableRef()`.
-  `pronounce()` updated to prefer `audio_url`. `etymology()` reads `chain` with `links` fallback.
-  `richEntry()` extended with `coordinate_terms`, `holonyms`, `meronyms`, `troponyms`,
-  `references`, `aspect`, `voice`.
+### Context (what already shipped)
 
-- **Test suite** (`test/`): `phase2.test.ts`, `integration.test.ts`, `library.test.ts`,
-  `readme_examples.test.ts`, `auto.test.ts` updated for renamed fields and new shapes.
-  New `test/enrichment.test.ts` tests categories, interwiki links, and page metadata.
+- Default **`npm test`** excludes `test/bench.test.ts`; **`npm run test:perf`** runs wall-clock parser checks (with **`PERF_SLACK`** when `CI` is set).
+- **`npm run test:all`** runs the full unit/integration suite then perf.
+- **`npm run test:network`** sets **`WIKT_TEST_LIVE=1`** and runs `test/network-replay.test.ts` (offline JSON replay always; live `mwFetchJson` block only with that env).
+- **`normalizeWiktionaryQueryPage`** in `src/api.ts` supports offline fixtures and replay tests.
+- **`test/golden/entry-snapshots.test.ts`** snapshots a stable projection of LEXEME / INFLECTED_FORM output for `basic-verb` and `form-of-inflected` fixtures.
+- **`test/decoder-coverage.test.ts`** scans `test/**/*.ts`, `test/**/*.wikitext`, and `test/**/*.json` for evidence that each registry decoder is exercised or explicitly allowlisted.
+- **`test/parser.invariants.test.ts`** asserts structural properties of `parseTemplates(..., true)` (raw slices, non-overlap, nesting, bad braces).
+- **`derivations`** is exported as an alias of **`derivedTerms`**; spec and README aligned on `{ term, … }[]` style return shape for derived-term items.
 
-- **Documentation**: spec upgraded to v2.0; ROADMAP extended with this stage.
-  `docs/schemata/DictionaryEntry — proposed v2 schema.yaml` added as comprehensive
-  annotated field inventory.
+---
 
-**All planned stages (0–13) are complete.** This document is retained for
-reference. Future work can be added here as new stages.
+### Deferred / intentionally partial
+
+#### 1. Library tests: hybrid mocking (Phase 2 not fully unified)
+
+**Status:** Documented, not fully migrated.
+
+**What we did:** `test/library.test.ts` uses **`vi.mock("../src/index")`** with a stub **`wiktionary`** for tests that need **hand-crafted `FetchResult`** objects (e.g. translate gloss mode with NL `schrijven`, empty LEXEME edge cases). A **`beforeEach`** still stubs **`fetchWikitextEnWiktionary`** / **`fetchWikidataEntity`** on **`../src/api`** so any code path that binds to the **real** `wiktionary` inside `library.ts` (e.g. `lemma`) never opens a socket.
+
+**Why it stayed partial:** Several assertions depend on **shapes or gloss strings** that are **not** reproduced by current `test/fixtures/*.wikitext` (e.g. specific translation rows). Moving those tests to “API mock + real `wiktionary()`” would require **new or extended fixtures** or **relaxing assertions** to match fixture-grounded output.
+
+**Done when:** Either (a) every `library.test.ts` case that can use fixtures does so and calls real `wiktionary({ enrich: false })` with API mocks, or (b) the file header and `test/README.md` explicitly list each remaining mock-only case and the reason (fixture gap).
+
+---
+
+#### 2. Decoder coverage allowlist (evidence by exception)
+
+**Status:** Several decoders are listed in **`DECODER_EVIDENCE_ALLOWLIST`** in `test/decoder-coverage.test.ts` instead of being proven by wikitext in the corpus.
+
+**Current intent of the allowlist (non-exhaustive; see source for truth):**
+
+- **Universal / framework:** `store-raw-templates` (matches everything; evidence is implicit once any `{{…}}` exists in corpus).
+- **Greek headword templates not yet present in any test string or fixture:** e.g. `el-pron-head`, `el-numeral-head`, `el-participle-head`, `el-adv-head`, `el-art-head` — add minimal `===…===` + `{{el-pron|…}}` (etc.) to a shared fixture or a tiny `test/fixtures/decoder-smoke.wikitext` and register it in integration or golden tests, then **remove** the corresponding allowlist entries.
+- **Pronunciation auxiliaries underrepresented in corpus:** `romanization`, `rhymes` — same approach: one line of wikitext per template in a fixture.
+- **Section decoders without matching headings in current fixtures:** `alternative-forms`, `see-also`, `anagrams` — add `====Alternative forms====`, `====See also====`, `====Anagrams====` blocks with minimal `{{l|…}}` / list content so the section decoders fire in a deterministic test, then drop from allowlist.
+
+**Done when:** Allowlist only contains decoders that are **truly** universal or **documented** as intentionally untested in v2.0 (with a one-line comment per id).
+
+---
+
+### Possible follow-ups (improvements)
+
+#### 3. Expand golden snapshot coverage
+
+**Idea:** Add golden tests (same pattern as `test/golden/entry-snapshots.test.ts`: mock API, real `wiktionary`, stable projection, Vitest snapshot) for additional fixtures, for example:
+
+- `γράφω.wikitext` — large real page shape, catches regressions in multi-section / translation / conjugation templates.
+- `nested-templates.wikitext`, `translations-multi.wikitext`, `nested-pipe-bug.wikitext` — guards parser + translation / nesting edge cases.
+
+**Operational note:** Intentional extraction changes require `npx vitest run test/golden/entry-snapshots.test.ts -u` and a careful review of `.snap` diffs in PRs.
+
+**Done when:** At least one additional fixture is snapshotted and documented in `test/README.md` under goldens.
+
+---
+
+#### 4. Stronger end-to-end library tests (fixture-first)
+
+**Idea:** For each `library.test.ts` case that today only checks wrappers against a fake `FetchResult`, add or reuse a fixture so the pipeline is **wikitext → parse → registry → `FetchResult` → wrapper**, with API layer mocked only.
+
+**Priorities:** `translate` (gloss) with a fixture that actually contains `{{t|…|nl|…}}` rows; `lemma` paths already benefit from API stubs but could be asserted against fixture-derived entries only (no `vi.mocked(wiktionary)`).
+
+**Done when:** A short table in `test/README.md` lists each library wrapper group and whether it is **fixture-backed** or **mock-result-only**, with no silent drift.
+
+---
+
+#### 5. Cross-platform / CI documentation for live tests
+
+**Idea:** `npm run test:network` uses Unix env injection (`WIKT_TEST_LIVE=1`). On **Windows** shells, document equivalents (`set WIKT_TEST_LIVE=1 && npx vitest run …`) or add **`cross-env`** as an optional devDependency and a single cross-platform script.
+
+**Done when:** `test/README.md` includes a “Windows / CI” subsection with copy-paste commands or points to `cross-env` usage.
+
+---
+
+#### 6. CHANGELOG and release notes
+
+**Idea:** When cutting a release that includes the testing overhaul and **`derivations`**, add a **CHANGELOG.md** entry (or extend an existing one) summarizing: new npm scripts, golden/decoder/parser tests, `normalizeWiktionaryQueryPage`, **`derivations` alias**, and default exclusion of perf tests from `npm test`.
+
+**Done when:** CHANGELOG reflects user-visible testing and API surface changes for the release that ships this work.
+
+---
+
+#### 7. Optional: refresh workflow for API recordings
+
+**Idea:** `tools/refresh-api-recording.ts` and `npm run refresh-recording` can overwrite `test/fixtures/api-recordings/minimal-query.json`. Document a **review checklist** (diff size, no secrets, NFC normalization, still minimal) in `test/README.md` or this roadmap.
+
+**Done when:** Contributors have a single place describing when to refresh the JSON and how to validate the offline test still passes.
+
+---
+
+#### 8. Optional: reduce duplication between README compliance and goldens
+
+**Idea:** `readme_examples.test.ts` and golden tests both exercise fixture-backed `wiktionary()`. Long term, consider sharing a small **`test/helper/fixture-fetch.ts`** (load wikitext, build mock `fetchWikitextEnWiktionary` implementation) to avoid divergent mock setups.
+
+**Done when:** At least one helper is extracted and used by two test files without changing behavior.
+
+---
+
+## 📜 Historical Stages (Delivered)
+*See [CHANGELOG.md](../CHANGELOG.md) for details.*
+
+- **Stage 13**: Comprehensive Schema v2.0, API Enrichment & Decoder Expansion.
+- **Stage 12**: Auto-discovery, Optional Filtering & Robust Parsing.
+- **Stage 11**: Compliance, Normalization & Doc Synchronization.
+- **Stage 10**: Formatter Engine, Morphology Corrections & Playground Overhaul.
+- **Stage 9**: Morphological API & Technical Documentation.
+- **Stages 0-8**: Core Engine, Registry, Parser, and v1.0 Foundation.
