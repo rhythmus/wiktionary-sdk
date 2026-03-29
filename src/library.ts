@@ -284,7 +284,10 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
         references: lexeme.references,
         inflection_table: infl as any,
         translations: lexeme.translations,
-        wikidata: lexeme.wikidata,
+        wikidata: lexeme.wikidata ? {
+            ...lexeme.wikidata,
+            subclass_of: lexeme.wikidata.subclass_of,
+        } : undefined,
         source: lexeme.source.wiktionary
     };
 }
@@ -448,12 +451,16 @@ export async function internalLinks(query: string, sourceLang: WikiLang = "Auto"
 
 /**
  * Returns detailed audio objects with URLs and dialect labels.
+ * Returns the full gallery if multiple files exist.
  */
-export async function audioDetails(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Array<{ url: string; label?: string; filename: string }>> {
+export async function audioGallery(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Array<{ url: string; label?: string; filename: string }>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
     const lexeme = result.entries.find(e => e.pronunciation?.audio_details);
     return lexeme?.pronunciation?.audio_details || [];
 }
+
+/** @deprecated Use audioGallery instead. */
+export const audioDetails = audioGallery;
 
 /**
  * Returns structured usage examples (prose + metadata).
@@ -474,12 +481,29 @@ export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto
 }
 
 /**
+ * Returns literary citations (entries using {{quote}} templates).
+ */
+export async function citations(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+    const examples = await exampleDetails(query, sourceLang, pos);
+    return examples.filter(ex => ex.raw?.toLowerCase().includes("{{quote"));
+}
+
+/**
  * Checks if a Wikidata item is an instance of a specific QID.
  */
 export async function isInstance(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<boolean> {
     const result = await wiktionary({ query, lang: sourceLang });
     const lexeme = getMainLexeme(result);
     return (lexeme?.wikidata?.instance_of || []).includes(qid);
+}
+
+/**
+ * Checks if a Wikidata item is a subclass of a specific QID (P279).
+ */
+export async function isSubclass(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<boolean> {
+    const result = await wiktionary({ query, lang: sourceLang });
+    const lexeme = getMainLexeme(result);
+    return (lexeme?.wikidata?.subclass_of || []).includes(qid);
 }
 
 /**
