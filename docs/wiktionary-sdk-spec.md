@@ -688,17 +688,28 @@ The SDK provides several aliases for common linguistic operations to improve Dev
 
 **Solution**: In v2.1, the SDK explicitly separates `instance_of` and `subclass_of` in the enrichment layer. This ensures that callers can differentiate between specific entities (tokens) and categorical types (concepts), which is critical for knowledge graph construction and semantic search.
 
+### 12.23 Typographic Standard: The "Classical Academic" Aesthetic
+
+From v2.1, the SDK adopts a specific "Design North Star" for human-readable output, codified in `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`.
+- **Typographic Density**: Prioritizing high information density (multi-column layouts) over whitespace-heavy dashboards.
+- **Academic Notation**: Standardized use of serif fonts (EB Garamond), small-caps for semantic labels (SYN, ANT, DER), and arrow-notation for etymology (←).
+- **Rationale**: To emulate the formal authority and ease-of-scanning found in premium printed dictionaries (e.g., LSJ, Oxford, Brill).
+
+### 12.24 Text-to-Dictionary (T2D) Pipeline
+
+The SDK serves as the foundational "Layer 1" for the **Text-to-Dictionary** architecture (see `docs/TEXT_TO_DICTIONARY_PLAN.md`).
+- **Context-Aware Extraction**: Future layers will use the SDK's metadata to disambiguate senses based on provided input text.
+- **Token-to-Lemma Mapping**: T2D maps specific morphological occurrences in a text back to their exhaustive SDK entries.
+
 ---
 
 **Artifacts:**
 - `src/index.ts`: Orchestration entry point.
-- `src/types.ts`: Canonical type definitions (`SCHEMA_VERSION = "2.0.0"`).
-- `src/api.ts`: API fetch layer (enriched with categories, langlinks, info); `normalizeWiktionaryQueryPage` for tests/replay.
-- `src/registry.ts`: Decoder registry (16 decoder families in v2).
-- `src/library.ts`: Convenience wrappers (35+ exported functions).
-- `src/formatter.ts`: Multi-format output engine (`format()`, `FormatterStyle`, `registerStyle()`).
-- `schema/normalized-entry.schema.json`: Formal output schema (v2.0.0).
-- `docs/schemata/`: Human-readable YAML schema examples and field inventory.
+- `src/types.ts`: Canonical type definitions.
+- `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`: The typographic gold standard.
+- `docs/TEXT_TO_DICTIONARY_PLAN.md`: Future architecture for text analysis.
+- `schema/normalized-entry.schema.json`: Formal output schema (v2.1.0).
+- `docs/dictionary-entry-v2.yaml`: Canonical machine-readable specimen.
 - `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and CLI playground.
 - `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
 - `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.

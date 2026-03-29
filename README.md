@@ -80,6 +80,7 @@ entries:
 2.  🧩 **Registry-Based Modularity** — Instead of a monolithic parser, a decentralized **Registry of Template Decoders** allows for rapid expansion and total traceability.
 3.  🔗 **Traceability First** — Every piece of normalized data links back to its specific source template and verbatim wikitext.
 4.  🔍 **Developer-Centric Verification** — A premium React dashboard with interactive template inspection and debugger mode provides instant visual confirmation of extraction quality.
+5.  🏛️ **Academic Typographic Standards** — From v2.1, the SDK defines a "Gold Standard" for human-readable output, emulating the density and formal aesthetic of premium printed dictionaries (see `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`).
 
 ## ✨ Features & Capabilities
 
@@ -487,3 +488,12 @@ See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps fo
 - **Sense gloss_raw**: exact text before stripping for forensic verification.
 - **Section links**: `derived_terms`, `related_terms`, `descendants` from `{{l}}`/`{{link}}`.
 - **Sample mode**: `--sample N` on template-introspect reports top missing templates by frequency.
+
+## 🔮 Future Work: Text-to-Dictionary (T2D)
+
+The Wiktionary SDK is being positioned as the foundational data layer for a complete **Text-to-Dictionary (T2D)** pipeline. This future application will provide:
+- **Automatic Glossary Generation**: Transform any literary text into a sorted, academic dictionary.
+- **Context-Aware Sense Resolution**: Automatically highlighting the active sense of a word within its specific sentence context.
+- **Morpheme Transparency**: Linking every inflected form in a text back to its exhaustive lemma profile.
+
+For the full architectural vision, see **[TEXT_TO_DICTIONARY_PLAN.md](file:///Users/woutersoudan/git/wiktionary-sdk/docs/TEXT_TO_DICTIONARY_PLAN.md)**.

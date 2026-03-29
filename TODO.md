@@ -1,0 +1,76 @@
+έγραψα
+
+  1st pers. singular perfective past of:
+
+    γρά‧φω /ˈɣra.fo/
+    v. trans. & intrans.
+    < grc γράφω < Proto-Greek *grəpʰō < PIE *gerbʰ-
+    γράφ+ω έ+γραψ+α γράψ+ω
+    1. to write, pen
+    2. to record
+    3. to issue a ticket (for traffic violation, etc)
+    ant. ξεγράφω
+    syn. σημειώνω, καταγράφω
+    der. συγγραφέας
+    hyper.
+    hypo.
+
+Is there still data or information burried in the full return output we get from the Wiktionary API, that is not yet being extracted by our library's functions? Could/should we add some more convenience functions to our library to extract and expose this data? Please investigate thoroughly and let me know.
+
+
+
+
+What should a full, exhaustive and comprehensive, human-readable, nicely formatted dictionary entry look like?
+
+Please propose a JSON/YAML structure that would be a good representation of the data we can extract from the Wiktionary API.
+
+More than Greek?
+
+MetaLang translations
+
+        - `conjugate(γράφω)` still returns `[]`: it should have returned the full conjugation table
+Call decline("γράφω") -> expect null (since it's a verb).
+Call conjugate("βιβλίο") -> expect null (since it's a noun).
+
+
+Alternative Forms: Sections for monotonic/polytonic or archaic variants (e.g., βιβλίον) are currently present in the source but unparsed.
+Semantic Context: Register labels like (colloquial) or (nautical) are currently stripped from glosses but could be extracted as structured metadata.
+
+
+{
+  "headword": "γράφω",
+  "pos": "verb",
+  "morphology": {
+    "person": "1",
+    "number": "singular",
+    "tense": "present",
+    "voice": "active",
+    "mood": "indicative"
+  },
+  "pronunciation": { "ipa": "/ˈɣra.fo/" },
+  "etymology": [
+    { "lang": "grc", "term": "γράφω" },
+    { "lang": "ine-pro", "term": "*gerbʰ-" }
+  ],
+  "senses": [
+    { "gloss": "to write, pen", "examples": ["..."] }
+  ],
+  "relations": {
+    "antonyms": ["ξεγράφω"],
+    "related": ["αντιγράφω", "εγγράφω"]
+  },
+  "inflection_table": {
+    "indicative": {
+      "present": {
+        "active": {
+          "1s": ["γράφω"],
+          "2s": ["γράφεις"],
+          "3s": ["γράφει"],
+          "1p": ["γράφουμε"],
+          "2p": ["γράφετε"],
+          "3p": ["γράφουν", "γράφουνε"]
+        }
+      }
+    }
+  }
+}
