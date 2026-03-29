@@ -1,6 +1,6 @@
 {
   "name": "wiktionary-sdk",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Source-faithful Wiktionary and Wikidata extraction library.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",

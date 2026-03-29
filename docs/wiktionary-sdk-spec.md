@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v2.2)
+# Wiktionary SDK — Formal Specification (v2.4)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -78,7 +78,7 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "2.2.0"
+schema_version: "2.4.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
@@ -90,7 +90,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.2.0"`.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.4.0"`.
 - `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `entries[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -154,6 +154,7 @@ source:
     last_modified: "2026-03-15T10:22:00Z"
     pageid: 2731423
 ```
+
 
 `revision_id`, `last_modified`, and `pageid` are populated from the API `info`
 block, enabling exact reproducibility (e.g. cache-busting by revision ID) and
@@ -297,9 +298,9 @@ Extracted **directly from headword template parameters** — never guessed or in
 - For nouns (`{{el-noun}}`): `|g=m/f/n` → gender.
 - **Design choice:** if a parameter is absent from the template, the corresponding field is `undefined` (not guessed). This preserves the "no heuristics" contract.
 
-### 3.5d Form-of labels
+### 3.5d Form-of labels and Subclasses
 
-For inflected entries, `form_of.label` provides a human-readable description:
+For inflected entries or variants, `form_of` provides both a human-readable description and a granular classification:
 
 ```yaml
 form_of:
@@ -307,10 +308,11 @@ form_of:
   lemma: γράφω
   lang: el
   tags: ["1", "s", "perf", "past", "actv", "indc"]
-  label: "1st pers. singular perfective past active indicative"
+  subclass: "infl"                 # misspelling | abbreviation | plural | clipping | infl
+  label: "1st pers. singular perfective past"
 ```
 
-The `label` is composed from a `TAG_LABEL_MAP` dictionary mapping standard Wiktionary tags to English descriptors (e.g. `"1"` → `"1st pers."`, `"s"` → `"singular"`, `"perf"` → `"perfective"`).
+The `label` is composed from a `TAG_LABEL_MAP` dictionary. The `subclass` is extracted directly from the template name (e.g., `misspelling of` → `misspelling`).
 
 ### 3.6 Section link lists (Derived / Related / Descendants)
 
@@ -333,7 +335,7 @@ derived_terms:
 
 ### 3.7 Schema versioning
 
-The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.2.0`** (v2.1 added high-fidelity extraction; v2.2 adds high-fidelity rendering).
+The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.4.0`** (v2.3 added redirect-rendering; v2.4 adds granular subclasses and symbols).
 
 Human-readable schema examples are in `docs/schemata/`:
 - `verb-lemma.yaml`: annotated example for a verb lemma entry.

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 for its output schema (see `VERSIONING.md`).
 
+## [1.2.0] - 2026-03-29
+
+### Added
+
+**Granular Morphological Rendering (v2.4.0)**
+- **Non-Lemma Subclasses**: Systematic extraction of `misspelling`, `abbreviation`, `clipping`, `diminutive`, and `plural` from `form-of` templates into the `subclass` field.
+- **Academic Etymology Symbols**: Expanded `TEMPLATE_RELATION_MAP` to preserve specific relations (affix, compound, blend); implemented `etymSymbol` helper to map them to canonical symbols (`~` for variants, `←` for inheritance, `<` for derivation).
+- **Premium Typographic Styling**: Added Red Wavy Underlines for misspellings and small-caps for abbreviations in `entry.css`.
+- **Cross-Platform Bundling**: Templates and CSS re-bundled in `src/templates/templates.ts` for browser parity.
+
+---
+
 ## [1.1.1] - 2026-03-29
 
 ### Added
