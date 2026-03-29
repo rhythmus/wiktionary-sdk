@@ -227,14 +227,26 @@ This section records **intentionally partial** choices from the testing hardenin
 
 ---
 
-## 📜 Historical Stages (Delivered)
-*See [CHANGELOG.md](../CHANGELOG.md) for details.*
+## 💎 Stage 22: High-Fidelity Extraction & "Purist" Rendering (v2.5.0 — Delivered)
 
-- **Stage 17**: High-Fidelity Extraction, Interface Parity & v2.1 Schema.
-- **Stage 14-16**: v2.0 Final Release, Deep Enrichment & Playground Overhaul.
-- **Stage 13**: Comprehensive Schema v2.0, API Enrichment & Decoder Expansion.
-- **Stage 12**: Auto-discovery, Optional Filtering & Robust Parsing.
-- **Stage 11**: Compliance, Normalization & Doc Synchronization.
-- **Stage 10**: Formatter Engine, Morphology Corrections & Playground Overhaul.
-- **Stage 9**: Morphological API & Technical Documentation.
-- **Stages 0-8**: Core Engine, Registry, Parser, and v1.0 Foundation.
+**Goal**: resolve lingering morphology bugs and surface "buried" data via high-fidelity template decoding while decoupling rendering from styling.
+
+- **Data: High-Fidelity "Buried" Data**
+    - **Done:** Implemented native decoders for Greek verb/noun templates to extract stems and principal parts directly from parameters.
+    - **Done:** Structured extraction of register labels (colloquial, archaic) and alternative forms classification.
+- **Rendering: "Purist" Aesthetic**
+    - **Done:** Overhauled HTML/CSS snippets to remove font-family, colors, and layout constraints, ensuring perfect embedding as neutral fragments.
+- **Architecture: Methodology Pivot**
+    - **Done:** Shifted the primary morphological strategy from DOM scraping to source-faithful template decoding (Level 1).
+
+---
+
+## 🚀 Stage 23: Recursive Resolution & Paradigm Expansion (TBD)
+
+**Goal**: expand the depth of alternative forms and automate full paradigm reconstruction.
+
+- **Recursion**: implement recursive resolution for "Alternative forms" to fetch the variant's full entry.
+- **Paradigms**: research the feasibility of reconstructing full 5x6 tables from template-extracted stems without API fallbacks.
+- **MetaLang**: finalize the mapping of Wiktionary translations to MetaLang concept IDs.
+
+---

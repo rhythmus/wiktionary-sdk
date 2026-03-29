@@ -1,0 +1,133 @@
+# DictionaryEntry — Proposed v2.5.0 "Gold Standard" Schema
+# Full example: γράφω (Greek verb)
+
+schema_version: "2.5.0"
+
+# ── Identity ───────────────────────────────────────────────────────────────
+id: "el:γράφω#E0#verb#LEXEME"
+type: "LEXEME"                  # LEXEME | INFLECTED_FORM | FORM_OF
+language: "el"                  # BCP-47 code
+form: "γράφω"                   # Canonical Wiktionary page title (NFC)
+query: "γράφω"                  # Original user query
+
+# ── Part of Speech ─────────────────────────────────────────────────────────
+part_of_speech_heading: "Verb"  # Raw H3/H4 heading from wikitext
+part_of_speech: "verb"          # Normalized (lowercase, consistent)
+etymology_index: 0              # @[0-indexed] Which etymology block
+
+# ── Pronunciation ──────────────────────────────────────────────────────────
+pronunciation:
+  IPA: "/ˈɣrafo/"
+  audio_url: "https://upload.wikimedia.org/wikipedia/commons/..."
+  audio_details:
+    - url: "https://upload.wikimedia.org/wikipedia/commons/..."
+      label: "Audio (Greece)"
+      filename: "El-γράφω.ogg"
+  romanization: "gráfo"
+  rhymes: ["-afo"]
+  homophones: []
+
+# ── High-Fidelity Morphology (v2.5.0) ──────────────────────────────────────
+# Extracted via template-driven decoding (src/registry.ts)
+headword_morphology:
+  # For verbs (from {{el-verb}})
+  transitivity: "both"          # "transitive" | "intransitive" | "both"
+  aspect: "imperfective"        # "perfective" | "imperfective"
+  voice: "active"               # "active" | "passive" | "mediopassive"
+  principal_parts:
+    present: "γράφω"
+    simple_past: "έγραψα"       # extracted from |past=
+    future: "θα γράψω"          # extracted from |fut=
+    present_passive: "γράφομαι"
+    perfect_passive: "γεγραμμένος"
+    aorist_passive: "γράφτηκα"
+
+  # For nouns/adjectives (from {{el-noun}}, {{el-adj}})
+  gender: null                  # "masculine" | "feminine" | "neuter"
+  stem: "γραφ-"                 # Logical stem for paradigm generation
+
+# ── Hyphenation ───────────────────────────────────────────────────────────
+hyphenation:
+  syllables: ["γρά", "φω"]
+  raw: "{{hyphenation|el|γρά|φω}}"
+
+# ── Etymology ─────────────────────────────────────────────────────────────
+etymology:
+  raw_text: "From Ancient Greek γράφω, from Proto-Greek *grəphō, from PIE *gerbh-."
+  chain:
+    - template: "inh"
+      relation: "inherited"     # Symbol: ←
+      source_lang: "grc"
+      source_lang_name: "Ancient Greek"
+      term: "γράφω"
+      gloss: "to write"
+    - template: "inh"
+      relation: "inherited"
+      source_lang: "grk-pro"
+      source_lang_name: "Proto-Greek"
+      term: "*grəphō"
+  cognates:
+    - template: "cog"
+      relation: "cognate"       # Symbol: ~
+      source_lang: "la"
+      term: "scribo"
+
+# ── Alternative Forms (v2.5.0 Structured) ─────────────────────────────────
+alternative_forms:
+  - term: "γράφΩ"
+    type: "polytonic"           # mononotic | polytonic | archaic | dialectal
+    labels: ["rare", "archaic"] 
+    raw: "* {{l|el|γράφΩ}} (rare, archaic)"
+
+# ── Senses (v2.5.0 Structured Metadata) ───────────────────────────────────
+senses:
+  - id: "S1"
+    gloss: "to write, pen"
+    gloss_raw: "to [[write]], [[pen]]"
+    labels: ["common"]          # Register labels from {{lb}}
+    topics: ["linguistics"]     # Topic labels from {{lb}}
+    examples:
+      - text: "Γράφω ένα γράμμα."
+        translation: "I am writing a letter."
+        raw: "{{ux|el|Γράφω ένα γράμμα.|t=I am writing a letter.}}"
+
+# ── External Mappings (MetaLang Proposal) ─────────────────────────────────
+external_mappings:
+  metalang:
+    concept_id: "ML-VERB-1234"
+    category: "Communication"
+
+# ── Connectivity Metadata ─────────────────────────────────────────────────
+external_links: ["https://lsj.gr/wiki/γράφω"]
+page_links: ["γράμμα", "μολύβι"]
+images: ["File:Writing_hand.jpg"]
+
+# ── Form-of Details (v2.4.0 Subclasses) ──────────────────────────────────
+form_of:
+  template: "infl of"
+  lemma: "γράφω"
+  lang: "el"
+  tags: ["1", "s", "perf", "past", "actv", "indc"]
+  subclass: "inflected"          # misspelling | abbreviation | plural | inflected
+  label: "1st pers. singular perfective past"
+
+# ── Wikidata Enrichment ───────────────────────────────────────────────────
+wikidata:
+  qid: "Q165170"
+  instance_of: ["Q1084"]        # Wikidata P31: Verb
+  subclass_of: ["Q34770"]       # Wikidata P279
+
+# ── Page Metadata ────────────────────────────────────────────────────────
+metadata:
+  last_modified: "2026-03-29T20:00:00Z"
+  pageid: 34918
+  lastrevid: 88879675
+
+# ── Source Provenance ─────────────────────────────────────────────────────
+source:
+  wiktionary:
+    site: "en.wiktionary.org"
+    title: "γράφω"
+    language_section: "Greek"
+    pos_heading: "Verb"
+    revision_id: 88879675

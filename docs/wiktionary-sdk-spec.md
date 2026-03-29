@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v2.4)
+# Wiktionary SDK — Formal Specification (v2.5)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -78,7 +78,7 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "2.4.0"
+schema_version: "2.5.0"
 rawLanguageBlock: "==Greek==..."
 entries: [...]
 notes: [...]
@@ -335,12 +335,13 @@ derived_terms:
 
 ### 3.7 Schema versioning
 
-The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.4.0`** (v2.3 added redirect-rendering; v2.4 adds granular subclasses and symbols).
+The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.5.0`** (v2.4 added granular subclasses; v2.5 adds template-driven stems and registers).
 
 Human-readable schema examples are in `docs/schemata/`:
+- `exhaustive_schema_v2.5.0.yaml`: the canonical "Gold Standard" specimen.
 - `verb-lemma.yaml`: annotated example for a verb lemma entry.
 - `verb-non-lemma.yaml`: annotated example for an inflected verb form.
-- `DictionaryEntry — proposed v2 schema.yaml`: comprehensive annotated field inventory with implementation status notes.
+- `DictionaryEntry — proposed v2 schema.yaml`: comprehensive annotated field inventory (v2.4).
 
 ### 3.9 Convenience API & High-Level Wrappers
 
@@ -404,17 +405,19 @@ An `InflectionTable` is a hierarchical representation of a grammatical paradigm 
 | `internalLinks(q, l)` | `string[]` | List of internal wikilinks on the page. |
 | `externalLinks(q, l)` | `string[]` | List of external HTTP links on the page. |
 
-### 3.11 Morphological Extraction Methodology (The "Scribunto" Exception)
+### 3.11 Morphological Extraction Methodology (The "Source-Faithful" Pivot)
 
-To fulfill the primary goal of providing accurate conjugation and declension paradigms, the SDK implements a specialized **"Morphology through Execution"** strategy. 
+To fulfill the primary goal of providing accurate conjugation and declension paradigms, the SDK implements a two-tier strategy:
 
-#### 3.11.1 The Scribunto/Lua Runtime
-Many Wiktionary languages (e.g., Finnish, Modern Greek, German) utilize the **Scribunto** MediaWiki extension to run **Lua** scripts server-side. These scripts compute thousands of morphological permutations on-the-fly, which are not stored as static text.
+#### 3.11.1 Level 1: Template-Driven Decoding (Preferred)
+From v2.5, the SDK prioritizes extracting logical **Stems** and **Principal Parts** directly from Wikitext template parameters (e.g., `{{el-conjug-1st}}`, `{{el-nN-ο-α-2a}}`). 
+- **Rationale**: This is faster, more robust, and works in environments with restricted MediaWiki API access. It preserves the "No Scraping" mandate by treating template parameters as the source of truth.
 
-#### 3.11.2 Extraction Pipeline: `action=parse`
-1. **Template Capture**: The SDK isolates the declarative morphology template (e.g., `{{el-conjug-1st}}`).
+#### 3.11.2 Level 2: The "Scribunto" Exception (Fallback)
+If stems cannot be extracted, the SDK falls back to the legacy execution-based strategy:
+1. **Template Capture**: The SDK isolates the declarative morphology template.
 2. **Expansion**: The raw template is sent to the MediaWiki `action=parse` API endpoint.
-3. **DOM Dissection**: The SDK receives the rendered HTML and uses `node-html-parser` to structurally traverse the generated `.inflection-table`.
+3. **DOM Dissection**: The SDK receives the rendered HTML and structurally traverses the generated `.inflection-table`.
 4. **Coordinate Mapping**: Grammatical keys (e.g., `person: "3", number: "singular"`) are mapped to the intersecting table cells to retrieve the literal form.
 
 **Rationale**: This ensures absolute parity with the human-facing website without the SDK needing to maintain its own linguistic rule engine. This constitutes the project's single documented exception to the _"No HTML Scraping"_ rule.
