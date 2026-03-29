@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 for its output schema (see `VERSIONING.md`).
 
+## [1.1.1] - 2026-03-29
+
+### Added
+
+**Buried Data Extraction (Stage 19)**
+- **Audio Galleries**: Upgraded the `audio` decoder to collate all dialectal variants (US, UK, etc.) into `pronunciation.audio_details`.
+- **Structured Citations**: Refined sense parsing to extract literary metadata (author, year, source, passage) from `{{quote-book}}` and related templates.
+- **Ontological Depth**: Added `subclass_of` (P279) extraction from Wikidata to complement instance-of (P31).
+- **Parity Wrappers**: New convenience functions `audioGallery()`, `citations()`, and `isSubclass()`.
+- **Governance**: Added Schema Synchronization mandate to `AGENTS.md`.
+
+---
+
+## [1.1.0] - 2026-03-29
+
+### Added
+
+**Multi-lingual Expansion**
+- **Dutch (NL) Support**: Initial headword decoders for nouns, verbs, and adjectives. Extractions include gender for nominals.
+- **German (DE) Support**: Initial headword decoders for nouns, verbs, and adjectives. Extractions include gender for nominals.
+- **Etymology Enrichment**: Added support for compositional templates: `affix`, `compound`, `back-formation`, `clipping`, `short for`, etc.
+
+**Schema Consolidation (v2.1.0)**
+- **High-Fidelity Output Schema**: Added formal JSON Schema definitions for `RichEntry` and `InflectionTable` for parity with high-level convenience wrappers.
+- **New Entry Type**: Added `FORM_OF` entry type to the schema to represent lexical variants separately from grammatical inflections.
+- **Metadata**: Added `lastrevid` to `Entry.metadata` and `FetchResult.metadata.info`.
+
+### Changed
+
+- **Classification Logic**: The extraction engine now systematically distinguishes between `INFLECTED_FORM` (grammatical paradigms) and `FORM_OF` (variants, abbreviations, misspellings).
+
+---
+
 ## [2.0.0-rc.1] - 2026-03-29
 
 ### Added
