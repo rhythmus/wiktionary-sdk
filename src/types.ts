@@ -1,5 +1,5 @@
 /** Current version of the normalized output schema. See VERSIONING.md. */
-export const SCHEMA_VERSION = "2.0.0";
+export const SCHEMA_VERSION = "2.1.0";
 
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
@@ -54,6 +54,8 @@ export interface WikidataEnrichment {
   };
   /** Wikidata P31 'Instance Of' claims (e.g. ['Q1084', 'Q215380']). */
   instance_of?: string[];
+  /** Wikidata P279 'Subclass Of' claims (e.g. ['Q34770']). */
+  subclass_of?: string[];
 }
 
 export interface Example {
@@ -244,6 +246,7 @@ export interface Entry {
     last_modified?: string;
     length?: number;
     pageid?: number | null;
+    lastrevid?: number;
   };
   templates_all?: Array<{
     name: string;
@@ -309,6 +312,7 @@ export interface FetchResult {
       last_modified?: string;
       length?: number;
       pageid?: number | null;
+      lastrevid?: number;
     };
   };
 }
