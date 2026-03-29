@@ -441,6 +441,9 @@ export async function derivedTerms(query: string, sourceLang: WikiLang = "Auto",
     return lexeme?.derived_terms?.items || [];
 }
 
+/** Semantic alias for {@link derivedTerms} (identical behavior and return type). */
+export const derivations = derivedTerms;
+
 /**
  * Returns related terms for the word.
  */

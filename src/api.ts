@@ -14,6 +14,36 @@ export async function mwFetchJson(origin: string, params: Record<string, string>
     return await res.json();
 }
 
+/**
+ * Normalizes one MediaWiki `query.pages[]` object (formatversion=2) into the
+ * shape returned by {@link fetchWikitextEnWiktionary}. Used for tests and
+ * offline API replay fixtures.
+ */
+export function normalizeWiktionaryQueryPage(page: any, requestedTitle: string) {
+    const wikitext = (page?.revisions?.[0]?.slots?.main?.content ?? "").normalize("NFC");
+    const pageprops = page?.pageprops ?? {};
+    const categories = (page?.categories ?? []).map((c: any) => c.title.replace(/^Category:/, ""));
+    const langlinks = page?.langlinks ?? [];
+    const info = {
+        last_modified: page?.touched,
+        length: page?.length,
+        pageid: page?.pageid,
+        lastrevid: page?.lastrevid,
+    };
+    const exists = !page?.missing;
+    const normalizedTitle = (page?.title ?? requestedTitle).normalize("NFC");
+    return {
+        exists,
+        title: normalizedTitle,
+        wikitext,
+        pageprops,
+        categories,
+        langlinks,
+        info,
+        pageid: page?.pageid ?? null,
+    };
+}
+
 export async function fetchWikitextEnWiktionary(title: string) {
     const cacheKey = `wikt:${title}`;
     const cache = getCache();
@@ -42,32 +72,11 @@ export async function fetchWikitextEnWiktionary(title: string) {
         titles: title,
     });
     const page = j?.query?.pages?.[0];
-    const wikitext = (page?.revisions?.[0]?.slots?.main?.content ?? "").normalize("NFC");
-    const pageprops = page?.pageprops ?? {};
-    const categories = (page?.categories ?? []).map((c: any) => c.title.replace(/^Category:/, ""));
-    const langlinks = page?.langlinks ?? [];
-    const info = {
-        last_modified: page?.touched,
-        length: page?.length,
-        pageid: page?.pageid,
-        lastrevid: page?.lastrevid,
-    };
-    const exists = !page?.missing;
-    const normalizedTitle = (page?.title ?? title).normalize("NFC");
-    const result = {
-        exists,
-        title: normalizedTitle,
-        wikitext,
-        pageprops,
-        categories,
-        langlinks,
-        info,
-        pageid: page?.pageid ?? null,
-    };
-    if (exists) {
+    const result = normalizeWiktionaryQueryPage(page, title);
+    if (result.exists) {
         await cache.set(cacheKey, result);
-        if (normalizedTitle !== title) {
-            await cache.set(`wikt:${normalizedTitle}`, result);
+        if (result.title !== title) {
+            await cache.set(`wikt:${result.title}`, result);
         }
     }
     return result;
