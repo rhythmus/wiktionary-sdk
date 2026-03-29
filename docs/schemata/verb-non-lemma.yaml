@@ -17,6 +17,15 @@ source:
     language_section: "Greek"
     etymology_index: 1
     pos_heading: "Verb"
+    revision_id: 88879680
+    last_modified: "2026-03-29T10:15:00Z"
+    pageid: 45678
+
+metadata:
+  last_modified: "2026-03-29T10:15:00Z"
+  length: 4500
+  pageid: 45678
+  lastrevid: 88879680
 
 form_of:
   template: "infl of"

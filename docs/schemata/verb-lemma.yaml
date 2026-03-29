@@ -24,6 +24,15 @@ source:
     language_section: "Greek"
     etymology_index: 1
     pos_heading: "Verb"
+    revision_id: 88879675
+    last_modified: "2026-03-28T17:18:53Z"
+    pageid: 34918
+
+metadata:
+  last_modified: "2026-03-28T17:18:53Z"
+  length: 12450
+  pageid: 34918
+  lastrevid: 88879675
 
 wikidata:
   qid: "Q11773095"
@@ -31,6 +40,8 @@ wikidata:
   media:
     P18: "Greek_handwriting.jpg"
     thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/..."
+  instance_of: ["Q1084"]
+  subclass_of: ["Q11773095"]
 
 translations:
   en:

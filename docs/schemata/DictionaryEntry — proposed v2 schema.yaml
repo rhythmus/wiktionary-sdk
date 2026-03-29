@@ -1,7 +1,7 @@
 # DictionaryEntry — Proposed v2 Schema
 # Full example: γράφω (Greek verb)
 
-schema_version: "2.0.0"
+schema_version: "2.1.0"
 
 # ── Identity ───────────────────────────────────────────────────────────────
 id: "el:γράφω#E0#verb#LEXEME"
@@ -185,6 +185,7 @@ wikidata:
     commons_file: "File:Writing.jpg"
     thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/..."
   instance_of: ["Q1084", "Q215380"]  # Wikidata P31: Verb, Activity
+  subclass_of: ["Q34770"]           # Wikidata P279: example subclass
 
 # ── Categories ───────────────────────────────────────────────────────────
 categories:
@@ -197,6 +198,26 @@ langlinks:
     title: "γράφω"
   - lang: "de"
     title: "γράφω"
+
+# ── Page Metadata ────────────────────────────────────────────────────────
+metadata:
+  last_modified: "2026-03-28T17:18:53Z"
+  length: 12450
+  pageid: 34918
+  lastrevid: 88879675
+
+# ── Forensic Trace (All templates) ────────────────────────────────────────
+templates_all:
+  - name: "el-verb"
+    raw: "{{el-verb|γράφω|aor=έγραψα|ppp=γραμμένος}}"
+    params:
+      positional: ["γράφω"]
+      named: { aor: "έγραψα", ppp: "γραμμένος" }
+    line: 45
+  - name: "IPA"
+    raw: "{{IPA|el|/ˈɣrafo/}}"
+    params: { positional: ["el", "/ˈɣrafo/"] }
+    line: 48
 
 # ── Source Provenance ─────────────────────────────────────────────────────
 source:

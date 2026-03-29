@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json",
   "title": "Wiktionary SDK Normalized Output",
-  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Entry types). v2.0.0.",
+  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Entry types). v2.1.0.",
   "type": "object",
   "$defs": {
     "schemaVersion": {
@@ -17,7 +17,7 @@
     },
     "EntryType": {
       "type": "string",
-      "enum": ["LEXEME", "INFLECTED_FORM"],
+      "enum": ["LEXEME", "INFLECTED_FORM", "FORM_OF"],
       "description": "Discriminator for the kind of dictionary entry."
     },
     "Pronunciation": {
@@ -138,6 +138,11 @@
           "type": "array",
           "items": { "type": "string", "pattern": "^Q\\d+$" },
           "description": "Wikidata P31 'Instance Of' claims."
+        },
+        "subclass_of": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^Q\\d+$" },
+          "description": "Wikidata P279 'Subclass Of' claims."
         }
       },
       "additionalProperties": false
@@ -341,8 +346,8 @@
         "template": { "type": "string", "description": "Template name, e.g. 'inh', 'der', 'bor', 'cog'" },
         "relation": {
           "type": "string",
-          "enum": ["inherited", "borrowed", "derived", "cognate"],
-          "description": "The semantic relation between the target and source language forms."
+          "description": "The semantic relation between the target and source language forms. Typically 'inherited', 'borrowed', 'derived', or 'cognate'.",
+          "examples": ["inherited", "borrowed", "derived", "cognate"]
         },
         "source_lang": { "type": "string" },
         "source_lang_name": { "type": "string" },
@@ -393,6 +398,41 @@
         "items": { "type": "array", "items": { "$ref": "#/$defs/SectionLinkItem" } }
       },
       "additionalProperties": false
+    },
+    "InflectionTable": {
+      "type": "object",
+      "description": "A hierarchical representation of a grammatical paradigm. Keys are dimensions (e.g. 'mood', 'tense'), values are either strings, arrays of strings, or nested InflectionTable objects.",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } },
+          { "$ref": "#/$defs/InflectionTable" }
+        ]
+      }
+    },
+    "RichEntry": {
+      "type": "object",
+      "required": ["headword", "pos", "source"],
+      "properties": {
+        "headword": { "type": "string" },
+        "pos": { "type": "string" },
+        "morphology": { "type": "object", "additionalProperties": true },
+        "pronunciation": { "$ref": "#/$defs/Pronunciation" },
+        "hyphenation": { "$ref": "#/$defs/Hyphenation" },
+        "etymology": { "type": "array", "items": { "type": "object" } },
+        "senses": { "type": "array", "items": { "$ref": "#/$defs/Sense" } },
+        "relations": { "$ref": "#/$defs/SemanticRelations" },
+        "derived_terms": { "$ref": "#/$defs/SectionWithLinks" },
+        "related_terms": { "$ref": "#/$defs/SectionWithLinks" },
+        "descendants": { "$ref": "#/$defs/SectionWithLinks" },
+        "usage_notes": { "type": "array", "items": { "type": "string" } },
+        "references": { "type": "array", "items": { "type": "string" } },
+        "inflection_table": { "$ref": "#/$defs/InflectionTable" },
+        "translations": { "type": "object", "additionalProperties": { "type": "array", "items": {} } },
+        "wikidata": { "$ref": "#/$defs/WikidataEnrichment" },
+        "source": { "$ref": "#/$defs/WiktionarySource" }
+      },
+      "additionalProperties": true
     },
     "Entry": {
       "type": "object",
@@ -535,6 +575,21 @@
     "notes": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "debug": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "decoderId": { "type": "string" },
+            "matchedTemplates": { "type": "array", "items": { "type": "object" } },
+            "fieldsProduced": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "description": "Detailed trace of decoder matches per entry. Primarily for engine developers."
     },
     "metadata": {
       "type": "object",
