@@ -220,6 +220,9 @@ async function wiktionaryRecursive({
                     c.toLowerCase().includes("pages with") // e.g. "Pages with 3 entries"
                 ) || [];
                 base.langlinks = (qPage as any).langlinks || [];
+                base.images = (qPage as any).images || [];
+                base.page_links = (qPage as any).page_links || [];
+                base.external_links = (qPage as any).external_links || [];
                 base.metadata = {
                     last_modified: (qPage as any).info?.last_modified,
                     length: (qPage as any).info?.length,
@@ -306,6 +309,10 @@ async function wiktionaryRecursive({
                             commons_file: `File:${filename}`,
                         };
                         ent.wikidata.media.thumbnail = commonsThumbUrl(filename, 420);
+                    }
+                    const p31 = wd.claims?.P31;
+                    if (Array.isArray(p31)) {
+                        ent.wikidata.instance_of = p31.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
                     }
                 }
             } catch (err: any) {
