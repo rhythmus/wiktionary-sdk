@@ -7,9 +7,9 @@ import {
   etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
   derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
   partOfSpeech, usageNotes, translate, richEntry,
-  rhymes, homophones, syllableCount, allImages, audioDetails, exampleDetails,
-  externalLinks, internalLinks, isInstance, alternativeForms, seeAlso, anagrams,
-  descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
+  rhymes, homophones, syllableCount, allImages, audioGallery, audioDetails, exampleDetails,
+  externalLinks, internalLinks, isInstance, isSubclass, alternativeForms, seeAlso, anagrams,
+  citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
   categories, langlinks, inflectionTableRef, gender, transitivity
 } from '@engine/index';
 import type { Entry, WikiLang, DecoderDebugEvent } from '@engine/types';
@@ -28,9 +28,9 @@ const API_METHODS: Record<string, any> = {
   alternativeForms, seeAlso, anagrams,
   internalLinks, externalLinks,
   // Media & Metadata
-  image, allImages, audioDetails, exampleDetails,
+  image, allImages, audioGallery, audioDetails, exampleDetails, citations,
   // Wikidata & Global
-  wikidataQid, wikipediaLink, isInstance,
+  wikidataQid, wikipediaLink, isInstance, isSubclass,
   categories, langlinks, inflectionTableRef,
   referencesSection, etymologyChain, etymologyCognates, etymologyText,
   etymology
@@ -42,13 +42,13 @@ const API_METHODS: Record<string, any> = {
  */
 const API_GROUPS = [
   { label: 'Identity & Senses', methods: ['richEntry', 'lemma', 'partOfSpeech', 'usageNotes'] },
-  { label: 'Pronunciation', methods: ['ipa', 'pronounce', 'rhymes', 'homophones', 'audioDetails'] },
+  { label: 'Pronunciation', methods: ['ipa', 'pronounce', 'rhymes', 'homophones', 'audioGallery'] },
   { label: 'Morphology', methods: ['stem', 'morphology', 'conjugate', 'decline', 'gender', 'transitivity', 'inflectionTableRef'] },
   { label: 'Hyphenation', methods: ['hyphenate', 'syllableCount'] },
   { label: 'Etymology', methods: ['etymology', 'etymologyChain', 'etymologyCognates', 'etymologyText'] },
   { label: 'Relations', methods: ['synonyms', 'antonyms', 'hypernyms', 'hyponyms', 'derivedTerms', 'relatedTerms', 'descendants', 'alternativeForms', 'seeAlso', 'anagrams'] },
-  { label: 'Media & Connections', methods: ['image', 'allImages', 'internalLinks', 'externalLinks', 'exampleDetails'] },
-  { label: 'Wikidata & Global', methods: ['wikidataQid', 'isInstance', 'wikipediaLink', 'translate', 'categories', 'langlinks', 'referencesSection'] },
+  { label: 'Media & Connections', methods: ['image', 'allImages', 'internalLinks', 'externalLinks', 'exampleDetails', 'citations'] },
+  { label: 'Wikidata & Global', methods: ['wikidataQid', 'isInstance', 'isSubclass', 'wikipediaLink', 'translate', 'categories', 'langlinks', 'referencesSection'] },
 ];
 
 // ── Dynamic prop pills per method ────────────────────────────────────────────
@@ -171,7 +171,7 @@ const App: React.FC = () => {
       let res;
       if (['conjugate', 'decline', 'translate', 'wikipediaLink'].includes(apiMethod)) {
         res = await fn(query, lang, (propsObj as any)?.target || (propsObj as any)?.qid, propsObj);
-      } else if (apiMethod === 'isInstance') {
+      } else if (['isInstance', 'isSubclass'].includes(apiMethod)) {
         res = await fn(query, (propsObj as any)?.qid || "Q5", lang);
       } else if (['hyphenate'].includes(apiMethod)) {
         res = await fn(query, lang, propsObj, prefPos);

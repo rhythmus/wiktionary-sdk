@@ -191,7 +191,7 @@ async function main(): Promise<void> {
               result = await wrapper(term, opts.lang, opts.targetLang, opts.props);
           } else if (["wikipediaLink"].includes(opts.extract)) {
               result = await wrapper(term, opts.lang, opts.targetLang);
-          } else if (["isInstance"].includes(opts.extract)) {
+          } else if (["isInstance", "isSubclass"].includes(opts.extract)) {
               result = await wrapper(term, opts.props?.qid || "Q5", opts.lang);
           } else if (["conjugate", "decline"].includes(opts.extract)) {
               result = await wrapper(term, opts.props || {}, opts.lang);
