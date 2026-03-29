@@ -1,5 +1,8 @@
-/** Current version of the normalized output schema. See VERSIONING.md. */
-export const SCHEMA_VERSION = "2.1.0";
+/**
+ * The canonical version of the normalized output schema.
+ * Follows Semantic Versioning (SemVer) principles.
+ */
+export const SCHEMA_VERSION = "2.2.0";
 
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
@@ -274,19 +277,21 @@ export interface RichEntry {
   headword: string;
   pos: string;
   morphology?: any;
+  headword_morphology?: Entry["headword_morphology"];
   pronunciation?: Pronunciation;
   hyphenation?: Hyphenation;
-  etymology?: any[];
+  etymology?: EtymologyData;
   senses?: Sense[];
   relations?: SemanticRelations;
-  derived_terms?: any;
-  related_terms?: any;
-  descendants?: any;
+  derived_terms?: SectionWithLinks;
+  related_terms?: SectionWithLinks;
+  descendants?: SectionWithLinks;
   usage_notes?: string[];
   references?: string[];
   inflection_table?: InflectionTable;
-  translations?: Record<string, any[]>;
+  translations?: Entry["translations"];
   wikidata?: WikidataEnrichment;
+  images?: string[];
   source: WiktionarySource;
 }
 

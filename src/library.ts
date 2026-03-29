@@ -265,9 +265,10 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
             aspect: lexeme.headword_morphology?.aspect,
             voice: lexeme.headword_morphology?.voice,
         },
+        headword_morphology: lexeme.headword_morphology,
         pronunciation: lexeme.pronunciation,
         hyphenation: lexeme.hyphenation,
-        etymology: etymStep as any[],
+        etymology: lexeme.etymology,
         senses: lexeme.senses,
         relations: {
             synonyms: syns,
@@ -288,6 +289,7 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
             ...lexeme.wikidata,
             subclass_of: lexeme.wikidata.subclass_of,
         } : undefined,
+        images: lexeme.images,
         source: lexeme.source.wiktionary
     };
 }
