@@ -1,4 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+/**
+ * Library wrapper tests: hybrid mocking.
+ * - Most cases stub `wiktionary` on `../src/index` for hand-crafted FetchResult shapes.
+ * - `lemma()` and similar still use the real `wiktionary` binding from `library.ts`; `beforeEach`
+ *   stubs `../src/api` so that path never hits the network. See `test/README.md`.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { 
     translate, 
     lemma, 
@@ -32,11 +38,29 @@ vi.mock("../src/index", async (importOriginal) => {
     };
 });
 
-// Mock API module for testing the fallback scraper
+// Spread real api so fetchWikitextEnWiktionary exists; library may still bind to real wiktionary.
 vi.mock("../src/api", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/api")>();
     return {
+        ...actual,
         mwFetchJson: vi.fn(),
+        fetchWikitextEnWiktionary: vi.fn(),
+        fetchWikidataEntity: vi.fn(),
     };
+});
+
+beforeEach(() => {
+    vi.mocked(apiModule.fetchWikitextEnWiktionary).mockResolvedValue({
+        exists: false,
+        title: "",
+        wikitext: "",
+        pageprops: {},
+        categories: [],
+        langlinks: [],
+        info: {},
+        pageid: null,
+    });
+    vi.mocked(apiModule.fetchWikidataEntity).mockResolvedValue(null);
 });
 
 describe("translate library function", () => {
@@ -236,10 +260,15 @@ describe("convenience wrappers", () => {
         expect(ants).toEqual(["σβήνω"]);
     });
 
-    it("derivations should return derived terms", async () => {
+    it("derivedTerms should return derived term items", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        const der = await derivations("έγραψε", "el");
-        expect(der).toEqual(["συγγραφέας"]);
+        const der = await derivedTerms("έγραψε", "el");
+        expect(der).toEqual([{ term: "συγγραφέας" }]);
+    });
+
+    it("derivations should match derivedTerms (alias)", async () => {
+        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
+        expect(await derivations("έγραψε", "el")).toEqual(await derivedTerms("έγραψε", "el"));
     });
 
     it("phonetic should return correct phonetic", async () => {
@@ -283,8 +312,8 @@ describe("convenience wrappers", () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
         expect(await hypernyms("έγραψε", "el")).toEqual(["δημιουργώ"]);
         expect(await hyponyms("έγραψε", "el")).toEqual(["γράφω κώδικα"]);
-        expect(await derivedTerms("έγραψε", "el")).toEqual(["συγγραφέας"]);
-        expect(await relatedTerms("έγραψε", "el")).toEqual(["γραπτός"]);
+        expect(await derivedTerms("έγραψε", "el")).toEqual([{ term: "συγγραφέας" }]);
+        expect(await relatedTerms("έγραψε", "el")).toEqual([{ term: "γραπτός" }]);
     });
 
     it("ipa and pronounce should extract phonetics correctly", async () => {

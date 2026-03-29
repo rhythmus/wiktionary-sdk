@@ -1,13 +1,29 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { wiktionary, interwiki, pageMetadata, isCategory } from "../src/index";
-import * as indexModule from "../src/index";
+import * as api from "../src/api";
 
-// Mock the main wiktionary function
+const FIXTURES_DIR = resolve(__dirname, "fixtures");
+
+// Mock the main wiktionary function (direct imports from index)
 vi.mock("../src/index", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/index")>();
   return {
     ...actual,
     wiktionary: vi.fn(),
+  };
+});
+
+// Library helpers (interwiki, pageMetadata, …) still call the real wiktionary from
+// ./index inside library.ts; partial index mocks do not replace that binding. Stub
+// the MediaWiki layer so tests never hit the network or the global request cache.
+vi.mock("../src/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/api")>();
+  return {
+    ...actual,
+    fetchWikitextEnWiktionary: vi.fn(),
+    fetchWikidataEntity: vi.fn(),
   };
 });
 
@@ -26,6 +42,25 @@ describe("API Enrichment", () => {
       }
     ]
   };
+
+  beforeEach(() => {
+    const wikitext = readFileSync(resolve(FIXTURES_DIR, "γράφω.wikitext"), "utf-8");
+    vi.mocked(api.fetchWikitextEnWiktionary).mockResolvedValue({
+      exists: true,
+      title: "γράφω",
+      wikitext: wikitext.normalize("NFC"),
+      pageprops: {},
+      pageid: 34918,
+      categories: ["Greek verbs", "Ancient Greek terms"],
+      langlinks: [{ lang: "fr", title: "γράφω" }],
+      info: {
+        last_modified: "2026-03-28T00:00:00Z",
+        length: 1234,
+        pageid: 34918,
+      },
+    });
+    vi.mocked(api.fetchWikidataEntity).mockResolvedValue(null);
+  });
 
   it("should fetch and attach categories for a Greek word", async () => {
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);

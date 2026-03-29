@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { wiktionary, lemma } from '../src/index';
+import * as api from '../src/api';
 
-// Mock the main wiktionary function
+const FIXTURES_DIR = resolve(__dirname, 'fixtures');
+
+// Mock the main wiktionary function (direct imports from index)
 vi.mock("../src/index", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/index")>();
   return {
@@ -10,7 +15,103 @@ vi.mock("../src/index", async (importOriginal) => {
   };
 });
 
+// lemma() is implemented in library.ts and uses the real wiktionary binding; stub API.
+vi.mock("../src/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/api")>();
+  return {
+    ...actual,
+    fetchWikitextEnWiktionary: vi.fn(),
+    fetchWikidataEntity: vi.fn(),
+  };
+});
+
+function emptyPage(title: string) {
+  return {
+    exists: false as const,
+    title,
+    wikitext: '',
+    pageprops: {} as Record<string, unknown>,
+    categories: [] as string[],
+    langlinks: [] as { lang: string; title: string }[],
+    info: {} as Record<string, unknown>,
+    pageid: null as null,
+  };
+}
+
 describe('Auto-discovery and PoS Filtering', () => {
+  beforeEach(() => {
+    const grafw = readFileSync(resolve(FIXTURES_DIR, 'γράφω.wikitext'), 'utf-8');
+    vi.mocked(api.fetchWikidataEntity).mockResolvedValue(null);
+    vi.mocked(api.fetchWikitextEnWiktionary).mockImplementation(async (title: string) => {
+      const t = title.normalize('NFC');
+      if (t === 'γράφω') {
+        return {
+          exists: true,
+          title: 'γράφω',
+          wikitext: grafw.normalize('NFC'),
+          pageprops: {},
+          pageid: 1,
+          categories: [] as string[],
+          langlinks: [] as { lang: string; title: string }[],
+          info: {},
+        };
+      }
+      if (t === 'bank') {
+        return {
+          exists: true,
+          title: 'bank',
+          wikitext: `==English==
+===Noun===
+# [[financial]] institution
+
+==Dutch==
+===Noun===
+# [[bank]]
+
+==German==
+===Noun===
+# [[Bank]]
+
+==French==
+===Noun===
+# [[banque]]
+
+==Swedish==
+===Noun===
+# [[bank]]
+
+==Danish==
+===Noun===
+# [[bank]]
+`,
+          pageprops: {},
+          pageid: 2,
+          categories: [] as string[],
+          langlinks: [] as { lang: string; title: string }[],
+          info: {},
+        };
+      }
+      if (t === 'banks') {
+        return {
+          exists: true,
+          title: 'banks',
+          wikitext: `==English==
+===Noun===
+{{inflection of|en|bank||p}}
+
+# plural of [[bank]]
+`,
+          pageprops: {},
+          pageid: 3,
+          categories: [] as string[],
+          langlinks: [] as { lang: string; title: string }[],
+          info: {},
+        };
+      }
+      return emptyPage(t);
+    });
+  });
+
   it('should auto-discover multiple languages for "bank"', async () => {
     const mockResult = {
       entries: [

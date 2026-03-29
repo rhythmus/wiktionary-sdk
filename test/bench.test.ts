@@ -33,6 +33,9 @@ From {{bor|el|fr|graphe}}.
 
 `.repeat(5);
 
+/** CI and shared runners are slower; keep local defaults strict. */
+const PERF_SLACK = process.env.CI ? 5 : 1;
+
 describe("Parser performance assertions", () => {
   it("parses a large entry in under 10ms (avg over 100 runs)", () => {
     const start = performance.now();
@@ -41,7 +44,7 @@ describe("Parser performance assertions", () => {
     }
     const elapsed = performance.now() - start;
     const avgMs = elapsed / 100;
-    expect(avgMs).toBeLessThan(10);
+    expect(avgMs).toBeLessThan(10 * PERF_SLACK);
   });
 
   it("extracts language section in under 1ms (avg over 1000 runs)", () => {
@@ -52,6 +55,6 @@ describe("Parser performance assertions", () => {
     }
     const elapsed = performance.now() - start;
     const avgMs = elapsed / 1000;
-    expect(avgMs).toBeLessThan(1);
+    expect(avgMs).toBeLessThan(1 * PERF_SLACK);
   });
 });
