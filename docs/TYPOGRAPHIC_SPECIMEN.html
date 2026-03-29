@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <title>Wiktionary SDK - Typographic Specimen</title>
+    <style>
+        body {
+            font-family: "Garamond", "EB Garamond", serif;
+            background-color: #fdfbf7;
+            color: #1a1a1a;
+            padding: 50px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #e0d8c8;
+            padding: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .inflected {
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        .inflected span {
+            font-style: italic;
+            color: #555;
+            font-size: 0.9em;
+        }
+        .entry {
+            margin-left: 20px;
+        }
+        .headword {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .ipa {
+            font-family: "Arial", sans-serif;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .pos {
+            font-style: italic;
+            color: #444;
+            margin-left: 10px;
+        }
+        .principal-parts {
+            font-weight: bold;
+            margin-top: 5px;
+            display: block;
+        }
+        .principal-parts span {
+            font-weight: normal;
+            font-style: italic;
+        }
+        .etymology {
+            margin: 15px 0;
+            font-size: 0.95em;
+            border-left: 3px solid #e0d8c8;
+            padding-left: 15px;
+        }
+        .etymology strong {
+            font-variant: small-caps;
+            letter-spacing: 0.05em;
+        }
+        .senses {
+            margin-top: 20px;
+            list-style: none;
+            padding: 0;
+        }
+        .senses li {
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+        .senses li b {
+            margin-right: 5px;
+        }
+        .label {
+            font-variant: small-caps;
+            font-weight: bold;
+            font-size: 0.85em;
+            color: #2c3e50;
+            margin-right: 5px;
+        }
+        .greek {
+            font-family: "Gentium Plus", serif;
+        }
+        .relations {
+            margin-top: 20px;
+            border-top: 1px solid #e0d8c8;
+            padding-top: 10px;
+            font-size: 0.9em;
+        }
+        .rel-label {
+            font-variant: small-caps;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .metadata {
+            margin-top: 40px;
+            font-size: 0.75em;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="inflected">
+            <b class="greek">έγραψα</b> <span>1st pers. singular perfective past of:</span>
+        </div>
+        
+        <div class="entry">
+            <span class="headword greek">γρά·φω</span> <span class="ipa">/ˈɣra.fo/</span> 
+            <span class="pos">v. (verb), pres. (conjug.)</span>
+            
+            <span class="principal-parts">
+                <span class="greek">γράφω, γράψω</span> <span>(aor. <span class="greek">έγραψα</span>), <span class="greek">γέγραφα</span> (perf. <span class="greek">γέγραμμαι</span>)</span>
+            </span>
+            
+            <div class="etymology">
+                <strong>Etymology</strong> (← <strong>IE</strong> <i>gʰerbh-</i> ‘to scratch, carve, write’ ← <strong>PIE</strong> <i>gerbʰ-</i>; cognate with <strong>OHG</strong> <i>kerban</i> ‘to carve’, <strong>ON</strong> <i>kroppa</i>)
+            </div>
+            
+            <ul class="senses">
+                <li><b>1.</b> <span class="label">[TRANS.]</span> To write, compose (lit. work): write a letter (<span class="greek">γράφω ἐπιστολήν</span>).</li>
+                <li><b>2.</b> <span class="label">[FIG.]</span> To record, register, list (as in a register).</li>
+                <li><b>3.</b> <span class="label">[ADMIN.]</span> To draft (a document or law).</li>
+                <li><b>4.</b> <span class="label">[MED.]</span> (archaic) To prescribe (a remedy).</li>
+                <li><b>5.</b> <span class="label">[LAW ENFORC.]</span> (for traffic violations, etc) To ticket, to issue a fine: <span class="greek">με έγραψαν</span> (<i>they ticketed me</i>).</li>
+            </ul>
+            
+            <div class="relations">
+                <span class="rel-label">SYN:</span> <span class="greek">χαράσσω</span>, <span class="greek">τυπώνω</span>; 
+                <span class="rel-label">ANT:</span> <span class="greek">σβήνω</span>, <span class="greek">διαγράφω</span>; 
+                <span class="rel-label">DER:</span> <span class="greek">συγγραφέας</span>, <span class="greek">ἐπιγραφή</span>.
+            </div>
+        </div>
+
+        <div class="metadata">
+            Wiktionary SDK v2.1.0 • QID: Q132 • Rev: 7892140
+        </div>
+    </div>
+</body>
+</html>
