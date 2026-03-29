@@ -15,8 +15,11 @@
     hyper.
     hypo.
 
+Has the full Comprehensive Dictionary Entry Schema Proposal been implemented yet? If not, what is missing?
 
 Is there still data or information burried in the full return output we get from the Wiktionary API, that is not yet being extracted by our library's functions? Could/should we add some more convenience functions to our library to extract and expose this data? Please investigate thoroughly and let me know.
+
+Please also update/upgrade the types and schemata, i.a. in /schema and in /docs/schemata
 
 What should a full, exhaustive and comprehensive dictionary entry look like? Please propose a JSON/YAML structure that would be a good representation of the data we can extract from the Wiktionary API.
 
