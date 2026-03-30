@@ -232,6 +232,14 @@ Handlebars.registerHelper("etymSymbol", (relation: string) => {
     }
 });
 
+/** EtymologyLink: decoders set `source_lang`; display name is optional. */
+Handlebars.registerHelper("langLabel", (link: { source_lang_name?: string; source_lang?: string } | undefined) => {
+    if (!link || typeof link !== "object") return "";
+    const name = link.source_lang_name?.trim();
+    const code = link.source_lang?.trim();
+    return name || code || "";
+});
+
 const htmlEntryTemplate = Handlebars.compile(HTML_ENTRY_TEMPLATE);
 const mdEntryTemplate = Handlebars.compile(MD_ENTRY_TEMPLATE);
 const entryCss = ENTRY_CSS;

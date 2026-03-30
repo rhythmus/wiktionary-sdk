@@ -1,183 +1,109 @@
 <div class="wiktionary-entry {{#if form_of}}is-redirect{{/if}}">
-    <div class="entry-body">
-        <div class="entry-head">
-            {{#if form_of}}
-            <div class="inflected-header {{form_of.subclass}}">
-                <span class="lemma">{{headword}}</span>
-                <span class="inflection-label">{{form_of.label}} of:</span>
-            </div>
-            <div class="lemma-redirect">
-                <span class="etym-arrow">→</span>
-                <span class="lemma">{{form_of.lemma}}</span>
-            {{else}}
-                <span class="lemma">{{headword}}</span>
-            {{/if}}
+  <div class="entry-body">
+    <span class="entry-line entry-line-head">
+      {{~#if form_of~}}
+      <span class="lemma {{form_of.subclass}}">{{headword}}</span>
+      <span class="inflection-label">{{form_of.label}}</span>
+      <span class="inline-sep">of:</span>
+      <span class="redirect-arrow">→</span>
+      <span class="lemma lemma-target">{{form_of.lemma}}</span>
+      {{~else~}}
+      <span class="lemma">{{headword}}</span>
+      {{~/if~}}
 
-            {{#if pronunciation.romanization}}
-            <span class="romanization">({{pronunciation.romanization}})</span>
-            {{/if}}
-            <span class="pos">{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}</span>
-            
-            {{#if headword_morphology.principal_parts}}
-            <div class="morphology-summary">
-                <b>Principal Parts:</b> 
-                {{#each headword_morphology.principal_parts}}
-                <i>{{@key}}</i> {{this}}{{#unless @last}}, {{/unless}}
-                {{/each}}
-            </div>
-            {{/if}}
-            
-            {{#if pronunciation.IPA}}
-            <div style="font-size: 1.1em; margin-top: 0.5rem;">
-                <b>Pronunciation:</b> 
-                [{{pronunciation.IPA}}]
-            </div>
-            {{/if}}
+      {{~#if pronunciation.romanization~}}
+      <span class="romanization">/{{pronunciation.romanization}}/</span>
+      {{~/if~}}
 
-            {{#if form_of}}
-            </div> {{!-- end .lemma-redirect --}}
-            {{/if}}
-        </div>
+      <span class="pos">{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}</span>
 
-        {{#if etymology.chain}}
-        <div class="section">
-            <h2>I. Etymology & Origins</h2>
-            <div class="etym-chain">
-                {{#each etymology.chain}}
-                <b class="lang-tag">{{source_lang_name}}</b> {{term}} {{#if gloss}}({{gloss}}){{/if}}
-                {{#unless @last}}<span class="etym-arrow">{{etymSymbol relation}}</span>{{/unless}}
-                {{/each}}
-            </div>
-            {{#if etymology.cognates}}
-            <div class="cognate-list">
-                <span class="rel-label">Cognates:</span> 
-                <span class="rel-terms">
-                    {{#each etymology.cognates}}
-                    {{source_lang_name}} <b>{{term}}</b>{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </span>
-            </div>
-            {{/if}}
-        </div>
-        {{/if}}
+      {{~#if headword_morphology.principal_parts~}}
+      <span class="principal-parts">
+        {{#each headword_morphology.principal_parts}}
+        <span class="pp-item">{{this}}</span>{{#unless @last}}<span class="inline-sep">–</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{~/if~}}
+    </span>
 
-        {{#if senses}}
-        <div class="section">
-            <h2>II. Senses & Citations</h2>
-            <ul class="senses">
-                {{#each senses}}
-                <li class="sense-item">
-                    <span class="sense-num">{{addOne @index}}.</span>
-                    {{#if labels}}
-                    <span class="tag">{{join labels ", "}}</span>
-                    {{/if}}
-                    <span class="gloss">{{gloss}}.</span>
-                    {{#if definition}}
-                    <span class="definition">{{definition}}</span>
-                    {{/if}}
-                    
-                    {{#each examples}}
-                    <span class="example">
-                        {{#if author}}
-                        <span class="example-cite">{{author}}{{#if year}} {{year}}{{/if}}</span>
-                        {{/if}}
-                        {{#if source}}
-                        <span class="example-cite">{{source}}</span>
-                        {{/if}}
-                        {{{text}}}
-                        {{#if translation}}
-                        <span class="example-trans">{{translation}}</span>
-                        {{/if}}
-                    </span>
-                    {{/each}}
+    {{~#if etymology.chain~}}
+    <span class="entry-line">
+      {{!-- <span class="line-label">ETYM.</span> --}}
+      (<span class="etym-inline">
+        {{~#each etymology.chain~}}
+        <span class="lang-tag">{{langLabel this}}</span> {{term}}{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}} <span class="etym-arrow">{{etymSymbol relation}}</span> {{/unless}}
+        {{~/each~}}
+    )</span>
+    </span>
+    {{~/if~}}
 
-                    {{#if subsenses}}
-                    <div style="font-size: 0.9em; padding-left: 1rem; display: block; margin-top: 0.5rem;">
-                        {{#each subsenses}}
-                        <div class="subsense">
-                            {{#if labels}}<span class="tag">{{join labels ", "}}</span> {{/if}}
-                            {{gloss}}
-                        </div>
-                        {{/each}}
-                    </div>
-                    {{/if}}
-                </li>
-                {{/each}}
-            </ul>
-        </div>
-        {{/if}}
+    {{~#if senses~}}
+    <span class="entry-line">
+      <span class="sense-inline">
+        {{#each senses}}
+        <span class="sense-item">
+          <span class="sense-num">{{addOne @index}}</span>
+          {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
+          {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
+          {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+        </span>
+        {{/each}}
+      </span>
+    </span>
+    {{~/if~}}
 
-        {{#if relations}}
-        <div class="section">
-            <h2>III. Lexical Network</h2>
-            <div class="lexical-grid">
-                {{#if relations.synonyms}}
-                <div class="rel-label">Synonyms</div>
-                <div class="rel-terms">
-                    {{#each relations.synonyms}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
-                
-                {{#if relations.antonyms}}
-                <div class="rel-label">Antonyms</div>
-                <div class="rel-terms">
-                    {{#each relations.antonyms}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
-                
-                {{#if derived_terms.items}}
-                <div class="rel-label">Derived</div>
-                <div class="rel-terms">
-                    {{#each derived_terms.items}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
+    {{~#if (or relations derived_terms.items)~}}
+    <span class="entry-line">
+      {{#if relations.antonyms}}
+      <span class="line-label">ANT.</span>
+      <span class="relation-group">
+        {{#each relations.antonyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
 
-                {{#if descendants.items}}
-                <div class="rel-label">Descendants</div>
-                <div class="rel-terms">
-                    {{#each descendants.items}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
-            </div>
-        </div>
-        {{/if}}
+      {{#if relations.synonyms}}
+      <span class="line-label">SYN.</span>
+      <span class="relation-group">
+        {{#each relations.synonyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
 
-        {{#if usage_notes}}
-        <div class="section">
-            <h2>IV. Usage Notes</h2>
-            <div style="font-size: 1em;">
-                {{#each usage_notes}}
-                <p>{{this}}</p>
-                {{/each}}
-            </div>
-        </div>
-        {{/if}}
+      {{#if derived_terms.items}}
+      <span class="line-label">DER.</span>
+      <span class="relation-group">
+        {{#each derived_terms.items}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+    </span>
+    {{~/if~}}
 
-        {{#if wikidata}}
-        <div class="section">
-            <h2>V. Ontological Proof</h2>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <span class="metadata-pill">Wikidata {{wikidata.qid}}</span>
-                {{#each wikidata.instance_of}}
-                <span class="metadata-pill">Instance: {{this}}</span>
-                {{/each}}
-                {{#each wikidata.subclass_of}}
-                <span class="metadata-pill">Subclass: {{this}}</span>
-                {{/each}}
-                {{#if images}}
-                <span class="metadata-pill">Images: {{images.length}} assets</span>
-                {{/if}}
-            </div>
-        </div>
-        {{/if}}
+    {{~#if usage_notes~}}
+    <span class="entry-line">
+      <span class="line-label">NOTE.</span>
+      <span class="usage-inline">
+        {{#each usage_notes}}
+        <span>{{this}}</span>{{#unless @last}}<span class="inline-sep">;</span>{{/unless}}
+        {{/each}}
+      </span>
+    </span>
+    {{~/if~}}
 
-    </div>
+    {{~#if wikidata~}}
+    <span class="entry-line entry-line-meta">
+      <span class="metadata-pill">Wikidata {{wikidata.qid}}</span>
+      {{#each wikidata.instance_of}}
+      <span class="metadata-pill">Instance: {{this}}</span>
+      {{/each}}
+      {{#each wikidata.subclass_of}}
+      <span class="metadata-pill">Subclass: {{this}}</span>
+      {{/each}}
+    </span>
+    {{~/if~}}
+  </div>
 </div>

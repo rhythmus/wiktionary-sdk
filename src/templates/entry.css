@@ -1,15 +1,19 @@
 :root {
     --bg-color: transparent;
     --text-color: inherit;
-    --accent-color: #7c2d12; /* Deep Brick */
-    --label-color: #4b5563;
-    --border-color: #e5e7eb;
+    --error-color: #ef4444;
 }
 
 .wiktionary-entry {
-    line-height: 1.45;
-    -webkit-font-smoothing: antialiased;
-    max-width: 100%;
+    font-family: 'Alegreya', serif;
+    line-height: 1.2;
+    font-size: 1.5em;
+    padding-left: 1em;
+    text-indent: -1em;
+}
+.wiktionary-entry * {
+    padding-left: 0;
+    text-indent: 0;
 }
 
 .wiktionary-entry i, 
@@ -23,248 +27,157 @@
 }
 
 .wiktionary-entry small {
-    font-size: 0.85em;
+
 }
 
-.entry-header {
-    margin-bottom: 2rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 0.8rem;
-    color: var(--label-color);
+.entry-body {
+    display: inline;
+    white-space: normal;
 }
 
-.sdk-version {
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+.entry-line {
+    display: inline !important;
+    margin-right: 0.5rem;
+    white-space: normal;
 }
 
-.entry-head {
-    margin-bottom: 1.5rem;
-}
-
-.inflected-header {
-    margin-bottom: 0.4rem;
-}
-
-.inflected-header .lemma {
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
-.inflection-label {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #374151;
-    margin-left: 0.5rem;
-}
-
-/* Subclass-specific styling */
-.inflected-header.misspelling .lemma {
-    text-decoration: underline wavy #ef4444; /* Red Wiggle */
-    color: #b91c1c;
-}
-
-.inflected-header.abbreviation .lemma {
-    font-variant: small-caps;
-    letter-spacing: 0.05em;
-    color: #4b5563;
-}
-
-.inflected-header.clipping .lemma {
-    font-style: italic;
-    color: #4b5563;
-}
-
-.inflected-header.diminutive .lemma {
-    color: #0891b2; /* Cyan tint */
-}
-
-.inflected-header.augmentative .lemma {
-    color: #b45309; /* Amber tint */
-}
-
-.lemma-redirect {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-top: 0.2rem;
-}
-
-.lemma-redirect .lemma {
-    font-size: 1.6rem;
-    font-weight: 700;
-}
-
-.lemma-redirect .etym-arrow {
-    font-size: 1.4rem;
-    vertical-align: middle;
+.entry-line-head {
+    margin-right: 0.6rem;
 }
 
 .lemma {
-    font-size: 2.2rem;
+    display: inline-block;
+    font-size: 1.5em;
+    /* transform: scale(1.2); */
     font-weight: 700;
-    margin-right: 0.5rem;
+    margin-right: 1rem;
+    /* vertical-align: baseline; */
 }
 
-.romanization {
-    font-size: 1.3rem;
-    font-style: italic;
-    color: var(--label-color);
-}
-
-.pos {
-    font-size: 1rem;
-    font-weight: 700;
+.lemma.abbreviation {
+    text-transform: lowercase;
     font-variant: small-caps;
-    color: var(--accent-color);
-    display: block;
-    margin-top: -0.1rem;
-}
-
-.morphology-summary {
-    font-size: 0.9em;
-    margin: 0.4rem 0;
-    color: #444;
-}
-
-.morphology-summary b {
-    font-variant: small-caps;
-    font-size: 1.1em;
-}
-
-.entry-body h2 {
-    font-size: 1.1rem;
-    font-variant: small-caps;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.2rem;
-    margin-top: 1.8rem;
-    margin-bottom: 0.8rem;
-    color: var(--accent-color);
     letter-spacing: 0.05em;
 }
 
-.section {
-    margin-bottom: 1.8rem;
-}
-
-/* Senses Styling */
-.senses {
-    padding-left: 0;
-    list-style: none;
-}
-
-.sense-item {
-    margin-bottom: 1.2rem;
-    position: relative;
-    padding-left: 1.8rem;
-}
-
-.sense-num {
-    position: absolute;
-    left: 0;
-    font-weight: 700;
-    color: var(--accent-color);
-}
-
-.gloss {
-    font-weight: 600;
-    font-size: 1.05rem;
-}
-
-.definition {
-    font-size: 0.95rem;
-    color: #333;
-    margin-top: 0.2rem;
-    display: block;
-}
-
-.example {
-    display: block;
-    margin: 0.4rem 0 0.4rem 1rem;
-    font-size: 0.95rem;
-    border-left: 2px solid var(--border-color);
-    padding-left: 0.8rem;
+.lemma.clipping {
     font-style: italic;
 }
 
-.example-trans {
-    font-style: normal;
-    color: var(--label-color);
-    font-size: 0.85rem;
-    display: block;
-    margin-top: 0.1rem;
+.lemma.diminutive {
+    opacity: 0.9;
 }
 
-.example-cite {
-    font-size: 0.8em;
-    font-weight: 600;
+.lemma.augmentative {
+    opacity: 0.9;
+}
+
+.lemma.misspelling {
+    text-decoration: underline wavy var(--error-color);
+}
+
+.lemma-target {
+    font-size: inherit;
+    font-weight: 700;
+}
+
+.redirect-arrow {
+    font-size: inherit;
+    margin: 0 0.2rem;
+}
+
+.inflection-label {
+    font-variant: all-small-caps;
+    letter-spacing: 0.05em;
+}
+
+.romanization {
+    display: inline-block;
+    font-size: inherit;
+    font-style: italic;
     color: var(--label-color);
+    margin-right: 0.45rem;
+}
+
+.pos {
+    display: inline-block;
+    font-variant: small-caps;
     margin-right: 0.4rem;
 }
 
-/* Lexical Network */
-.lexical-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.4rem 1rem;
-    font-size: 0.95rem;
+.principal-parts {
+    display: inline-block;
+    font-size: inherit;
 }
 
-.rel-label {
-    font-variant: small-caps;
-    font-weight: 700;
-    color: var(--label-color);
-    text-align: right;
-}
-
-.rel-terms {
+.pp-item {
+    display: inline;
     font-style: italic;
 }
 
-/* Etymology Chain */
-.etym-chain {
-    font-size: 0.95rem;
-    line-height: 1.4;
+.line-label {
+    display: inline-block;
+    text-transform:lowercase;
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    margin-right: 0.4rem;
 }
 
 .lang-tag {
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    margin-right: 0.4rem;
+}
+
+.etym-inline,
+.usage-inline,
+.relation-group {
+    display: inline-block;
+}
+
+.sense-item {
+    display: inline-block;
+    margin-right: 1.1rem;
+    vertical-align: baseline;
+}
+
+.sense-num {
+    display: inline-block;
     font-weight: 700;
+    margin-right: 0.35rem;
+}
+
+.gloss {
+    font-size: inherit;
+}
+
+.definition {
+    /* display: block; */
 }
 
 .etym-arrow {
-    color: var(--accent-color);
     font-weight: bold;
-    margin: 0 0.3rem;
-}
-
-.cognate-list {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    border-top: 1px dashed var(--border-color);
-    padding-top: 0.4rem;
+    margin: 0 0.2rem;
 }
 
 .metadata-pill {
     display: inline-block;
-    background: #f3f4f6;
+    background: rgba(148, 163, 184, 0.15);
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
-    font-size: 0.75rem;
+    font-size: inherit;
     margin-right: 0.5rem;
     font-weight: 500;
 }
 
 .tag {
-    font-size: 0.8em;
-    background: #eee;
-    padding: 1px 4px;
-    border-radius: 2px;
-    text-transform: uppercase;
-    font-weight: 600;
-    vertical-align: middle;
-    margin-right: 4px;
+    text-transform: lowercase;
+    font-variant: small-caps;
+    letter-spacing: 0.1ex;
+    margin-right: 0.35em;
+}
+
+.inline-sep {
+    display: inline;
+    margin: 0 0.15rem;
 }

@@ -1,197 +1,122 @@
 /**
- * Verbatim Handlebars template for the high-fidelity HTML dictionary entry.
- * Designed as a font-agnostic fragment to be embedded in any host environment.
- * Supports both primary LEXEME lexemes and INFLECTED_FORM redirects.
+ * AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
+ * Source files:
+ * - src/templates/entry.html.hbs
+ * - src/templates/entry.md.hbs
+ * - src/templates/entry.css
  */
+
 export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}is-redirect{{/if}}">
-    <div class="entry-body">
-        <div class="entry-head">
-            {{#if form_of}}
-            <div class="inflected-header {{form_of.subclass}}">
-                <span class="lemma">{{headword}}</span>
-                <span class="inflection-label">{{form_of.label}} of:</span>
-            </div>
-            <div class="lemma-redirect">
-                <span class="etym-arrow">→</span>
-                <span class="lemma">{{form_of.lemma}}</span>
-            {{else}}
-                <span class="lemma">{{headword}}</span>
-            {{/if}}
+  <div class="entry-body">
+    <span class="entry-line entry-line-head">
+      {{~#if form_of~}}
+      <span class="lemma {{form_of.subclass}}">{{headword}}</span>
+      <span class="inflection-label">{{form_of.label}}</span>
+      <span class="inline-sep">of:</span>
+      <span class="redirect-arrow">→</span>
+      <span class="lemma lemma-target">{{form_of.lemma}}</span>
+      {{~else~}}
+      <span class="lemma">{{headword}}</span>
+      {{~/if~}}
 
-            {{#if pronunciation.romanization}}
-            <span class="romanization">({{pronunciation.romanization}})</span>
-            {{/if}}
-            <span class="pos">{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}</span>
-            
-            {{#if headword_morphology.principal_parts}}
-            <div class="morphology-summary">
-                <b>Principal Parts:</b> 
-                {{#each headword_morphology.principal_parts}}
-                <i>{{@key}}</i> {{this}}{{#unless @last}}, {{/unless}}
-                {{/each}}
-            </div>
-            {{/if}}
-            
-            {{#if pronunciation.IPA}}
-            <div style="font-size: 1.1em; margin-top: 0.5rem;">
-                <b>Pronunciation:</b> 
-                [{{pronunciation.IPA}}]
-            </div>
-            {{/if}}
+      {{~#if pronunciation.romanization~}}
+      <span class="romanization">/{{pronunciation.romanization}}/</span>
+      {{~/if~}}
 
-            {{#if form_of}}
-            </div> {{!-- end .lemma-redirect --}}
-            {{/if}}
-        </div>
+      <span class="pos">{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}</span>
 
-        {{#if etymology.chain}}
-        <div class="section">
-            <h2>I. Etymology & Origins</h2>
-            <div class="etym-chain">
-                {{#each etymology.chain}}
-                <b>{{source_lang_name}}</b> {{term}} {{#if gloss}}({{gloss}}){{/if}}
-                {{#unless @last}}<span class="etym-arrow">{{etymSymbol relation}}</span>{{/unless}}
-                {{/each}}
-            </div>
-            {{#if etymology.cognates}}
-            <div class="cognate-list">
-                <span class="rel-label">Cognates:</span> 
-                <span class="rel-terms">
-                    {{#each etymology.cognates}}
-                    {{source_lang_name}} <b>{{term}}</b>{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </span>
-            </div>
-            {{/if}}
-        </div>
-        {{/if}}
+      {{~#if headword_morphology.principal_parts~}}
+      <span class="principal-parts">
+        {{#each headword_morphology.principal_parts}}
+        <span class="pp-item">{{this}}</span>{{#unless @last}}<span class="inline-sep">–</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{~/if~}}
+    </span>
 
-        {{#if senses}}
-        <div class="section">
-            <h2>II. Senses & Citations</h2>
-            <ul class="senses">
-                {{#each senses}}
-                <li class="sense-item">
-                    <span class="sense-num">{{addOne @index}}.</span>
-                    {{#if labels}}
-                    <span class="tag">{{join labels ", "}}</span>
-                    {{/if}}
-                    {{#if gloss}}<span class="gloss">{{gloss}}.</span>{{/if}}
-                    {{#if definition}}
-                    <span class="definition">{{definition}}</span>
-                    {{/if}}
-                    
-                    {{#each examples}}
-                    <span class="example">
-                        {{#if author}}
-                        <span class="example-cite">{{author}}{{#if year}} {{year}}{{/if}}</span>
-                        {{/if}}
-                        {{#if source}}
-                        <span class="example-cite">{{source}}</span>
-                        {{/if}}
-                        {{{text}}}
-                        {{#if translation}}
-                        <span class="example-trans">{{translation}}</span>
-                        {{/if}}
-                    </span>
-                    {{/each}}
+    {{~#if etymology.chain~}}
+    <span class="entry-line">
+      {{!-- <span class="line-label">ETYM.</span> --}}
+      (<span class="etym-inline">
+        {{~#each etymology.chain~}}
+        <span class="lang-tag">{{langLabel this}}</span> {{term}}{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}} <span class="etym-arrow">{{etymSymbol relation}}</span> {{/unless}}
+        {{~/each~}}
+    )</span>
+    </span>
+    {{~/if~}}
 
-                    {{#if subsenses}}
-                    <div style="font-size: 0.9em; padding-left: 1rem; display: block; margin-top: 0.5rem;">
-                        {{#each subsenses}}
-                        <div class="subsense">
-                            {{#if labels}}<span class="tag">{{join labels ", "}}</span> {{/if}}
-                            {{gloss}}
-                        </div>
-                        {{/each}}
-                    </div>
-                    {{/if}}
-                </li>
-                {{/each}}
-            </ul>
-        </div>
-        {{/if}}
+    {{~#if senses~}}
+    <span class="entry-line">
+      <span class="sense-inline">
+        {{#each senses}}
+        <span class="sense-item">
+          <span class="sense-num">{{addOne @index}}</span>
+          {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
+          {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
+          {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+        </span>
+        {{/each}}
+      </span>
+    </span>
+    {{~/if~}}
 
-        {{#if (or relations derived_terms.items descendants.items)}}
-        <div class="section">
-            <h2>III. Lexical Network</h2>
-            <div class="lexical-grid">
-                {{#if relations.synonyms}}
-                <div class="rel-label">Synonyms</div>
-                <div class="rel-terms">
-                    {{#each relations.synonyms}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
-                
-                {{#if relations.antonyms}}
-                <div class="rel-label">Antonyms</div>
-                <div class="rel-terms">
-                    {{#each relations.antonyms}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
-                
-                {{#if derived_terms.items}}
-                <div class="rel-label">Derived</div>
-                <div class="rel-terms">
-                    {{#each derived_terms.items}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
+    {{~#if (or relations derived_terms.items)~}}
+    <span class="entry-line">
+      {{#if relations.antonyms}}
+      <span class="line-label">ANT.</span>
+      <span class="relation-group">
+        {{#each relations.antonyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
 
-                {{#if descendants.items}}
-                <div class="rel-label">Descendants</div>
-                <div class="rel-terms">
-                    {{#each descendants.items}}
-                    {{term}}{{#unless @last}}, {{/unless}}
-                    {{/each}}
-                </div>
-                {{/if}}
-            </div>
-        </div>
-        {{/if}}
+      {{#if relations.synonyms}}
+      <span class="line-label">SYN.</span>
+      <span class="relation-group">
+        {{#each relations.synonyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
 
-        {{#if usage_notes}}
-        <div class="section">
-            <h2>IV. Usage Notes</h2>
-            <div style="font-size: 1em;">
-                {{#each usage_notes}}
-                <p>{{this}}</p>
-                {{/each}}
-            </div>
-        </div>
-        {{/if}}
+      {{#if derived_terms.items}}
+      <span class="line-label">DER.</span>
+      <span class="relation-group">
+        {{#each derived_terms.items}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+    </span>
+    {{~/if~}}
 
-        {{#if wikidata}}
-        <div class="section">
-            <h2>V. Ontological Proof</h2>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <span class="metadata-pill">Wikidata {{wikidata.qid}}</span>
-                {{#each wikidata.instance_of}}
-                <span class="metadata-pill">Instance: {{this}}</span>
-                {{/each}}
-                {{#each wikidata.subclass_of}}
-                <span class="metadata-pill">Subclass: {{this}}</span>
-                {{/each}}
-                {{#if images}}
-                <span class="metadata-pill">Images: {{images.length}} assets</span>
-                {{/if}}
-            </div>
-        </div>
-        {{/if}}
+    {{~#if usage_notes~}}
+    <span class="entry-line">
+      <span class="line-label">NOTE.</span>
+      <span class="usage-inline">
+        {{#each usage_notes}}
+        <span>{{this}}</span>{{#unless @last}}<span class="inline-sep">;</span>{{/unless}}
+        {{/each}}
+      </span>
+    </span>
+    {{~/if~}}
 
-    </div>
-</div>`;
+    {{~#if wikidata~}}
+    <span class="entry-line entry-line-meta">
+      <span class="metadata-pill">Wikidata {{wikidata.qid}}</span>
+      {{#each wikidata.instance_of}}
+      <span class="metadata-pill">Instance: {{this}}</span>
+      {{/each}}
+      {{#each wikidata.subclass_of}}
+      <span class="metadata-pill">Subclass: {{this}}</span>
+      {{/each}}
+    </span>
+    {{~/if~}}
+  </div>
+</div>
+`;
 
-/**
- * Verbatim Handlebars template for the high-fidelity Markdown dictionary entry.
- * Designed for premium typographic density in terminal and documentation contexts.
- * Supports both primary LEXEME lexemes and INFLECTED_FORM redirects.
- */
 export const MD_ENTRY_TEMPLATE = `# {{headword}}
 {{#if form_of}}**{{form_of.label}} of:**
 
@@ -208,10 +133,10 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 
 {{#if etymology.chain}}
 ### I. Etymology & Origins
-{{#each etymology.chain}}**{{source_lang_name}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
+{{#each etymology.chain}}**{{langLabel this}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
 
 {{#if etymology.cognates}}
-> **Cognates:** {{#each etymology.cognates}}{{source_lang_name}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}
+> **Cognates:** {{#each etymology.cognates}}{{langLabel this}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}
 {{/if}}
 
 ---
@@ -274,25 +199,25 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 ---
 {{/if}}
 
-**Generated by Wiktionary SDK {{schema_version}} • {{currentDate}}**`;
+**Generated by Wiktionary SDK {{schema_version}} • {{currentDate}}**
+`;
 
-/**
- * Premium CSS stylesheet for the HTML dictionary fragment.
- * Font-agnostic and scoped to .wiktionary-entry.
- * Includes layout logic for inflected form redirects.
- */
 export const ENTRY_CSS = `:root {
     --bg-color: transparent;
     --text-color: inherit;
-    --accent-color: inherit;
-    --label-color: inherit;
-    --border-color: #e5e7eb;
+    --error-color: #ef4444;
 }
 
 .wiktionary-entry {
-    line-height: 1.45;
-    -webkit-font-smoothing: antialiased;
-    max-width: 100%;
+    font-family: 'Alegreya', serif;
+    line-height: 1.2;
+    font-size: 1.5em;
+    padding-left: 1em;
+    text-indent: -1em;
+}
+.wiktionary-entry * {
+    padding-left: 0;
+    text-indent: 0;
 }
 
 .wiktionary-entry i, 
@@ -305,200 +230,159 @@ export const ENTRY_CSS = `:root {
     font-weight: bold;
 }
 
+.wiktionary-entry small {
+
+}
+
 .entry-body {
-    padding: 0;
+    display: inline;
+    white-space: normal;
 }
 
-.entry-head {
-    margin-bottom: 1.5rem;
+.entry-line {
+    display: inline !important;
+    margin-right: 0.5rem;
+    white-space: normal;
 }
 
-.inflected-header {
-    margin-bottom: 0.4rem;
-}
-
-.inflected-header .lemma {
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
-.inflection-label {
-    font-size: 1.1rem;
-    font-style: italic;
-    color: var(--label-color);
-    margin-left: 0.5rem;
-}
-
-/* Subclass-specific styling */
-.inflected-header.misspelling .lemma {
-    text-decoration: underline wavy #ef4444; /* Red Wiggle */
-}
-
-.inflected-header.abbreviation .lemma {
-    font-variant: small-caps;
-    letter-spacing: 0.05em;
-}
-
-.lemma-redirect {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-}
-
-.lemma-redirect .lemma {
-    font-size: 2.2rem;
-    font-weight: 700;
-}
-
-.lemma-redirect .etym-arrow {
-    font-size: 1.8rem;
+.entry-line-head {
+    margin-right: 0.6rem;
 }
 
 .lemma {
-    font-size: 2.4rem;
+    display: inline-block;
+    font-size: 1.5em;
+    /* transform: scale(1.2); */
     font-weight: 700;
+    margin-right: 1rem;
+    /* vertical-align: baseline; */
 }
 
-.romanization {
-    font-size: 1.4rem;
-    font-style: italic;
-}
-
-.pos {
-    font-size: 1rem;
-    font-weight: 700;
+.lemma.abbreviation {
+    text-transform: lowercase;
     font-variant: small-caps;
-    display: block;
-}
-
-.morphology-summary {
-    font-size: 0.85rem;
-    margin: 0.5rem 0;
-}
-
-.morphology-summary b {
-    font-variant: small-caps;
-    font-size: 1rem;
-}
-
-h2 {
-    font-size: 1.1rem;
-    font-variant: small-caps;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.2rem;
-    margin-top: 1.8rem;
-    margin-bottom: 0.8rem;
     letter-spacing: 0.05em;
 }
 
-.section {
-    margin-bottom: 1.8rem;
-}
-
-/* Senses Styling */
-.senses {
-    padding-left: 0;
-    list-style: none;
-}
-
-.sense-item {
-    margin-bottom: 1.2rem;
-    position: relative;
-    padding-left: 1.8rem;
-}
-
-.sense-num {
-    position: absolute;
-    left: 0;
-    font-weight: 700;
-}
-
-.gloss {
-    font-weight: 500;
-    font-size: 1.1rem;
-}
-
-.definition {
-    font-size: 0.95rem;
-    margin-top: 0.2rem;
-    display: block;
-}
-
-.example {
-    display: block;
-    margin: 0.4rem 0 0.4rem 1rem;
-    font-size: 0.95rem;
-    border-left: 2px solid var(--border-color);
-    padding-left: 0.8rem;
+.lemma.clipping {
     font-style: italic;
 }
 
-.example-trans {
-    font-style: normal;
-    font-size: 0.85rem;
-    display: block;
+.lemma.diminutive {
+    opacity: 0.9;
 }
 
-.example-cite {
-    font-size: 0.75rem;
-    font-weight: 600;
+.lemma.augmentative {
+    opacity: 0.9;
+}
+
+.lemma.misspelling {
+    text-decoration: underline wavy var(--error-color);
+}
+
+.lemma-target {
+    font-size: inherit;
+    font-weight: 700;
+}
+
+.redirect-arrow {
+    font-size: inherit;
+    margin: 0 0.2rem;
+}
+
+.inflection-label {
+    font-variant: all-small-caps;
+    letter-spacing: 0.05em;
+}
+
+.romanization {
+    display: inline-block;
+    font-size: inherit;
+    font-style: italic;
+    color: var(--label-color);
+    margin-right: 0.45rem;
+}
+
+.pos {
+    display: inline-block;
+    font-variant: small-caps;
     margin-right: 0.4rem;
 }
 
-/* Lexical Network */
-.lexical-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.4rem 1rem;
-    font-size: 0.95rem;
+.principal-parts {
+    display: inline-block;
+    font-size: inherit;
 }
 
-.rel-label {
-    font-variant: small-caps;
-    font-weight: 700;
-    text-align: right;
-}
-
-.rel-terms {
+.pp-item {
+    display: inline;
     font-style: italic;
 }
 
-/* Etymology Chain */
-.etym-chain {
-    font-size: 1rem;
-    line-height: 1.4;
+.line-label {
+    display: inline-block;
+    text-transform:lowercase;
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    margin-right: 0.4rem;
+}
+
+.lang-tag {
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    margin-right: 0.4rem;
+}
+
+.etym-inline,
+.usage-inline,
+.relation-group {
+    display: inline-block;
+}
+
+.sense-item {
+    display: inline-block;
+    margin-right: 1.1rem;
+    vertical-align: baseline;
+}
+
+.sense-num {
+    display: inline-block;
+    font-weight: 700;
+    margin-right: 0.35rem;
+}
+
+.gloss {
+    font-size: inherit;
+}
+
+.definition {
+    /* display: block; */
 }
 
 .etym-arrow {
     font-weight: bold;
-    margin: 0 0.3rem;
-}
-
-.cognate-list {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    border-top: 1px dashed var(--border-color);
-    padding-top: 0.4rem;
+    margin: 0 0.2rem;
 }
 
 .metadata-pill {
     display: inline-block;
-    background: #f3f4f6;
+    background: rgba(148, 163, 184, 0.15);
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
-    font-size: 0.75rem;
+    font-size: inherit;
     margin-right: 0.5rem;
     font-weight: 500;
 }
 
 .tag {
-    font-size: 0.7rem;
-    background: #eee;
-    padding: 1px 4px;
-    border-radius: 2px;
-    text-transform: uppercase;
-    font-weight: 600;
-    vertical-align: middle;
-    margin-right: 4px;
+    text-transform: lowercase;
+    font-variant: small-caps;
+    letter-spacing: 0.1ex;
+    margin-right: 0.35em;
+}
+
+.inline-sep {
+    display: inline;
+    margin: 0 0.15rem;
 }
 `;
