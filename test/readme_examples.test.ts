@@ -27,7 +27,6 @@ function loadFixture(word: string): string {
     return "";
 }
 
-// Mock API
 vi.mock("../src/api", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/api")>();
     return {
@@ -40,7 +39,6 @@ vi.mock("../src/api", async (importOriginal) => {
 describe("README Usage Examples Compliance", () => {
     beforeEach(() => {
         vi.mocked(api.fetchWikitextEnWiktionary).mockImplementation(async (title: string) => {
-            // Handle specific redirects/aliases used in README
             title = title.normalize("NFC");
             if (title === "έγραψα") title = "γράφω";
             
@@ -71,7 +69,7 @@ describe("README Usage Examples Compliance", () => {
 
     it("1. Programmatic Initialization", async () => {
         const result = await wiktionary({ query: "γράφω", lang: "el" });
-        const lexeme = result.entries.find(e => e.part_of_speech === "verb");
+        const lexeme = result.lexemes.find(e => e.part_of_speech === "verb");
         expect(lexeme).toBeDefined();
         expect(lexeme!.senses).toBeDefined();
         expect(lexeme!.senses![0].gloss).toBe("to write, pen");
@@ -83,44 +81,46 @@ describe("README Usage Examples Compliance", () => {
     });
 
     it("3. Fetch semantic relations", async () => {
-        // Note: This is a known pre-existing issue — the synonyms/antonyms sections in the
-        // γράφω fixture are under ====Synonyms====/====Antonyms==== sub-headings parsed by 
-        // the section-based decoder. The decoder runs but the results depend on the exact 
-        // posBlockWikitext structure assembled by splitEtymologiesAndPOS.
-        // Both arrays are returned (possibly empty); verify no errors are thrown.
         const syns = await synonyms("έγραψε", "el");
+        const synValues = syns.flatMap(r => r.value);
         const ants = await antonyms("έγραψε", "el");
-        expect(Array.isArray(syns)).toBe(true);
-        expect(Array.isArray(ants)).toBe(true);
-        // If they are populated, verify presence of known terms
-        if (syns.length > 0) {
-            expect(syns).toContain("σημειώνω");
-        }
-        if (ants.length > 0) {
-            expect(ants).toContain("ξεγράφω");
-        }
+        const antValues = ants.flatMap(r => r.value);
+        expect(synValues).toContain("σημειώνω");
+        expect(synValues).toContain("καταγράφω");
+        expect(antValues).toContain("ξεγράφω");
     });
 
     it("4. Phonetic transcription and audio", async () => {
-        expect(await ipa("έγραψε", "el")).toBe("ˈe.ɣrap.se");
-        expect(await phonetic("έγραψε", "el")).toBe("ˈe.ɣrap.se"); // Alias
-        // γράφω has /ˈɣra.fo/
-        expect(await ipa("γράφω", "el")).toBe("/ˈɣra.fo/");
+        const ipaRes = await ipa("έγραψε", "el");
+        const ipaVal = ipaRes.find(r => r.value !== null)?.value;
+        expect(ipaVal).toBe("ˈe.ɣrap.se");
+        const phoneticRes = await phonetic("έγραψε", "el");
+        const phoneticVal = phoneticRes.find(r => r.value !== null)?.value;
+        expect(phoneticVal).toBe("ˈe.ɣrap.se");
+        const ipaGrafo = await ipa("γράφω", "el");
+        const ipaGrafoVal = ipaGrafo.find(r => r.value !== null)?.value;
+        expect(ipaGrafoVal).toBe("/ˈɣra.fo/");
     });
 
     it("5. Hyphenation as structured array", async () => {
-        expect(await hyphenate("έγραψε", "el")).toEqual(["έ", "γρα", "ψε"]);
-        expect(await hyphenate("γράφω", "el")).toEqual(["γρά", "φω"]);
+        const hRes = await hyphenate("έγραψε", "el");
+        const hVal = hRes.find(r => r.value !== null)?.value;
+        expect(hVal).toEqual(["έ", "γρα", "ψε"]);
+        const hRes2 = await hyphenate("γράφω", "el");
+        const hVal2 = hRes2.find(r => r.value !== null)?.value;
+        expect(hVal2).toEqual(["γρά", "φω"]);
     });
 
     it("6. Smart Formatter for hyphenation", async () => {
-        const syllables = await hyphenate("έγραψε", "el");
+        const hRes = await hyphenate("έγραψε", "el");
+        const syllables = hRes.find(r => r.value !== null)?.value;
         expect(format(syllables, { separator: "‧" })).toBe("έ‧γρα‧ψε");
     });
 
     it("7. Structured etymology lineage", async () => {
         const result = await etymology("έγραψε", "el");
-        expect(result).toEqual([
+        const etyVal = result.find(r => r.value !== null)?.value;
+        expect(etyVal).toEqual([
             { lang: "grc", form: "γράφω" },
             { lang: "Proto-Greek", form: "*grəpʰō" },
             { lang: "PIE", form: "*gerbʰ-" }
@@ -128,34 +128,38 @@ describe("README Usage Examples Compliance", () => {
     });
 
     it("8. Wikidata enrichment", async () => {
-        expect(await wikidataQid("μήλο", "el")).toBe("Q89");
-        expect(await image("μήλο", "el")).toContain("apple.jpeg");
-        expect(await wikipediaLink("μήλο", "el", "en")).toBe("https://en.wikipedia.org/wiki/Apple");
+        const qidRes = await wikidataQid("μήλο", "el");
+        expect(qidRes.find(r => r.value !== null)?.value).toBe("Q89");
+        const imgRes = await image("μήλο", "el");
+        expect(imgRes.find(r => r.value !== null)?.value).toContain("apple.jpeg");
+        const wikiRes = await wikipediaLink("μήλο", "el", "en");
+        expect(wikiRes.find(r => r.value !== null)?.value).toBe("https://en.wikipedia.org/wiki/Apple");
     });
 
     it("9. Part of speech and usage notes", async () => {
-        expect(await partOfSpeech("έγραψε", "el")).toBe("verb");
-        // No usage notes in γράφω fixture but let's check empty
-        expect(await usageNotes("γράφω", "el")).toEqual([]);
+        const posRes = await partOfSpeech("έγραψε", "el");
+        const posVal = posRes.find(r => r.value !== null)?.value;
+        expect(posVal).toBe("verb");
+        const notesRes = await usageNotes("γράφω", "el");
+        expect(notesRes[0].value).toEqual([]);
     });
 
     it("10. Morphology from inflected form", async () => {
-        const morph = await morphology("έγραψες", "el");
-        expect(morph.person).toBe("2");
-        expect(morph.number).toBe("singular");
-        expect(morph.tense).toBe("past");
+        const morphRes = await morphology("έγραψες", "el");
+        const morph = morphRes.find(r => Object.keys(r.value).length > 0)?.value;
+        expect(morph?.person).toBe("2");
+        expect(morph?.number).toBe("singular");
+        expect(morph?.tense).toBe("past");
     });
 
     it("11. Conjugation/Declension with overrides", async () => {
-        // έγραψες -> plural -> γράψατε
-        // This relies on morphology.ts DOM scraping which we can't easily mock here without more effort,
-        // but we can test if it calls the right things or if we mock the domestic scraper.
-        // For now, let's keep it simple or mock the internal runConjugate.
+        // Relies on DOM scraping which requires network mocking — placeholder
     });
 
     it("12. Stems extraction", async () => {
-        const stems = await stem("έγραψα", "el");
-        expect(stems.aliases).toContain("γράψ");
+        const stemResults = await stem("έγραψα", "el");
+        const stems = stemResults.find(r => r.value.aliases.length > 0)?.value;
+        expect(stems?.aliases).toContain("γράψ");
         expect(format(stems, { mode: "text" })).toContain("Stems:");
     });
 });

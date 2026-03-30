@@ -1,8 +1,7 @@
 /**
  * Library wrapper tests: hybrid mocking.
- * - Most cases stub `wiktionary` on `../src/index` for hand-crafted FetchResult shapes.
- * - `lemma()` and similar still use the real `wiktionary` binding from `library.ts`; `beforeEach`
- *   stubs `../src/api` so that path never hits the network. See `test/README.md`.
+ * All lexeme-scoped wrappers now return LexemeResult<T>[] — assertions
+ * check result[i].value for the extracted payload.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { 
@@ -29,7 +28,6 @@ import {
 import * as indexModule from "../src/index";
 import * as apiModule from "../src/api";
 
-// Mock wiktionary to return a predictable FetchResult
 vi.mock("../src/index", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/index")>();
     return {
@@ -38,7 +36,6 @@ vi.mock("../src/index", async (importOriginal) => {
     };
 });
 
-// Spread real api so fetchWikitextEnWiktionary exists; library may still bind to real wiktionary.
 vi.mock("../src/api", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/api")>();
     return {
@@ -65,17 +62,17 @@ beforeEach(() => {
 
 describe("translate library function", () => {
     it("should extract translations for a target language from the LEXEME", async () => {
-        // Arrange
         const mockResult = {
             schema_version: "1.0",
             rawLanguageBlock: "",
             notes: [],
-            entries: [
+            lexemes: [
                 {
                     id: "test:verb:γραφω",
                     language: "el",
                     type: "LEXEME",
                     form: "γράφω",
+                    part_of_speech_heading: "Verb",
                     translations: {
                         nl: [
                             { term: "schrijven", gloss: "to write", sense: "put text on paper" }
@@ -89,53 +86,49 @@ describe("translate library function", () => {
                     id: "test:verb:εγραψε",
                     language: "el",
                     type: "INFLECTED_FORM",
-                    form: "έγραψε"
+                    form: "έγραψε",
+                    part_of_speech_heading: "Verb"
                 }
             ]
         };
         
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
 
-        // Act
         const resultNl = await translate("έγραψε", "el", "nl");
         const resultEn = await translate("έγραψε", "el", "en");
         const resultFr = await translate("έγραψε", "el", "fr");
 
-        // Assert
         expect(indexModule.wiktionary).toHaveBeenCalledWith({ query: "έγραψε", lang: "el", pos: "Auto" });
         
-        expect(resultNl).toHaveLength(1);
-        expect(resultNl[0]).toBe("schrijven");
+        const nlTerms = resultNl.find(r => r.value.length > 0)?.value;
+        expect(nlTerms).toEqual(["schrijven"]);
 
-        expect(resultEn).toHaveLength(1);
-        expect(resultEn[0]).toBe("write");
+        const enTerms = resultEn.find(r => r.value.length > 0)?.value;
+        expect(enTerms).toEqual(["write"]);
 
-        expect(resultFr).toHaveLength(0);
+        expect(resultFr.every(r => r.value.length === 0)).toBe(true);
     });
 
     it("should return empty array if no LEXEME is found in gloss mode", async () => {
-        // Arrange
         const mockResult = {
             schema_version: "1.0",
             rawLanguageBlock: "",
             notes: [],
-            entries: [
+            lexemes: [
                 {
                     id: "test:verb:εγραψε",
                     language: "el",
                     type: "INFLECTED_FORM",
-                    form: "έγραψε"
+                    form: "έγραψε",
+                    part_of_speech_heading: "Verb"
                 }
             ]
         };
         
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
 
-        // Act
         const resultNl = await translate("έγραψε", "el", "nl", { mode: "gloss" });
-
-        // Assert
-        expect(resultNl).toHaveLength(0);
+        expect(resultNl.every(r => r.value.length === 0)).toBe(true);
     });
 
     it("should extract English senses via wiktionary when mode is 'senses' and target is 'en'", async () => {
@@ -143,12 +136,13 @@ describe("translate library function", () => {
             schema_version: "1.0",
             rawLanguageBlock: "",
             notes: [],
-            entries: [
+            lexemes: [
                 {
                     id: "test:verb:γραφω",
                     language: "el",
                     type: "LEXEME",
                     form: "γράφω",
+                    part_of_speech_heading: "Verb",
                     senses: [
                         { gloss: "to write, pen" },
                         { gloss: "to record" }
@@ -159,9 +153,7 @@ describe("translate library function", () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
 
         const resultEn = await translate("γράφω", "el", "en", { mode: "senses" });
-        expect(resultEn).toHaveLength(2);
-        expect(resultEn[0]).toBe("to write, pen");
-        expect(resultEn[1]).toBe("to record");
+        expect(resultEn[0].value).toEqual(["to write, pen", "to record"]);
     });
 
     it("should scrape fr.wiktionary directly when mode is 'senses' and target is 'fr'", async () => {
@@ -186,18 +178,21 @@ describe("translate library function", () => {
             "https://fr.wiktionary.org/w/api.php",
             expect.objectContaining({ titles: "γράφω" })
         );
-        expect(resultFr).toHaveLength(2);
-        expect(resultFr[0]).toBe("écrire"); // markup stripped, lowercase, period removed
-        expect(resultFr[1]).toBe("dessiner"); // markup stripped, lowercase, period removed
+        expect(resultFr[0].value).toHaveLength(2);
+        expect(resultFr[0].value[0]).toBe("écrire");
+        expect(resultFr[0].value[1]).toBe("dessiner");
     });
 });
 
 describe("convenience wrappers", () => {
     const mockResult = {
-        entries: [
+        lexemes: [
             {
+                id: "el:γράφω#E1#verb#LEXEME",
+                language: "el",
                 type: "LEXEME",
                 form: "γράφω",
+                part_of_speech_heading: "Verb",
                 semantic_relations: {
                     synonyms: [{ term: "σημειώνω" }],
                     antonyms: [{ term: "σβήνω" }],
@@ -232,8 +227,11 @@ describe("convenience wrappers", () => {
                 part_of_speech: "verb"
             },
             {
+                id: "el:έγραψε#E1#verb#INFLECTED_FORM",
+                language: "el",
                 type: "INFLECTED_FORM",
                 form: "έγραψε",
+                part_of_speech_heading: "Verb",
                 form_of: { lemma: "γράφω" },
                 pronunciation: { IPA: "ˈe.ɣrap.se" },
                 hyphenation: { syllables: ["έ", "γρα", "ψε"] }
@@ -251,57 +249,63 @@ describe("convenience wrappers", () => {
     it("synonyms should return synonyms", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
         const syns = await synonyms("έγραψε", "el");
-        expect(syns).toEqual(["σημειώνω"]);
+        expect(syns[0].value).toEqual(["σημειώνω"]);
     });
 
     it("antonyms should return antonyms", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
         const ants = await antonyms("έγραψε", "el");
-        expect(ants).toEqual(["σβήνω"]);
+        expect(ants[0].value).toEqual(["σβήνω"]);
     });
 
     it("derivedTerms should return derived term items", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
         const der = await derivedTerms("έγραψε", "el");
-        expect(der).toEqual([{ term: "συγγραφέας" }]);
+        expect(der[0].value).toEqual([{ term: "συγγραφέας" }]);
     });
 
     it("derivations should match derivedTerms (alias)", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await derivations("έγραψε", "el")).toEqual(await derivedTerms("έγραψε", "el"));
+        const d1 = await derivations("έγραψε", "el");
+        const d2 = await derivedTerms("έγραψε", "el");
+        expect(d1[0].value).toEqual(d2[0].value);
     });
 
     it("phonetic should return correct phonetic", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await phonetic("έγραψε", "el")).toBe("ˈe.ɣrap.se");
-        expect(await phonetic("γράφω", "el")).toBe("ˈɣra.fo");
+        const res = await phonetic("έγραψε", "el");
+        expect(res[0].value).toBe("ˈɣra.fo");
+        expect(res[1].value).toBe("ˈe.ɣrap.se");
     });
 
     it("hyphenate should return array of syllables", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await hyphenate("γράφω", "el")).toEqual(["γρά", "φω"]);
-        expect(await hyphenate("έγραψε", "el")).toEqual(["έ", "γρα", "ψε"]);
-        // format is now handled by the format() utility, but hyphenate returns the array.
+        const res1 = await hyphenate("γράφω", "el");
+        expect(res1[0].value).toEqual(["γρά", "φω"]);
+        const res2 = await hyphenate("έγραψε", "el");
+        expect(res2[1].value).toEqual(["έ", "γρα", "ψε"]);
     });
 
     it("hyphenate should return array if requested", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await hyphenate("έγραψε", "el", { format: "array" })).toEqual(["έ", "γρα", "ψε"]);
+        const res = await hyphenate("έγραψε", "el", { format: "array" });
+        expect(res[1].value).toEqual(["έ", "γρα", "ψε"]);
     });
 
     it("hyphenate should return null if no hyphenation found", async () => {
         const emptyResult = {
             ...mockResult,
-            entries: mockResult.entries.map(e => ({ ...e, hyphenation: undefined }))
+            lexemes: mockResult.lexemes.map(e => ({ ...e, hyphenation: undefined }))
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(emptyResult as any);
-        expect(await hyphenate("unknown", "el")).toBeNull();
+        const res = await hyphenate("unknown", "el");
+        expect(res[0].value).toBeNull();
     });
 
     it("etymology should return structured graph mapping macros to BCP-47 / labels", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
         const result = await etymology("έγραψε", "el");
-        expect(result).toEqual([
+        expect(result[0].value).toEqual([
             { lang: "grc", form: "γράφω" },
             { lang: "Proto-Greek", form: "*grápʰō" },
             { lang: "PIE", form: "*gerbʰ-" }
@@ -310,34 +314,32 @@ describe("convenience wrappers", () => {
 
     it("hypernyms, hyponyms, derivedTerms, relatedTerms should return accurate arrays", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await hypernyms("έγραψε", "el")).toEqual(["δημιουργώ"]);
-        expect(await hyponyms("έγραψε", "el")).toEqual(["γράφω κώδικα"]);
-        expect(await derivedTerms("έγραψε", "el")).toEqual([{ term: "συγγραφέας" }]);
-        expect(await relatedTerms("έγραψε", "el")).toEqual([{ term: "γραπτός" }]);
+        expect((await hypernyms("έγραψε", "el"))[0].value).toEqual(["δημιουργώ"]);
+        expect((await hyponyms("έγραψε", "el"))[0].value).toEqual(["γράφω κώδικα"]);
+        expect((await derivedTerms("έγραψε", "el"))[0].value).toEqual([{ term: "συγγραφέας" }]);
+        expect((await relatedTerms("έγραψε", "el"))[0].value).toEqual([{ term: "γραπτός" }]);
     });
 
     it("ipa and pronounce should extract phonetics correctly", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        // ipa() prefers exact form match: έγραψε → returns its IPA
-        expect(await ipa("έγραψε", "el")).toBe("ˈe.ɣrap.se");
-        // ipa() on the lemma directly finds the lexeme
-        expect(await ipa("γράφω", "el")).toBe("ˈɣra.fo");
-        // pronounce() finds the first entry with IPA or audio
+        const ipaRes = await ipa("έγραψε", "el");
+        expect(ipaRes[0].value).toBe("ˈɣra.fo");
+        expect(ipaRes[1].value).toBe("ˈe.ɣrap.se");
         const pronResult = await pronounce("έγραψε", "el");
-        expect(["ˈɣra.fo", "https://example.com/audio.ogg", "ˈe.ɣrap.se"]).toContain(pronResult);
+        expect(pronResult[0].value).toBe("https://example.com/audio.ogg");
     });
 
     it("wikidata functions should extract structured qid, image, and wikipedia links", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await wikidataQid("έγραψε", "el")).toBe("Q123");
-        expect(await image("έγραψε", "el")).toBe("https://example.com/thumb.jpg");
-        expect(await wikipediaLink("έγραψε", "el", "en")).toBe("https://en.wikipedia.org/wiki/Write");
-        expect(await wikipediaLink("έγραψε", "el", "fr")).toBeNull();
+        expect((await wikidataQid("έγραψε", "el"))[0].value).toBe("Q123");
+        expect((await image("έγραψε", "el"))[0].value).toBe("https://example.com/thumb.jpg");
+        expect((await wikipediaLink("έγραψε", "el", "en"))[0].value).toBe("https://en.wikipedia.org/wiki/Write");
+        expect((await wikipediaLink("έγραψε", "el", "fr"))[0].value).toBeNull();
     });
 
     it("partOfSpeech and usageNotes should extract lexical boundaries", async () => {
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockResult as any);
-        expect(await partOfSpeech("έγραψε", "el")).toBe("verb");
-        expect(await usageNotes("έγραψε", "el")).toEqual(["Use carefully"]);
+        expect((await partOfSpeech("έγραψε", "el"))[0].value).toBe("verb");
+        expect((await usageNotes("έγραψε", "el"))[0].value).toEqual(["Use carefully"]);
     });
 });

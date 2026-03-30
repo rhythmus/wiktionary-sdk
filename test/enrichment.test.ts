@@ -6,7 +6,6 @@ import * as api from "../src/api";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 
-// Mock the main wiktionary function (direct imports from index)
 vi.mock("../src/index", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/index")>();
   return {
@@ -15,9 +14,6 @@ vi.mock("../src/index", async (importOriginal) => {
   };
 });
 
-// Library helpers (interwiki, pageMetadata, …) still call the real wiktionary from
-// ./index inside library.ts; partial index mocks do not replace that binding. Stub
-// the MediaWiki layer so tests never hit the network or the global request cache.
 vi.mock("../src/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/api")>();
   return {
@@ -34,11 +30,13 @@ describe("API Enrichment", () => {
       langlinks: [{ lang: "fr", title: "γράφω" }],
       info: { last_modified: "2026-03-28T00:00:00Z", length: 1234, pageid: 34918 }
     },
-    entries: [
+    lexemes: [
       {
         id: "el:γράφω#E0#verb#LEXEME",
         language: "el",
-        categories: ["Greek verbs"]
+        part_of_speech_heading: "Verb",
+        categories: ["Greek verbs"],
+        langlinks: [{ lang: "fr", title: "γράφω" }]
       }
     ]
   };
@@ -69,12 +67,10 @@ describe("API Enrichment", () => {
     expect(res.metadata).toBeDefined();
     expect(res.metadata?.categories).toBeInstanceOf(Array);
     
-    // Check global metadata
     const cats = res.metadata?.categories || [];
     expect(cats).toContain("Greek verbs");
     
-    // Check entry-specific categories
-    const entry = res.entries[0];
+    const entry = res.lexemes[0];
     expect(entry.categories).toBeDefined();
     expect(entry.categories).toContain("Greek verbs");
   });
@@ -85,9 +81,8 @@ describe("API Enrichment", () => {
     const res = await interwiki("γράφω", "el");
     expect(res).toBeInstanceOf(Array);
     expect(res.length).toBeGreaterThan(0);
-    const fr = res.find(l => l.lang === "fr");
-    expect(fr).toBeDefined();
-    expect(fr?.title).toBeDefined();
+    const frResult = res.find(r => r.value.some((l: any) => l.lang === "fr"));
+    expect(frResult).toBeDefined();
   });
 
   it("should fetch page metadata (info)", async () => {
@@ -104,9 +99,9 @@ describe("API Enrichment", () => {
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
     
     const isVerb = await isCategory("γράφω", "verbs", "el");
-    expect(isVerb).toBe(true);
+    expect(isVerb[0].value).toBe(true);
     
     const isNoun = await isCategory("γράφω", "nouns", "el");
-    expect(isNoun).toBe(false);
+    expect(isNoun[0].value).toBe(false);
   });
 });

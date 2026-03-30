@@ -19,9 +19,19 @@ vi.mock("../src/api", async (importOriginal) => {
 
 describe("morphology conjugate", () => {
     it("should scrape inflected forms from expanded conjugation table", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [{ type: "LEXEME", form: "έγραψα" }],
+            lexemes: [{
+                id: "el:έγραψα#E1#verb#LEXEME",
+                language: "el",
+                type: "LEXEME",
+                form: "έγραψα",
+                part_of_speech_heading: "Verb",
+                templates_all: [{
+                    name: "el-conjug-1st",
+                    raw: "{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ}}",
+                    params: { positional: [], named: { present: "γράφ", "a-imperfect": "έγραφ" } }
+                }]
+            }],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ}}"
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
@@ -49,38 +59,35 @@ describe("morphology conjugate", () => {
             parse: { text: { "*": mockApiHtml } }
         });
 
-        // Act & Assert 1
         const res1 = await conjugate("έγραψα", { person: "1", number: "singular", tense: "present", aspect: "imperfective", voice: "active" });
-        expect(res1).toEqual(["γράφω"]);
+        expect(res1[0].value).toEqual(["γράφω"]);
         
-        // Act & Assert 2
         const res2 = await conjugate("έγραψα", { person: "1", number: "plural", tense: "present", aspect: "imperfective", voice: "active" });
-        expect(res2).toEqual(["γράφουμε", "γράφομε"]);
+        expect(res2[0].value).toEqual(["γράφουμε", "γράφομε"]);
         
-        // Act & Assert 3 (Future derived)
         const res3 = await conjugate("έγραψα", { person: "1", number: "singular", tense: "future", aspect: "perfective", voice: "active" });
-        expect(res3).toEqual(["θα γράψω"]);
+        expect(res3[0].value).toEqual(["θα γράψω"]);
     });
 
     it("should extract grammatical properties natively with morphology()", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [
+            lexemes: [
                 { 
+                    id: "el:έγραψα#E1#verb#INFLECTED_FORM",
+                    language: "el",
                     type: "INFLECTED_FORM", 
-                    form: "έγραψα", 
+                    form: "έγραψα",
+                    part_of_speech_heading: "Verb",
                     form_of: { tags: ["1s", "spast", "ind", "act"] } 
                 }
             ]
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        // Act
         const { morphology } = await import("../src/morphology");
-        const traits = await morphology("έγραψα");
+        const results = await morphology("έγραψα");
 
-        // Assert
-        expect(traits).toEqual({
+        expect(results[0].value).toEqual({
             person: "1",
             number: "singular",
             tense: "past",
@@ -91,13 +98,20 @@ describe("morphology conjugate", () => {
     });
 
     it("should utilize smart defaults inside conjugate() based on inherent grammar", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [
+            lexemes: [
                 { 
+                    id: "el:έγραψες#E1#verb#INFLECTED_FORM",
+                    language: "el",
                     type: "INFLECTED_FORM", 
-                    form: "έγραψες", // 2nd person singular
-                    form_of: { tags: ["2s", "spast", "ind", "act"] } 
+                    form: "έγραψες",
+                    part_of_speech_heading: "Verb",
+                    form_of: { tags: ["2s", "spast", "ind", "act"] },
+                    templates_all: [{
+                        name: "el-conjug-1st",
+                        raw: "{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ}}",
+                        params: { positional: [], named: { present: "γράφ", "a-imperfect": "έγραφ" } }
+                    }]
                 }
             ],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ}}"
@@ -115,22 +129,26 @@ describe("morphology conjugate", () => {
 </table>`;
         vi.mocked(apiModule.mwFetchJson).mockResolvedValue({ parse: { text: { "*": mockApiHtml } } });
 
-        // Act: Request the plural of "έγραψες". 
-        // We do not specify tense, aspect, voice, or person. They should magically inherit from "έγραψες"!
         const res = await conjugate("έγραψες", { number: "plural" });
-
-        // Assert
-        // "έγραψες" is past, perfective, person 2. 
-        // We override number to "plural". We should get "γράψατε" (cells[2] for past perfective).
-        expect(res).toEqual(["γράψατε"]);
+        expect(res[0].value).toEqual(["γράψατε"]);
     });
 });
 
 describe("morphology decline", () => {
     it("should scrape inflected nominal forms from expanded noun/adjective tables", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [], // Lexeme fallback
+            lexemes: [{
+                id: "el:άνθρωπος#E1#noun#LEXEME",
+                language: "el",
+                type: "LEXEME",
+                form: "άνθρωπος",
+                part_of_speech_heading: "Noun",
+                templates_all: [{
+                    name: "el-nM-ος-οι-3b",
+                    raw: "{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}",
+                    params: { positional: ["άνθρωπ", "ανθρώπ"], named: {} }
+                }]
+            }],
             rawLanguageBlock: "==Greek==\n===Noun===\n{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}"
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
@@ -155,15 +173,10 @@ describe("morphology decline", () => {
 </table>`;
         vi.mocked(apiModule.mwFetchJson).mockResolvedValue({ parse: { text: { "*": mockApiHtml } } });
 
-        // Act & Assert 1
-        const res1 = await decline("άνθρωπος", { case: "vocative" }); // fallback 1st col singular since vocative missing in mock! 
-        // Wait, if vocative row is missing, it returns []. Let's test accusative.
         const res2 = await decline("άνθρωπος", { case: "accusative", number: "plural" });
-        expect(res2).toEqual(["ανθρώπους"]);
+        expect(res2[0].value).toEqual(["ανθρώπους"]);
         
-        // Act & Assert 3
         const res3 = await decline("άνθρωπος", { case: "genitive", number: "singular" });
-        expect(res3).toEqual(["ανθρώπου"]);
+        expect(res3[0].value).toEqual(["ανθρώπου"]);
     });
 });
-

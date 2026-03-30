@@ -3,8 +3,25 @@ import { mwFetchJson } from "./api";
 import { stripWikiMarkup } from "./registry";
 import { morphology as getMorphology, conjugate as runConjugate, decline as runDecline } from "./morphology";
 import { commonsThumbUrl } from "./utils";
-import type { WikiLang, FetchResult, Entry, RichEntry } from "./types";
+import type { WikiLang, FetchResult, Lexeme, LexemeResult, RichEntry } from "./types";
 import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
+
+/**
+ * Maps over all lexemes in a FetchResult, applying an extractor to each
+ * and tagging the output with lexeme identity metadata.
+ */
+export function mapLexemes<T>(
+    result: FetchResult,
+    extractor: (lexeme: Lexeme) => T
+): LexemeResult<T>[] {
+    return result.lexemes.map(lexeme => ({
+        lexeme_id: lexeme.id,
+        language: lexeme.language,
+        pos: lexeme.part_of_speech_heading || lexeme.part_of_speech || "unknown",
+        etymology_index: lexeme.etymology_index,
+        value: extractor(lexeme),
+    }));
+}
 
 export interface TranslationOptions {
     /** 
@@ -15,39 +32,34 @@ export interface TranslationOptions {
 }
 
 /**
- * Helper to find the "Main" entry of a word result, skipping meta-entries like Pronunciation
- * or Etymology sections that don't carry primary definitions.
+ * Helper to find the primary lexeme of a word result.
+ * Kept as a public utility for callers who explicitly want single-lexeme shortcutting.
  */
-export function getMainLexeme(result: FetchResult): Entry | null {
-    if (!result.entries || result.entries.length === 0) return null;
+export function getMainLexeme(result: FetchResult): Lexeme | null {
+    if (!result.lexemes || result.lexemes.length === 0) return null;
     
-    // 1. Priority: The first entry that has an explicit part_of_speech tag
-    const posEntry = result.entries.find(e => e.part_of_speech !== undefined && e.part_of_speech !== null);
-    if (posEntry) return posEntry;
+    const posLexeme = result.lexemes.find(e => e.part_of_speech !== undefined && e.part_of_speech !== null);
+    if (posLexeme) return posLexeme;
 
-    // 2. Secondary: The first LEXEME that isn't just a meta-heading
     const metaHeadings = ["pronunciation", "etymology", "references", "anagrams"];
-    const mainLexeme = result.entries.find(e => 
+    const mainLexeme = result.lexemes.find(e => 
         e.type === "LEXEME" && 
         !metaHeadings.includes((e.part_of_speech_heading || "").toLowerCase())
     );
     if (mainLexeme) return mainLexeme;
 
-    // 3. Fallback: Take the first Lexeme or first exact form
-    return result.entries.find(e => e.type === "LEXEME") || result.entries[0] || null;
+    return result.lexemes.find(e => e.type === "LEXEME") || result.lexemes[0] || null;
 }
 
 /**
  * Returns the canonical dictionary form (lemma) of an inflected word.
+ * Stays scalar — this is a form-resolution utility, not a data-extraction wrapper.
  */
 export async function lemma(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
     
-    // We want to be smart about Auto-discovery.
-    // 1. If the query is a LEXEME in a high-priority language (Greek, English), it's likely the lemma.
-    // We skip meta-headings like "Alternative forms" or "Anagrams" which might exist for the inflected form.
     const metaHeadings = ["pronunciation", "etymology", "references", "anagrams", "alternative forms"];
-    const highPriorityLexeme = result.entries.find(e => 
+    const highPriorityLexeme = result.lexemes.find(e => 
         e.type === "LEXEME" && 
         e.form === query && 
         (e.language === "el" || e.language === "grc" || e.language === "en") &&
@@ -55,14 +67,12 @@ export async function lemma(query: string, sourceLang: WikiLang = "Auto", pos: s
     );
     if (highPriorityLexeme) return query;
 
-    // 2. Otherwise, if it's an INFLECTED_FORM (e.g. "banks" -> "bank"), resolve it.
-    const inflected = result.entries.find(e => e.type === "INFLECTED_FORM" && e.form === query);
+    const inflected = result.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
     if (inflected && inflected.form_of?.lemma) {
         return inflected.form_of.lemma;
     }
 
-    // 3. Last resort: if it's a LEXEME in any other language, it's the lemma.
-    const anyLexeme = result.entries.find(e => 
+    const anyLexeme = result.lexemes.find(e => 
         e.type === "LEXEME" && 
         e.form === query &&
         !metaHeadings.includes((e.part_of_speech_heading || "").toLowerCase())
@@ -81,92 +91,90 @@ export async function translate(
     targetLang: string = "en",
     options: TranslationOptions = { mode: "gloss" },
     pos: string = "Auto"
-): Promise<string[]> {
+): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
 
     if (options.mode === "senses") {
         if (targetLang === "en") {
             const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-            const lexeme = getMainLexeme(result);
-            if (!lexeme || !lexeme.senses) return [];
-            return lexeme.senses.map((s: any) => s.gloss);
+            return mapLexemes(result, lexeme =>
+                lexeme.senses?.map((s: any) => s.gloss) || []
+            );
         } else {
-            return await getNativeSenses(lemmaStr, sourceLang, targetLang);
+            const senses = await getNativeSenses(lemmaStr, sourceLang, targetLang);
+            return [{ lexeme_id: "native-senses", language: sourceLang, pos: "unknown", value: senses }];
         }
     }
 
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.translations) return [];
-
-    const targetTranslations = lexeme.translations[targetLang] || [];
-    return targetTranslations.map((tr: any) => tr.term);
+    return mapLexemes(result, lexeme => {
+        const targetTranslations = lexeme.translations?.[targetLang] || [];
+        return targetTranslations.map((tr: any) => tr.term);
+    });
 }
 
 /**
  * Retrieves synonyms for a term.
  */
-export async function synonyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function synonyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.semantic_relations?.synonyms) return [];
-    return lexeme.semantic_relations.synonyms.map(s => s.term);
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.synonyms?.map(s => s.term) || []
+    );
 }
 
 /**
  * Retrieves antonyms for a term.
  */
-export async function antonyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function antonyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.semantic_relations?.antonyms) return [];
-    return lexeme.semantic_relations.antonyms.map(s => s.term);
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.antonyms?.map(s => s.term) || []
+    );
 }
 
 /**
  * Retrieves hypernyms for a term.
  */
-export async function hypernyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function hypernyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.semantic_relations?.hypernyms) return [];
-    return lexeme.semantic_relations.hypernyms.map(h => h.term);
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.hypernyms?.map(h => h.term) || []
+    );
 }
 
 /**
  * Retrieves hyponyms for a term.
  */
-export async function hyponyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function hyponyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.semantic_relations?.hyponyms) return [];
-    return lexeme.semantic_relations.hyponyms.map(h => h.term);
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.hyponyms?.map(h => h.term) || []
+    );
 }
 
 /**
  * Extracts the primary IPA transcription or audio file.
  */
-export async function pronounce(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+export async function pronounce(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = result.entries.find(e => e.pronunciation?.audio_url || e.pronunciation?.audio || e.pronunciation?.IPA);
-    if (!lexeme) return null;
-    return lexeme.pronunciation?.audio_url || lexeme.pronunciation?.audio || lexeme.pronunciation?.IPA || null;
+    return mapLexemes(result, lexeme =>
+        lexeme.pronunciation?.audio_url || lexeme.pronunciation?.audio || lexeme.pronunciation?.IPA || null
+    );
 }
 
 /**
  * Extracts the primary IPA transcription.
  */
-export async function ipa(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+export async function ipa(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const exact = result.entries.find(e => e.form === query && e.pronunciation?.IPA);
-    if (exact) return exact.pronunciation!.IPA ?? null;
-    
-    const lexeme = result.entries.find(e => e.pronunciation?.IPA);
-    return lexeme?.pronunciation?.IPA || null;
+    return mapLexemes(result, lexeme =>
+        lexeme.pronunciation?.IPA || null
+    );
 }
 
 export const phonetic = ipa;
@@ -174,38 +182,42 @@ export const phonetic = ipa;
 /**
  * Returns the hyphenation (syllables).
  */
-export async function hyphenate(query: string, sourceLang: WikiLang = "Auto", options: { separator?: string, format?: "string" | "array" } = {}, pos: string = "Auto"): Promise<any> {
+export async function hyphenate(query: string, sourceLang: WikiLang = "Auto", options: { separator?: string, format?: "string" | "array" } = {}, pos: string = "Auto"): Promise<LexemeResult<any>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const exact = result.entries.find(e => e.form === query && e.hyphenation?.syllables);
-    const syllables = exact?.hyphenation?.syllables || result.entries.find(e => e.hyphenation?.syllables)?.hyphenation?.syllables || null;
-
-    if (!syllables) return null;
-    if (options.format === "array") return syllables;
-    if (options.separator || options.format === "string") return syllables.join(options.separator || "-");
-    return syllables; // Default is array now per README, but keeping backward compatibility logic if needed.
+    return mapLexemes(result, lexeme => {
+        const syllables = lexeme.hyphenation?.syllables || null;
+        if (!syllables) return null;
+        if (options.format === "array") return syllables;
+        if (options.separator || options.format === "string") return syllables.join(options.separator || "-");
+        return syllables;
+    });
 }
 
 /**
  * Returns the number of syllables.
  */
-export async function syllableCount(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<number> {
-    const syllables = await hyphenate(query, sourceLang, { format: "array" }, pos);
-    return syllables ? syllables.length : 0;
+export async function syllableCount(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<number>[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme => {
+        const syllables = lexeme.hyphenation?.syllables;
+        return syllables ? syllables.length : 0;
+    });
 }
 
 /**
  * Returns the normalized structural identifier (e.g., "verb", "noun").
  */
-export async function partOfSpeech(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+export async function partOfSpeech(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.part_of_speech || lexeme?.part_of_speech_heading || null;
+    return mapLexemes(result, lexeme =>
+        lexeme.part_of_speech || lexeme.part_of_speech_heading || null
+    );
 }
 
 /**
  * Retrieves the morphology traits of the word.
  */
-export async function morphology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Partial<GrammarTraits>> {
+export async function morphology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<Partial<GrammarTraits>>[]> {
     return getMorphology(query, sourceLang, pos);
 }
 
@@ -213,9 +225,7 @@ export async function morphology(query: string, sourceLang: WikiLang = "Auto", p
  * Conjugates a verb based on criteria. Returns null if the word is not a verb.
  * If no criteria are provided, returns the full conjugation table.
  */
-export async function conjugate(query: string, sourceLang: WikiLang = "Auto", criteria: Partial<ConjugateCriteria> = {}): Promise<string[] | Record<string, any> | null> {
-    const pos = (await partOfSpeech(query, sourceLang, "verb"))?.toLowerCase() || "";
-    if (!pos.includes("verb") && !pos.includes("\u03c1\u03ae\u03bc\u03b1")) return null; // \u03c1\u03ae\u03bc\u03b1 = \u03c1\u03ae\u03bc\u03b1 (Greek for verb)
+export async function conjugate(query: string, sourceLang: WikiLang = "Auto", criteria: Partial<ConjugateCriteria> = {}): Promise<LexemeResult<string[] | Record<string, any> | null>[]> {
     return runConjugate(query, criteria, sourceLang);
 }
 
@@ -223,10 +233,7 @@ export async function conjugate(query: string, sourceLang: WikiLang = "Auto", cr
  * Declines a nominal (noun, adj, etc.) based on criteria. Returns null if not a nominal.
  * If no criteria are provided, returns the full declension table.
  */
-export async function decline(query: string, sourceLang: WikiLang = "Auto", criteria: Partial<DeclineCriteria> = {}): Promise<string[] | Record<string, any> | null> {
-    const pos = (await partOfSpeech(query, sourceLang))?.toLowerCase() || "";
-    const nominals = ["noun", "adjective", "proper_noun", "pronoun", "article", "numeral", "participle", "proper noun"];
-    if (pos && !nominals.some(n => pos.includes(n))) return null;
+export async function decline(query: string, sourceLang: WikiLang = "Auto", criteria: Partial<DeclineCriteria> = {}): Promise<LexemeResult<string[] | Record<string, any> | null>[]> {
     return runDecline(query, criteria, sourceLang);
 }
 
@@ -234,68 +241,56 @@ export async function decline(query: string, sourceLang: WikiLang = "Auto", crit
  * Produces a high-fidelity dictionary entry object containing all extracted 
  * linguistic data for a given term.
  */
-export async function richEntry(query: string, lang: WikiLang = "Auto", pos: string = "Auto"): Promise<RichEntry | null> {
+export async function richEntry(query: string, lang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<RichEntry | null>[]> {
     const originalResult = await wiktionary({ query, lang, pos });
-    const inflectedForm = originalResult.entries.find(e => e.type === "INFLECTED_FORM" && e.form === query);
+    const inflectedForm = originalResult.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
     
     const lemmaStr = await lemma(query, lang, pos);
     const result = await wiktionary({ query: lemmaStr, lang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme) return null;
 
-    const entryPos = (lexeme.part_of_speech || lexeme.part_of_speech_heading || "unknown").toLowerCase();
+    return mapLexemes(result, lexeme => {
+        const entryPos = (lexeme.part_of_speech || lexeme.part_of_speech_heading || "unknown").toLowerCase();
 
-    // Optimize: Most data is already in lexeme. Just pull it.
-    const morph = await morphology(query, lang, pos);
-    
-    const syns = lexeme.semantic_relations?.synonyms?.map(s => ({ term: s.term })) || [];
-    const ants = lexeme.semantic_relations?.antonyms?.map(a => ({ term: a.term })) || [];
-    
-    // For inflection, we still call the conjugates/decline as they handle DOM scraping
-    let infl = null;
-    if (entryPos === "verb") {
-        infl = await runConjugate(query, {}, lang);
-    } else if (["noun", "adjective", "proper noun"].some(p => entryPos.includes(p))) {
-        infl = await runDecline(query, {}, lang);
-    }
+        const syns = lexeme.semantic_relations?.synonyms?.map(s => ({ term: s.term })) || [];
+        const ants = lexeme.semantic_relations?.antonyms?.map(a => ({ term: a.term })) || [];
 
-    return {
-        headword: inflectedForm ? query : lexeme.form,
-        type: inflectedForm ? "INFLECTED_FORM" : "LEXEME",
-        form_of: inflectedForm?.form_of,
-        pos: entryPos,
-        morphology: {
-            ...morph,
-            aspect: lexeme.headword_morphology?.aspect,
-            voice: lexeme.headword_morphology?.voice,
-        },
-        headword_morphology: lexeme.headword_morphology,
-        pronunciation: lexeme.pronunciation,
-        hyphenation: lexeme.hyphenation,
-        etymology: lexeme.etymology,
-        senses: lexeme.senses,
-        relations: {
-            synonyms: syns,
-            antonyms: ants,
-            coordinate_terms: lexeme.semantic_relations?.coordinate_terms?.map(c => ({ term: c.term })),
-            holonyms: lexeme.semantic_relations?.holonyms?.map(h => ({ term: h.term })),
-            meronyms: lexeme.semantic_relations?.meronyms?.map(m => ({ term: m.term })),
-            troponyms: lexeme.semantic_relations?.troponyms?.map(t => ({ term: t.term })),
-        },
-        derived_terms: lexeme.derived_terms,
-        related_terms: lexeme.related_terms,
-        descendants: lexeme.descendants,
-        usage_notes: lexeme.usage_notes,
-        references: lexeme.references,
-        inflection_table: infl as any,
-        translations: lexeme.translations,
-        wikidata: lexeme.wikidata ? {
-            ...lexeme.wikidata,
-            subclass_of: lexeme.wikidata.subclass_of,
-        } : undefined,
-        images: lexeme.images,
-        source: lexeme.source.wiktionary
-    };
+        return {
+            headword: inflectedForm ? query : lexeme.form,
+            type: inflectedForm ? "INFLECTED_FORM" as const : "LEXEME" as const,
+            form_of: inflectedForm?.form_of,
+            pos: entryPos,
+            morphology: {
+                aspect: lexeme.headword_morphology?.aspect,
+                voice: lexeme.headword_morphology?.voice,
+            },
+            headword_morphology: lexeme.headword_morphology,
+            pronunciation: lexeme.pronunciation,
+            hyphenation: lexeme.hyphenation,
+            etymology: lexeme.etymology,
+            senses: lexeme.senses,
+            relations: {
+                synonyms: syns,
+                antonyms: ants,
+                coordinate_terms: lexeme.semantic_relations?.coordinate_terms?.map(c => ({ term: c.term })),
+                holonyms: lexeme.semantic_relations?.holonyms?.map(h => ({ term: h.term })),
+                meronyms: lexeme.semantic_relations?.meronyms?.map(m => ({ term: m.term })),
+                troponyms: lexeme.semantic_relations?.troponyms?.map(t => ({ term: t.term })),
+            },
+            derived_terms: lexeme.derived_terms,
+            related_terms: lexeme.related_terms,
+            descendants: lexeme.descendants,
+            usage_notes: lexeme.usage_notes,
+            references: lexeme.references,
+            inflection_table: null as any,
+            translations: lexeme.translations,
+            wikidata: lexeme.wikidata ? {
+                ...lexeme.wikidata,
+                subclass_of: lexeme.wikidata.subclass_of,
+            } : undefined,
+            images: lexeme.images,
+            source: lexeme.source.wiktionary
+        };
+    });
 }
 
 export interface EtymologyStep {
@@ -319,15 +314,10 @@ function resolveLangCode(code: string): string {
     return code;
 }
 
-export async function etymology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<EtymologyStep[] | null> {
-    const lemmaStr = await lemma(query, sourceLang, pos);
-    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.etymology) return null;
-    // Support both new `chain` and legacy `links` field
+function extractEtymologySteps(lexeme: Lexeme): EtymologyStep[] | null {
+    if (!lexeme.etymology) return null;
     const links = (lexeme.etymology as any).chain || (lexeme.etymology as any).links;
     if (!links || links.length === 0) return null;
-
     const output: EtymologyStep[] = [];
     for (const link of links) {
         if (!link.term) continue;
@@ -336,28 +326,33 @@ export async function etymology(query: string, sourceLang: WikiLang = "Auto", po
     return output.length > 0 ? output : null;
 }
 
-export async function wikidataQid(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+export async function etymology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<EtymologyStep[] | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.wikidata?.qid || null;
+    return mapLexemes(result, extractEtymologySteps);
 }
 
-export async function image(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+export async function wikidataQid(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.wikidata?.media?.thumbnail || null;
+    return mapLexemes(result, lexeme => lexeme.wikidata?.qid || null);
 }
 
-export async function wikipediaLink(query: string, sourceLang: WikiLang = "Auto", targetWikiLang: WikiLang = "en", pos: string = "Auto"): Promise<string | null> {
+export async function image(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.wikidata?.sitelinks) return null;
-    const sitelinkKey = targetWikiLang + "wiki";
-    const link = (lexeme.wikidata.sitelinks as Record<string, any>)[sitelinkKey];
-    return link?.url || null;
+    return mapLexemes(result, lexeme => lexeme.wikidata?.media?.thumbnail || null);
+}
+
+export async function wikipediaLink(query: string, sourceLang: WikiLang = "Auto", targetWikiLang: WikiLang = "en", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme => {
+        if (!lexeme.wikidata?.sitelinks) return null;
+        const sitelinkKey = targetWikiLang + "wiki";
+        const link = (lexeme.wikidata.sitelinks as Record<string, any>)[sitelinkKey];
+        return link?.url || null;
+    });
 }
 
 /**
@@ -368,13 +363,17 @@ export const interwiki = langlinks;
 /**
  * Checks if a word belongs to a specific category.
  */
-export async function isCategory(query: string, categoryName: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<boolean> {
-    const cats = await categories(query, sourceLang, pos);
-    return cats.some(c => c.toLowerCase().includes(categoryName.toLowerCase()));
+export async function isCategory(query: string, categoryName: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<boolean>[]> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme =>
+        (lexeme.categories || []).some(c => c.toLowerCase().includes(categoryName.toLowerCase()))
+    );
 }
 
 /**
  * Retrieves page-level metadata from the API.
+ * Stays scalar — metadata is inherently about the page, not a specific lexeme.
  */
 export async function pageMetadata(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any> {
     const lemmaStr = await lemma(query, sourceLang, pos);
@@ -385,84 +384,77 @@ export async function pageMetadata(query: string, sourceLang: WikiLang = "Auto",
 /**
  * Retrieves the principal paradigm forms of a verb (e.g. simple_past, future_active).
  */
-export async function principalParts(query: string, sourceLang: WikiLang = "Auto"): Promise<Record<string, string> | null> {
+export async function principalParts(query: string, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<Record<string, string> | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, "verb");
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos: "verb" });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.headword_morphology?.principal_parts || null;
+    return mapLexemes(result, lexeme => lexeme.headword_morphology?.principal_parts || null);
 }
 
 /**
  * Returns the grammatical gender of a nominal (noun, adjective, etc.).
  */
-export async function gender(query: string, sourceLang: WikiLang = "Auto"): Promise<"masculine" | "feminine" | "neuter" | null> {
+export async function gender(query: string, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<"masculine" | "feminine" | "neuter" | null>[]> {
     const lemmaStr = await lemma(query, sourceLang);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.headword_morphology?.gender || null;
+    return mapLexemes(result, lexeme => lexeme.headword_morphology?.gender || null);
 }
 
 /**
  * Returns all rhyming words listed for the term.
  */
-export async function rhymes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function rhymes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = result.entries.find(e => e.pronunciation?.rhymes);
-    return lexeme?.pronunciation?.rhymes || [];
+    return mapLexemes(result, lexeme => lexeme.pronunciation?.rhymes || []);
 }
 
 /**
  * Returns all homophones listed for the term.
  */
-export async function homophones(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function homophones(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = result.entries.find(e => e.pronunciation?.homophones);
-    return lexeme?.pronunciation?.homophones || [];
+    return mapLexemes(result, lexeme => lexeme.pronunciation?.homophones || []);
 }
 
 /**
  * Returns a list of all images used on the Wiktionary page and the primary Wikidata image.
  */
-export async function allImages(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function allImages(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    const images: string[] = [];
-    if (lexeme?.wikidata?.media?.thumbnail) images.push(lexeme.wikidata.media.thumbnail);
-    if (lexeme?.images) {
-        for (const img of lexeme.images) {
-            images.push(commonsThumbUrl(img, 420));
+    return mapLexemes(result, lexeme => {
+        const images: string[] = [];
+        if (lexeme.wikidata?.media?.thumbnail) images.push(lexeme.wikidata.media.thumbnail);
+        if (lexeme.images) {
+            for (const img of lexeme.images) {
+                images.push(commonsThumbUrl(img, 420));
+            }
         }
-    }
-    return Array.from(new Set(images));
+        return Array.from(new Set(images));
+    });
 }
 
 /**
  * Returns all external links found on the page.
  */
-export async function externalLinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function externalLinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.external_links || [];
+    return mapLexemes(result, lexeme => lexeme.external_links || []);
 }
 
 /**
  * Returns all Wiktionary term titles linked from this article.
  */
-export async function internalLinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function internalLinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.page_links || [];
+    return mapLexemes(result, lexeme => lexeme.page_links || []);
 }
 
 /**
  * Returns detailed audio objects with URLs and dialect labels.
- * Returns the full gallery if multiple files exist.
  */
-export async function audioGallery(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Array<{ url: string; label?: string; filename: string }>> {
+export async function audioGallery(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<Array<{ url: string; label?: string; filename: string }>>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = result.entries.find(e => e.pronunciation?.audio_details);
-    return lexeme?.pronunciation?.audio_details || [];
+    return mapLexemes(result, lexeme => lexeme.pronunciation?.audio_details || []);
 }
 
 /** @deprecated Use audioGallery instead. */
@@ -471,102 +463,112 @@ export const audioDetails = audioGallery;
 /**
  * Returns structured usage examples (prose + metadata).
  */
-export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    if (!lexeme || !lexeme.senses) return [];
-    const examples: any[] = [];
-    for (const sense of lexeme.senses) {
-        if (sense.examples) {
-            for (const ex of sense.examples) {
-                if (typeof ex === "object") examples.push(ex);
+    return mapLexemes(result, lexeme => {
+        if (!lexeme.senses) return [];
+        const examples: any[] = [];
+        for (const sense of lexeme.senses) {
+            if (sense.examples) {
+                for (const ex of sense.examples) {
+                    if (typeof ex === "object") examples.push(ex);
+                }
             }
         }
-    }
-    return examples;
+        return examples;
+    });
 }
 
 /**
  * Returns literary citations (entries using {{quote}} templates).
  */
-export async function citations(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
-    const examples = await exampleDetails(query, sourceLang, pos);
-    return examples.filter(ex => ex.raw?.toLowerCase().includes("{{quote"));
+export async function citations(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme => {
+        if (!lexeme.senses) return [];
+        const examples: any[] = [];
+        for (const sense of lexeme.senses) {
+            if (sense.examples) {
+                for (const ex of sense.examples) {
+                    if (typeof ex === "object") examples.push(ex);
+                }
+            }
+        }
+        return examples.filter(ex => ex.raw?.toLowerCase().includes("{{quote"));
+    });
 }
 
 /**
  * Checks if a Wikidata item is an instance of a specific QID.
  */
-export async function isInstance(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<boolean> {
+export async function isInstance(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<boolean>[]> {
     const result = await wiktionary({ query, lang: sourceLang });
-    const lexeme = getMainLexeme(result);
-    return (lexeme?.wikidata?.instance_of || []).includes(qid);
+    return mapLexemes(result, lexeme =>
+        (lexeme.wikidata?.instance_of || []).includes(qid)
+    );
 }
 
 /**
  * Checks if a Wikidata item is a subclass of a specific QID (P279).
  */
-export async function isSubclass(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<boolean> {
+export async function isSubclass(query: string, qid: string, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<boolean>[]> {
     const result = await wiktionary({ query, lang: sourceLang });
-    const lexeme = getMainLexeme(result);
-    return (lexeme?.wikidata?.subclass_of || []).includes(qid);
+    return mapLexemes(result, lexeme =>
+        (lexeme.wikidata?.subclass_of || []).includes(qid)
+    );
 }
 
 /**
  * Returns the transitivity of a verb.
  */
-export async function transitivity(query: string, sourceLang: WikiLang = "Auto"): Promise<"transitive" | "intransitive" | "both" | null> {
+export async function transitivity(query: string, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<"transitive" | "intransitive" | "both" | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, "verb");
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos: "verb" });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.headword_morphology?.transitivity || null;
+    return mapLexemes(result, lexeme => lexeme.headword_morphology?.transitivity || null);
 }
 
 /**
  * Returns the alternative forms listed for a word.
  */
-export async function alternativeForms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<Array<{ term: string; qualifier?: string }>> {
+export async function alternativeForms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<Array<{ term: string; qualifier?: string }>>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return (lexeme?.alternative_forms || []).map(f => ({ term: f.term, qualifier: f.qualifier }));
+    return mapLexemes(result, lexeme =>
+        (lexeme.alternative_forms || []).map(f => ({ term: f.term, qualifier: f.qualifier }))
+    );
 }
 
 /**
  * Returns terms from the See also section.
  */
-export async function seeAlso(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function seeAlso(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.see_also || [];
+    return mapLexemes(result, lexeme => lexeme.see_also || []);
 }
 
-export async function anagrams(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function anagrams(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.anagrams || [];
+    return mapLexemes(result, lexeme => lexeme.anagrams || []);
 }
 
 /**
  * Returns usage notes for the word.
  */
-export async function usageNotes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function usageNotes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.usage_notes || [];
+    return mapLexemes(result, lexeme => lexeme.usage_notes || []);
 }
 
 /**
  * Returns derived terms for the word.
  */
-export async function derivedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function derivedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.derived_terms?.items || [];
+    return mapLexemes(result, lexeme => lexeme.derived_terms?.items || []);
 }
 
 /** Semantic alias for {@link derivedTerms} (identical behavior and return type). */
@@ -575,95 +577,85 @@ export const derivations = derivedTerms;
 /**
  * Returns related terms for the word.
  */
-export async function relatedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function relatedTerms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.related_terms?.items || [];
+    return mapLexemes(result, lexeme => lexeme.related_terms?.items || []);
 }
 
 /**
  * Returns descendants for the word.
  */
-export async function descendants(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function descendants(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.descendants?.items || [];
+    return mapLexemes(result, lexeme => lexeme.descendants?.items || []);
 }
 
 /**
  * Returns references for the word.
  */
-export async function referencesSection(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function referencesSection(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.references || [];
+    return mapLexemes(result, lexeme => lexeme.references || []);
 }
 
 /**
  * Returns the etymology chain (ancestors).
  */
-export async function etymologyChain(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function etymologyChain(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.etymology?.chain || [];
+    return mapLexemes(result, lexeme => lexeme.etymology?.chain || []);
 }
 
 /**
  * Returns cognates extracted from etymology.
  */
-export async function etymologyCognates(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function etymologyCognates(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.etymology?.cognates || [];
+    return mapLexemes(result, lexeme => lexeme.etymology?.cognates || []);
 }
 
 /**
  * Returns the raw etymology text.
  */
-export async function etymologyText(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string | null> {
+export async function etymologyText(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.etymology?.raw_text || null;
+    return mapLexemes(result, lexeme => lexeme.etymology?.raw_text || null);
 }
 
 /**
  * Returns categories for the word (filtered by language section).
  */
-export async function categories(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string[]> {
+export async function categories(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.categories || [];
+    return mapLexemes(result, lexeme => lexeme.categories || []);
 }
 
 /**
  * Returns links to other Wiktionary editions.
  */
-export async function langlinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<any[]> {
+export async function langlinks(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<any[]>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.langlinks || [];
+    return mapLexemes(result, lexeme => lexeme.langlinks || []);
 }
 
 /**
  * Returns the name of the inflection template used for this word.
  */
-export async function inflectionTableRef(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<{ template_name: string; raw: string } | null> {
+export async function inflectionTableRef(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<{ template_name: string; raw: string } | null>[]> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    const lexeme = getMainLexeme(result);
-    return lexeme?.inflection_table_ref || null;
+    return mapLexemes(result, lexeme => lexeme.inflection_table_ref || null);
 }
 
 async function getNativeSenses(query: string, sourceLang: WikiLang, targetLang: string): Promise<string[]> {
-    // ... existing implementation ...
     try {
         const origin = `https://${targetLang}.wiktionary.org/w/api.php`;
         const j = await mwFetchJson(origin, {

@@ -15,7 +15,6 @@ vi.mock("../src/index", async (importOriginal) => {
     };
 });
 
-// stem() calls lemma() first; lemma uses the real wiktionary from library.ts.
 vi.mock("../src/api", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/api")>();
     return {
@@ -73,17 +72,29 @@ describe("stem extraction", () => {
     });
 
     it("should extract grammatical stems faithfully from native verb templates", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [{ type: "LEXEME", form: "γράφω" }],
+            lexemes: [{
+                id: "el:γράφω#E1#verb#LEXEME",
+                language: "el",
+                type: "LEXEME",
+                form: "γράφω",
+                part_of_speech_heading: "Verb",
+                templates_all: [{
+                    name: "el-conjug-1st",
+                    raw: "{{el-conjug-1st|augmented=1|present=γράφ|a-imperfect=έγραφ|a-dependent=γράψ}}",
+                    params: {
+                        positional: [],
+                        named: { augmented: "1", present: "γράφ", "a-imperfect": "έγραφ", "a-dependent": "γράψ" }
+                    }
+                }]
+            }],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|augmented=1|present=γράφ|a-imperfect=έγραφ|a-dependent=γράψ}}"
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        // Act
-        const stems = await stem("γράφω");
-
-        // Assert
+        const results = await stem("γράφω");
+        expect(results).toHaveLength(1);
+        const stems = results[0].value;
         expect(stems.verb).toBeDefined();
         expect(stems.verb?.present).toEqual(["γράφ"]);
         expect(stems.verb?.imperfect).toEqual(["έγραφ"]);
@@ -92,34 +103,56 @@ describe("stem extraction", () => {
     });
 
     it("should extract positional stems natively from noun declension templates", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [{ type: "LEXEME", form: "άνθρωπος" }],
+            lexemes: [{
+                id: "el:άνθρωπος#E1#noun#LEXEME",
+                language: "el",
+                type: "LEXEME",
+                form: "άνθρωπος",
+                part_of_speech_heading: "Noun",
+                templates_all: [{
+                    name: "el-nM-ος-οι-3b",
+                    raw: "{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}",
+                    params: {
+                        positional: ["άνθρωπ", "ανθρώπ"],
+                        named: {}
+                    }
+                }]
+            }],
             rawLanguageBlock: "==Greek==\n===Noun===\n{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}"
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        // Act
-        const stems = await stem("άνθρωπος");
-
-        // Assert
+        const results = await stem("άνθρωπος");
+        const stems = results[0].value;
         expect(stems.verb).toBeUndefined();
         expect(stems.nominals).toEqual(["άνθρωπ", "ανθρώπ"]);
         expect(stems.aliases).toEqual(expect.arrayContaining(["άνθρωπ", "ανθρώπ"]));
     });
 
     it("should extract stems accurately from adjective templates featuring named stem parameters", async () => {
-        // Arrange
         const mockFetchWiktionaryResult = {
-            entries: [{ type: "LEXEME", form: "καλός" }],
+            lexemes: [{
+                id: "el:καλός#E1#adj#LEXEME",
+                language: "el",
+                type: "LEXEME",
+                form: "καλός",
+                part_of_speech_heading: "Adjective",
+                templates_all: [{
+                    name: "el-decl-adj",
+                    raw: "{{el-decl-adj|dec=ός-ή-ό|stem=καλ}}",
+                    params: {
+                        positional: [],
+                        named: { dec: "ός-ή-ό", stem: "καλ" }
+                    }
+                }]
+            }],
             rawLanguageBlock: "==Greek==\n===Adjective===\n{{el-decl-adj|dec=ός-ή-ό|stem=καλ}}"
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        // Act
-        const stems = await stem("καλός");
-
-        // Assert
+        const results = await stem("καλός");
+        const stems = results[0].value;
         expect(stems.verb).toBeUndefined();
         expect(stems.nominals).toEqual(["καλ"]);
         expect(stems.aliases).toEqual(["καλ"]);

@@ -15,6 +15,7 @@
  *   --extract, -x    Extract specific data using convenience wrapper APIs
  *   --target, -t     Target language (used for translate, wikipediaLink)
  *   --props          JSON object string to pass criteria/options
+ *   --sort, -s       Lexeme sort order: source | priority (default: source)
  *   --batch, -b      Path to a CSV or JSON file with terms to process
  *   --output, -o     Output file path (default: stdout)
  *   --help, -h       Show this help message
@@ -31,6 +32,7 @@ interface CliOptions {
   format: "yaml" | "json" | "ansi";
   preferredPos?: string;
   enrich: boolean;
+  sort: "source" | "priority";
   extract?: string;
   targetLang?: string;
   props?: any;
@@ -45,6 +47,7 @@ function parseArgs(argv: string[]): CliOptions {
     lang: "el",
     format: "yaml",
     enrich: true,
+    sort: "source",
   };
 
   let i = 0;
@@ -78,6 +81,13 @@ function parseArgs(argv: string[]): CliOptions {
         console.error("Invalid JSON passed to --props");
         process.exit(1);
       }
+    } else if (arg === "--sort" || arg === "-s") {
+      const s = args[++i];
+      if (s !== "source" && s !== "priority") {
+        console.error(`Unknown sort order: ${s}. Use 'source' or 'priority'.`);
+        process.exit(1);
+      }
+      opts.sort = s;
     } else if (arg === "--batch" || arg === "-b") {
       opts.batchFile = args[++i];
     } else if (arg === "--output" || arg === "-o") {
@@ -207,6 +217,7 @@ async function main(): Promise<void> {
             lang: opts.lang,
             preferredPos: opts.preferredPos,
             enrich: opts.enrich,
+            sort: opts.sort,
           });
       }
       
