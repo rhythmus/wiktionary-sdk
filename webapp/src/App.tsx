@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { Search, ChevronRight, Image as ImageIcon, Loader2, AlertCircle, Languages, Bug, Columns2, X, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import yaml from 'js-yaml';
@@ -17,7 +17,7 @@ function langName(lang: string) {
   const m: Record<string, string> = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
   return m[lang] || lang;
 }
-import type { Entry, WikiLang, DecoderDebugEvent } from '@engine/types';
+import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/types';
 import { format } from '@engine/formatter';
 
 // ── SDK method registry ──────────────────────────────────────────────────────
@@ -71,24 +71,24 @@ const DEFAULT_PILLS = ['{}'];
 
 // ── Static data ──────────────────────────────────────────────────────────────
 const LANGUAGES = [
-  { value: 'Auto', label: 'Auto', flag: '🌍' },
-  { value: 'el', label: 'Greek', flag: '🇬🇷' },
-  { value: 'grc', label: 'Ancient Greek', flag: '🏛️' },
-  { value: 'en', label: 'English', flag: '🇬🇧' },
-  { value: 'nl', label: 'Dutch', flag: '🇳🇱' },
-  { value: 'de', label: 'German', flag: '🇩🇪' },
-  { value: 'fr', label: 'French', flag: '🇫🇷' },
-];
+  { value: 'Auto', label: 'Auto', flag: '🌍', narrow: '🌍' },
+  { value: 'el', label: 'Greek', flag: '🇬🇷', narrow: '🇬🇷' },
+  { value: 'grc', label: 'Anc. Greek', flag: '🏛️', narrow: '🏛️' },
+  { value: 'en', label: 'English', flag: '🇬🇧', narrow: '🇬🇧' },
+  { value: 'nl', label: 'Dutch', flag: '🇳🇱', narrow: '🇳🇱' },
+  { value: 'de', label: 'German', flag: '🇩🇪', narrow: '🇩🇪' },
+  { value: 'fr', label: 'French', flag: '🇫🇷', narrow: '🇫🇷' },
+] as const;
 
 const POS_OPTIONS = [
-  { value: 'Auto', label: 'Auto' },
-  { value: 'verb', label: 'Verb' },
-  { value: 'noun', label: 'Noun' },
-  { value: 'adjective', label: 'Adjective' },
-  { value: 'pronoun', label: 'Pronoun' },
-  { value: 'numeral', label: 'Numeral' },
-  { value: 'adverb', label: 'Adverb' },
-];
+  { value: 'Auto', label: 'Auto', narrow: '·' },
+  { value: 'verb', label: 'Verb', narrow: 'V' },
+  { value: 'noun', label: 'Noun', narrow: 'N' },
+  { value: 'adjective', label: 'Adjective', narrow: 'Adj' },
+  { value: 'pronoun', label: 'Pronoun', narrow: 'Pr' },
+  { value: 'numeral', label: 'Numeral', narrow: '#' },
+  { value: 'adverb', label: 'Adverb', narrow: 'Adv' },
+] as const;
 
 // Removed duplicate langName helper
 
@@ -100,7 +100,7 @@ interface DecoderMatch {
   fieldsProduced: string[];
 }
 
-function extractDecoderMatches(entry: Entry): DecoderMatch[] {
+function extractDecoderMatches(entry: Lexeme): DecoderMatch[] {
   const matches: DecoderMatch[] = [];
   for (const [tplName, tplInstances] of Object.entries(entry.templates || {})) {
     const fp: string[] = [];
@@ -119,6 +119,223 @@ function extractDecoderMatches(entry: Entry): DecoderMatch[] {
   return matches;
 }
 
+/** README-style TypeScript sample for the selected Target Wrapper + playground fields. */
+function playgroundTypescriptSnippet(
+  method: string,
+  query: string,
+  lang: WikiLang,
+  prefPos: string,
+  apiPropsRaw: string,
+): string {
+  let props: Record<string, unknown> | undefined;
+  let propsInvalid = false;
+  if (apiPropsRaw.trim()) {
+    try {
+      props = JSON.parse(apiPropsRaw) as Record<string, unknown>;
+    } catch {
+      propsInvalid = true;
+      props = undefined;
+    }
+  }
+
+  const q = JSON.stringify(query || '');
+  const langLit = JSON.stringify(lang);
+  const posLit = JSON.stringify(prefPos);
+
+  const fmtObj = (o: Record<string, unknown>) => {
+    const s = JSON.stringify(o, null, 2);
+    return s.length > 72 ? s : JSON.stringify(o);
+  };
+
+  const importLine = `import { ${method} } from "wiktionary-sdk";`;
+
+  if (propsInvalid) {
+    return `${importLine}\n\n// Invalid JSON in Props / Criteria — fix to preview the call\nawait ${method}(${q}, ${langLit}, ${posLit});`;
+  }
+
+  let call: string;
+  if (method === 'conjugate' || method === 'decline') {
+    if (props && Object.keys(props).length > 0) {
+      call = `await ${method}(${q}, ${langLit}, ${fmtObj(props)});`;
+    } else {
+      call = `await ${method}(${q}, ${langLit});`;
+    }
+  } else if (method === 'translate') {
+    const target = props && props.target != null ? String(props.target) : 'en';
+    const targetLit = JSON.stringify(target);
+    const opts = props ? { ...props } : {};
+    delete opts.target;
+    const optKeys = Object.keys(opts);
+    const fourth =
+      optKeys.length > 0 ? fmtObj(opts as Record<string, unknown>) : '{ mode: "gloss" }';
+    call = `await translate(${q}, ${langLit}, ${targetLit}, ${fourth}, ${posLit});`;
+  } else if (method === 'wikipediaLink') {
+    const tw = props && props.target != null ? String(props.target) : 'en';
+    call = `await wikipediaLink(${q}, ${langLit}, ${JSON.stringify(tw)}, ${posLit});`;
+  } else if (method === 'isInstance' || method === 'isSubclass') {
+    const qid = props && props.qid != null ? String(props.qid) : 'Q5';
+    call = `await ${method}(${q}, ${JSON.stringify(qid)}, ${langLit});`;
+  } else if (method === 'hyphenate') {
+    if (props && Object.keys(props).length > 0) {
+      call = `await hyphenate(${q}, ${langLit}, ${fmtObj(props)}, ${posLit});`;
+    } else {
+      call = `await hyphenate(${q}, ${langLit}, {}, ${posLit});`;
+    }
+  } else {
+    call = `await ${method}(${q}, ${langLit}, ${posLit});`;
+  }
+
+  return `${importLine}\n\n${call}`;
+}
+
+const TS_KEYWORDS = new Set([
+  'import', 'from', 'await', 'const', 'let', 'var', 'new', 'typeof', 'async',
+  'true', 'false', 'null', 'undefined', 'return', 'function', 'class', 'extends',
+]);
+
+const MAX_PLAYGROUND_COMMENT_LEN = 720;
+
+function serializeValueForPlaygroundComment(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  try {
+    let s = JSON.stringify(value, null, 2);
+    if (s.length > MAX_PLAYGROUND_COMMENT_LEN) {
+      s = `${s.slice(0, MAX_PLAYGROUND_COMMENT_LEN)}\n// … (truncated)`;
+    }
+    return s;
+  } catch {
+    return String(value);
+  }
+}
+
+function playgroundResultAppendix(apiResult: unknown, apiLoading: boolean): string {
+  if (apiLoading) return '// …running';
+  if (apiResult && typeof apiResult === 'object' && apiResult !== null && '__uninitialized' in apiResult) {
+    return '// Run Execute to preview output';
+  }
+  if (
+    apiResult &&
+    typeof apiResult === 'object' &&
+    apiResult !== null &&
+    'error' in apiResult &&
+    (apiResult as { error?: unknown }).error != null
+  ) {
+    return `// Error: ${String((apiResult as { error: unknown }).error)}`;
+  }
+  const body = serializeValueForPlaygroundComment(apiResult);
+  return body
+    .split('\n')
+    .map((line) => `// ${line}`)
+    .join('\n');
+}
+
+function buildPlaygroundTsSource(
+  method: string,
+  query: string,
+  lang: WikiLang,
+  prefPos: string,
+  apiProps: string,
+  apiResult: unknown,
+  apiLoading: boolean,
+): string {
+  const base = playgroundTypescriptSnippet(method, query, lang, prefPos, apiProps);
+  return `${base}\n\n${playgroundResultAppendix(apiResult, apiLoading)}`;
+}
+
+function buildPlaygroundCurlSnippet(
+  method: string,
+  query: string,
+  lang: WikiLang,
+  prefPos: string,
+  apiProps: string,
+): string {
+  const base = 'http://localhost:3000/api/fetch';
+  const params = new URLSearchParams();
+  params.set('query', query || '…');
+  if (lang && lang !== 'Auto') params.set('lang', lang);
+  if (prefPos && prefPos !== 'Auto') params.set('pos', prefPos);
+  if (method && method !== 'wiktionary') params.set('extract', method);
+
+  if (apiProps.trim()) {
+    try {
+      const p = JSON.parse(apiProps) as Record<string, unknown>;
+      for (const [k, v] of Object.entries(p)) {
+        if (v != null) params.set(k, String(v));
+      }
+    } catch { /* ignore invalid JSON */ }
+  }
+
+  return `curl "${base}?${params.toString()}"`;
+}
+
+function highlightTsLine(line: string): ReactNode {
+  const t = line.trimStart();
+  if (t.startsWith('//')) {
+    return <span className="ts-comment">{line}</span>;
+  }
+
+  const nodes: ReactNode[] = [];
+  let i = 0;
+  let k = 0;
+  const push = (cls: string, text: string) => {
+    if (text) nodes.push(<span key={k++} className={cls}>{text}</span>);
+  };
+
+  while (i < line.length) {
+    const rest = line.slice(i);
+    const ws = rest.match(/^\s+/);
+    if (ws) {
+      push('ts-plain', ws[0]);
+      i += ws[0].length;
+      continue;
+    }
+    const dq = rest.match(/^"(?:[^"\\]|\\.)*"/);
+    if (dq) {
+      push('ts-string', dq[0]);
+      i += dq[0].length;
+      continue;
+    }
+    const num = rest.match(/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?![\w$])/);
+    if (num) {
+      push('ts-number', num[0]);
+      i += num[0].length;
+      continue;
+    }
+    const w = rest.match(/^[\w$]+/);
+    if (w) {
+      const word = w[0];
+      let j = i + word.length;
+      while (j < line.length && line[j] === ' ') j++;
+      const isCallee = line[j] === '(';
+      if (TS_KEYWORDS.has(word)) push('ts-keyword', word);
+      else if (isCallee) push('ts-callee', word);
+      else push('ts-plain', word);
+      i += word.length;
+      continue;
+    }
+    push('ts-punct', line[i]);
+    i += 1;
+  }
+  return <>{nodes}</>;
+}
+
+function highlightPlaygroundTs(code: string): ReactNode {
+  const lines = code.split('\n');
+  return (
+    <>
+      {lines.map((line, li) => (
+        <span key={li}>
+          {li > 0 ? '\n' : null}
+          {highlightTsLine(line)}
+        </span>
+      ))}
+    </>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 const App: React.FC = () => {
   // Search & results state
@@ -126,7 +343,7 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<Entry[]>([]);
+  const [results, setResults] = useState<Lexeme[]>([]);
   const [rawBlock, setRawBlock] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [selectedEntryIdx, setSelectedEntryIdx] = useState(0);
@@ -139,7 +356,7 @@ const App: React.FC = () => {
   // Compare state
   const [compareMode, setCompareMode] = useState(false);
   const [compareLang, setCompareLang] = useState<WikiLang>('grc');
-  const [compareResults, setCompareResults] = useState<Entry[]>([]);
+  const [compareResults, setCompareResults] = useState<Lexeme[]>([]);
   const [compareRawBlock, setCompareRawBlock] = useState('');
   const [compareLoading, setCompareLoading] = useState(false);
 
@@ -152,6 +369,15 @@ const App: React.FC = () => {
 
   // Inspector collapse state
   const [inspectorOpen, setInspectorOpen] = useState(false);
+
+  const [narrowSearchBar, setNarrowSearchBar] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 560px)');
+    const sync = () => setNarrowSearchBar(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   // ── Handlers ────────────────────────────────────────────────────────────
   const handleMethodChange = (method: string) => {
@@ -171,8 +397,14 @@ const App: React.FC = () => {
       }
       const fn = API_METHODS[apiMethod];
       let res;
-      if (['conjugate', 'decline', 'translate', 'wikipediaLink'].includes(apiMethod)) {
-        res = await fn(query, lang, (propsObj as any)?.target || (propsObj as any)?.qid, propsObj);
+      if (apiMethod === 'translate') {
+        const targetLang = String((propsObj as any)?.target ?? 'en');
+        res = await fn(query, lang, targetLang, propsObj ?? { mode: 'gloss' }, prefPos);
+      } else if (apiMethod === 'wikipediaLink') {
+        const targetWiki = String((propsObj as any)?.target ?? 'en');
+        res = await fn(query, lang, targetWiki as WikiLang, prefPos);
+      } else if (['conjugate', 'decline'].includes(apiMethod)) {
+        res = await fn(query, lang, propsObj ?? {});
       } else if (['isInstance', 'isSubclass'].includes(apiMethod)) {
         res = await fn(query, (propsObj as any)?.qid || "Q5", lang);
       } else if (['hyphenate'].includes(apiMethod)) {
@@ -195,7 +427,7 @@ const App: React.FC = () => {
       setApiFormatted(`<span style="color:#f87171">Error: ${msg}</span>`);
     }
     setApiLoading(false);
-  }, [apiMethod, apiProps, query, lang]);
+  }, [apiMethod, apiProps, query, lang, prefPos]);
 
   const handleSearch = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -205,16 +437,16 @@ const App: React.FC = () => {
     setSelectedEntryIdx(0);
     try {
       const res = await wiktionary({ query: query.trim(), lang, pos: prefPos, enrich: true, debugDecoders: debugMode });
-      setResults(res.entries);
+      setResults(res.lexemes);
       setRawBlock(res.rawLanguageBlock);
       setDebugEvents(res.debug ?? []);
-      if (res.notes.length > 0 && res.entries.length === 0) setError(res.notes[0]);
+      if (res.notes.length > 0 && res.lexemes.length === 0) setError(res.notes[0]);
 
       if (compareMode) {
         setCompareLoading(true);
         try {
           const cRes = await wiktionary({ query: query.trim(), lang: compareLang, pos: prefPos, enrich: false });
-          setCompareResults(cRes.entries);
+          setCompareResults(cRes.lexemes);
           setCompareRawBlock(cRes.rawLanguageBlock);
         } catch { setCompareResults([]); setCompareRawBlock(''); }
         finally { setCompareLoading(false); }
@@ -334,6 +566,16 @@ const App: React.FC = () => {
 
   const pills = SUGGESTED_PROPS[apiMethod] ?? DEFAULT_PILLS;
 
+  const playgroundTsSource = useMemo(
+    () => buildPlaygroundTsSource(apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading),
+    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading],
+  );
+
+  const playgroundCurlSource = useMemo(
+    () => buildPlaygroundCurlSnippet(apiMethod, query, lang, prefPos, apiProps),
+    [apiMethod, query, lang, prefPos, apiProps],
+  );
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 4rem' }}>
@@ -341,10 +583,10 @@ const App: React.FC = () => {
 
       {/* ── GitHub Corner ── */}
       <a href="https://github.com/rhythmus/wiktionary-sdk" className="github-corner" aria-label="View source on GitHub" target="_blank" rel="noopener noreferrer">
-        <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true" style={{ fill: '#151513', color: '#fff', position: 'fixed', top: 0, right: 0, border: 0, zIndex: 9999 }}>
+        <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true" style={{ fill: '#151513', position: 'absolute', top: 0, right: 0, border: 0 }}>
           <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z" />
-          <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.9,78.5 120.9,78.5 C119.2,72.0 123.4,76.9 123.4,76.9 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style={{ transformOrigin: '130px 106px' }} className="octo-arm" />
-          <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" className="octo-body" />
+          <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.9,78.5 120.9,78.5 C119.2,72.0 123.4,76.9 123.4,76.9 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" style={{ transformOrigin: '130px 106px' }} className="octo-arm" />
+          <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" className="octo-body" />
         </svg>
       </a>
 
@@ -352,14 +594,17 @@ const App: React.FC = () => {
 
         {/* Title — salve-style: left-aligned, sans-serif, bold name + rest inline */}
         <div style={{ marginBottom: results.length || loading ? '1.5rem' : '1.75rem' }}>
-          <h1 style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: results.length || loading ? '1.45rem' : '1.85rem',
-            fontWeight: 400,
-            color: '#111',
-            lineHeight: 1.2,
-            margin: 0,
-          }}>
+          <h1
+            className="app-hero-title"
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontSize: results.length || loading ? '1.45rem' : '1.85rem',
+              fontWeight: 400,
+              color: '#111',
+              lineHeight: 1.2,
+              margin: 0,
+            }}
+          >
             <strong style={{ fontWeight: 700 }}>Wiktionary SDK</strong>
             {' '}— extraction, normalization and formatting
           </h1>
@@ -385,11 +630,29 @@ const App: React.FC = () => {
             placeholder="Search a term, e.g. γράφω…"
           />
           <span className="bar-divider" />
-          <select value={lang} onChange={(e) => setLang(e.target.value as WikiLang)}>
-            {LANGUAGES.map((l) => <option key={l.value} value={l.value}>{l.flag} {l.label}</option>)}
+          <select
+            className="bar-select-lang"
+            aria-label="Dictionary language"
+            value={lang}
+            onChange={(e) => setLang(e.target.value as WikiLang)}
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.value} value={l.value}>
+                {narrowSearchBar ? l.narrow : `${l.flag} ${l.label}`}
+              </option>
+            ))}
           </select>
-          <select value={prefPos} onChange={(e) => setPrefPos(e.target.value)}>
-            {POS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <select
+            className="bar-select-pos"
+            aria-label="Part of speech filter"
+            value={prefPos}
+            onChange={(e) => setPrefPos(e.target.value)}
+          >
+            {POS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {narrowSearchBar ? o.narrow : o.label}
+              </option>
+            ))}
           </select>
           <button type="submit" className="fetch-btn" disabled={loading}>
             {loading ? <Loader2 size={13} className="animate-spin" /> : null}
@@ -424,12 +687,12 @@ const App: React.FC = () => {
             {/* Render handle-bars based high-fidelity output */}
             <div dangerouslySetInnerHTML={{ __html: highFidelityHtml }} />
 
-            {/* Entry switcher pills - Moved below the rendered content */}
+            {/* Lexeme switcher pills */}
             {results.length > 1 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '2rem', borderTop: '1px solid var(--page-border)', paddingTop: '1.25rem' }}>
                 {results.map((r, i) => (
                   <button key={i} className={`dict-entry-pill${i === selectedEntryIdx ? ' active' : ''}`} onClick={() => setSelectedEntryIdx(i)}>
-                    Entry {i + 1}: {r.part_of_speech || r.part_of_speech_heading}
+                    Lexeme {i + 1}: {langName(r.language)} · {r.part_of_speech_heading || r.part_of_speech || '?'}
                   </button>
                 ))}
               </div>
@@ -462,8 +725,7 @@ const App: React.FC = () => {
                 Props / Criteria (JSON)
               </label>
             </div>
-            {/* Spacer for Execute button column */}
-            <div style={{ flexShrink: 0, visibility: 'hidden', fontSize: '0.62rem' }}>Execute</div>
+            <div className="dk-execute-spacer" aria-hidden />
           </div>
 
           {/* Controls row — all three on the exact same flex line */}
@@ -485,9 +747,17 @@ const App: React.FC = () => {
               onChange={(e) => setApiProps(e.target.value)}
               placeholder='e.g. {"tense":"present"}'
             />
-            <button className="dk-execute-btn" style={{ flexShrink: 0 }} onClick={handleApiExecute} disabled={apiLoading}>
-              {apiLoading ? <Loader2 size={14} className="animate-spin" /> : <Terminal size={14} />}
-              {apiLoading ? 'Running…' : 'Execute'}
+            <button
+              type="button"
+              className="dk-execute-btn"
+              style={{ flexShrink: 0 }}
+              onClick={handleApiExecute}
+              disabled={apiLoading}
+              aria-label={apiLoading ? 'Running' : 'Execute'}
+              title={apiLoading ? 'Running…' : 'Execute'}
+            >
+              {apiLoading ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Terminal size={14} aria-hidden />}
+              <span className="dk-execute-label">{apiLoading ? 'Running…' : 'Execute'}</span>
             </button>
           </div>
 
@@ -500,18 +770,79 @@ const App: React.FC = () => {
             ))}
           </div>
 
+          {/* README-style TypeScript sample for the selected wrapper */}
+          <div className="dk-code-window" style={{ marginTop: '1rem' }}>
+            {/* Windows-style title bar */}
+            <div
+              style={{
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                padding: '0 0 0 12px',
+                display: 'flex',
+                alignItems: 'center',
+                background: 'rgba(0,0,0,0.22)',
+                height: 32,
+              }}
+            >
+              <span
+                style={{
+                  color: 'rgba(255,255,255,0.4)',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  fontSize: '0.69rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                  flex: 1,
+                }}
+              >
+                TypeScript
+              </span>
+              <span style={{ display: 'flex', alignItems: 'stretch', height: '100%', flexShrink: 0 }}>
+                {['─', '☐', '✕'].map((sym, i) => (
+                  <span
+                    key={i}
+                    aria-hidden
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 40,
+                      height: '100%',
+                      color: 'rgba(255,255,255,0.35)',
+                      fontSize: i === 2 ? '0.8rem' : '0.75rem',
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    {sym}
+                  </span>
+                ))}
+              </span>
+            </div>
+            <pre>
+              <code>{highlightPlaygroundTs(playgroundTsSource)}</code>
+            </pre>
+          </div>
+
           {/* Terminal output well */}
-          <div className="dk-well" style={{ marginTop: '1rem' }}>
+          <div className="dk-well" style={{ marginTop: '0.65rem' }}>
             {/* macOS-style title bar */}
-            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'rgba(0,0,0,0.22)', height: 32 }}>
               {/* Traffic-light dots */}
               <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#febc2e', display: 'inline-block' }} />
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
               </span>
-              <span style={{ color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', flex: 1, textAlign: 'center' }}>
-                wiktionary-sdk
+              <span
+                style={{
+                  color: 'rgba(255,255,255,0.35)',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  flex: 1,
+                  textAlign: 'left',
+                }}
+              >
+                CLI
               </span>
             </div>
             {/* Output */}
@@ -549,10 +880,72 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
 
-        {/* ── Horizontal rule ──────────────────────── */}
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '0.5rem 0 1rem' }} />
+          {/* REST API — Linux/Ubuntu-style terminal window */}
+          <div className="dk-well" style={{ marginTop: '0.65rem' }}>
+            <div style={{
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              padding: '0 0 0 14px',
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(0,0,0,0.22)',
+              height: 32,
+            }}>
+              <span style={{
+                color: 'rgba(255,255,255,0.4)',
+                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                flex: 1,
+                textAlign: 'left',
+              }}>
+                REST API
+              </span>
+              <span style={{ display: 'flex', alignItems: 'stretch', height: '100%', flexShrink: 0 }}>
+                {['▽', '△', '✕'].map((sym, i) => (
+                  <span
+                    key={i}
+                    aria-hidden
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 32,
+                      height: '100%',
+                      color: 'rgba(255,255,255,0.3)',
+                      fontSize: '0.65rem',
+                      fontFamily: 'system-ui, sans-serif',
+                    }}
+                  >
+                    {sym}
+                  </span>
+                ))}
+              </span>
+            </div>
+            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)', maxHeight: 380, overflow: 'auto' }}>
+              <div>
+                <span style={{ color: '#4ade80' }}>user@sdk</span>
+                <span style={{ color: 'rgba(255,255,255,0.28)' }}>:</span>
+                <span style={{ color: '#60a5fa' }}>~</span>
+                <span style={{ color: 'rgba(255,255,255,0.28)' }}>$ </span>
+                <span style={{ color: '#e2e8f0' }}>{playgroundCurlSource}</span>
+              </div>
+              {!apiResult?.__uninitialized && (
+                <div style={{ marginTop: '0.35rem' }}>
+                  {apiLoading ? (
+                    <span style={{ color: '#94a3b8' }}>{'  % Total    % Received    Time     Elapsed\n  …waiting'}</span>
+                  ) : apiResult && typeof apiResult === 'object' && apiResult !== null && 'error' in apiResult ? (
+                    <span style={{ color: '#f87171' }}>{'{ "error": '}{JSON.stringify((apiResult as { error: unknown }).error)}{'}'}</span>
+                  ) : (
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#94a3b8' }}>
+                      {JSON.stringify(apiResult, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ── Debug Inspector (collapsible) ────────── */}
         <div>
@@ -618,53 +1011,98 @@ const App: React.FC = () => {
                   )}
 
                   {/* Raw Wikitext + Normalized YAML panels */}
-                  <div style={{ display: 'grid', gridTemplateColumns: compareMode ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1rem' }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: compareMode ? '1fr 1fr 1fr' : '1fr 1fr',
+                      gap: '1rem',
+                      alignItems: 'stretch',
+                    }}
+                  >
 
                     {/* Raw Wikitext */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--dk-secondary)',
+                          minHeight: 44,
+                          flexShrink: 0,
+                        }}
+                      >
                         <Languages size={14} style={{ color: '#60a5fa' }} /> Raw Wikitext
                       </div>
-                      <div className="dk-panel" style={{ height: 520, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <div
+                        className="dk-panel"
+                        style={{
+                          flex: 1,
+                          minHeight: 520,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden',
+                        }}
+                      >
                         <div style={{ borderBottom: '1px solid var(--dk-border)', padding: '5px 12px', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--dk-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
                           <span>Section: {langName(lang)}</span>
                           <span>{rawBlock.length} chars</span>
                         </div>
-                        <pre style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, color: 'var(--dk-secondary)' }}>
+                        <pre style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, color: 'var(--dk-secondary)', minHeight: 0 }}>
                           {renderWikitext(rawBlock)}
                         </pre>
                       </div>
                     </div>
 
                     {/* Normalized YAML */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)' }}>
-                          <ChevronRight size={14} style={{ color: '#818cf8' }} /> Normalized YAML
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.5rem',
+                          flexWrap: 'nowrap',
+                          minHeight: 44,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)', minWidth: 0 }}>
+                          <ChevronRight size={14} style={{ color: '#818cf8', flexShrink: 0 }} /> Normalized YAML
                         </div>
                         {results.length > 1 && (
                           <select
                             className="dk-select"
-                            style={{ maxWidth: 160, padding: '2px 6px', fontSize: '0.7rem' }}
+                            style={{ maxWidth: 160, padding: '2px 6px', fontSize: '0.7rem', flexShrink: 0 }}
                             value={selectedEntryIdx}
                             onChange={(e) => setSelectedEntryIdx(Number(e.target.value))}
                           >
-                            {results.map((r, i) => <option key={i} value={i}>Entry {i + 1}: {r.type}</option>)}
+                            {results.map((r, i) => <option key={i} value={i}>Lexeme {i + 1}: {r.type}</option>)}
                           </select>
                         )}
                       </div>
-                      <div className="dk-panel" style={{ height: 520, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <div
+                        className="dk-panel"
+                        style={{
+                          flex: 1,
+                          minHeight: 520,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden',
+                        }}
+                      >
                         <div style={{ borderBottom: '1px solid var(--dk-border)', padding: '5px 12px', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--dk-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
                           <span>Entries: {results.length}</span>
                           <span>Schema v1.0.0{debugMode ? ' | Debug ON' : ''}</span>
                         </div>
-                        <div style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
+                        <div style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, minHeight: 0 }}>
                           {loading ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--dk-muted)' }}>
                               <Loader2 size={18} className="animate-spin" /> Processing…
                             </div>
                           ) : results.length > 0 ? (
-                            highlightYaml(formatYaml({ entries: results }))
+                            highlightYaml(formatYaml({ lexemes: results }))
                           ) : (
                             <span style={{ color: 'var(--dk-muted)' }}>No results.</span>
                           )}
@@ -674,22 +1112,42 @@ const App: React.FC = () => {
 
                     {/* Compare panel */}
                     {compareMode && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontSize: '0.75rem',
+                            color: 'var(--dk-secondary)',
+                            minHeight: 44,
+                            flexShrink: 0,
+                          }}
+                        >
                           <Columns2 size={14} style={{ color: '#34d399' }} /> {langName(compareLang)}
                         </div>
-                        <div className="dk-panel" style={{ height: 520, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderColor: 'rgba(16,185,129,0.2)' }}>
+                        <div
+                          className="dk-panel"
+                          style={{
+                            flex: 1,
+                            minHeight: 520,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden',
+                            borderColor: 'rgba(16,185,129,0.2)',
+                          }}
+                        >
                           <div style={{ borderBottom: '1px solid rgba(16,185,129,0.15)', padding: '5px 12px', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--dk-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
                             <span>Entries: {compareResults.length}</span>
                             <span>{compareRawBlock.length} chars</span>
                           </div>
-                          <div style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
+                          <div style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, minHeight: 0 }}>
                             {compareLoading ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--dk-muted)' }}>
                                 <Loader2 size={18} className="animate-spin" /> Fetching…
                               </div>
                             ) : compareResults.length > 0 ? (
-                              highlightYaml(formatYaml({ entries: compareResults }))
+                              highlightYaml(formatYaml({ lexemes: compareResults }))
                             ) : (
                               <span style={{ color: 'var(--dk-muted)' }}>No results in {langName(compareLang)}.</span>
                             )}
@@ -703,7 +1161,7 @@ const App: React.FC = () => {
                   {debugMode && decoderMatches.length > 0 && (
                     <div style={{ marginTop: '1.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)', marginBottom: '0.75rem' }}>
-                        <Bug size={14} style={{ color: '#f59e0b' }} /> Decoder Matches — Entry {selectedEntryIdx + 1}
+                        <Bug size={14} style={{ color: '#f59e0b' }} /> Decoder Matches — Lexeme {selectedEntryIdx + 1}
                       </div>
                       <div className="dk-panel" style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', fontSize: '0.78rem', textAlign: 'left', borderCollapse: 'collapse' }}>

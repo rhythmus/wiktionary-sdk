@@ -50,6 +50,11 @@ code {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* Balanced wrapping for multi-line hero heading */
+.app-hero-title {
+  text-wrap: balance;
+}
+
 /* ── Animations ── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -65,12 +70,11 @@ code {
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 620px;
   background: #fff;
   border-radius: 28px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 1px 4px rgba(32, 33, 36, 0.10);
-  padding: 4px 4px 4px 18px;
+  padding: 4px 10px 4px 18px;
   transition: box-shadow 0.2s;
 }
 
@@ -86,7 +90,7 @@ code {
   font-family: 'Alegreya', serif;
   font-size: 1.2rem;
   color: var(--page-text);
-  padding: 8px 10px 8px 0;
+  padding: 8px 10px 8px 12px;
   min-width: 0;
 }
 
@@ -104,7 +108,14 @@ code {
 }
 
 .google-bar select {
-  background: transparent;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 10px 10px;
   border: none;
   outline: none;
   font-family: 'Inter', sans-serif;
@@ -114,8 +125,43 @@ code {
   letter-spacing: 0.07em;
   color: var(--page-muted);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 4px 22px 4px 6px;
   flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.google-bar select.bar-select-lang {
+  max-width: min(6.75rem, 30vw);
+}
+
+.google-bar select.bar-select-pos {
+  max-width: min(5rem, 24vw);
+}
+
+@media (max-width: 560px) {
+  .google-bar .bar-divider {
+    margin: 0 4px;
+  }
+
+  .google-bar select.bar-select-lang {
+    width: 2.65rem;
+    max-width: 2.65rem;
+    padding: 4px 18px 4px 4px;
+    background-position: right 5px center;
+    background-size: 9px 9px;
+    font-size: 0.68rem;
+  }
+
+  .google-bar select.bar-select-pos {
+    width: 2.85rem;
+    max-width: 2.85rem;
+    padding: 4px 18px 4px 4px;
+    background-position: right 5px center;
+    background-size: 9px 9px;
+    font-size: 0.68rem;
+  }
 }
 
 .google-bar .fetch-btn {
@@ -235,6 +281,61 @@ code {
   border-radius: 12px;
 }
 
+/* ── Dark island: TypeScript snippet (mini editor chrome) ── */
+.dk-code-window {
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dk-code-window pre {
+  margin: 0;
+  padding: 0.65rem 0.85rem 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.dk-code-window code {
+  font-family: inherit;
+}
+
+/* Playground TypeScript — dark syntax accents (fuchsia theme aligned with dark island) */
+.dk-code-window .ts-keyword {
+  color: #e879f9;
+  font-weight: 600;
+}
+
+.dk-code-window .ts-string {
+  color: #6ee7b7;
+}
+
+.dk-code-window .ts-number {
+  color: #fdba74;
+}
+
+.dk-code-window .ts-callee {
+  color: #fcd34d;
+  font-weight: 500;
+}
+
+.dk-code-window .ts-comment {
+  color: #64748b;
+  font-style: italic;
+}
+
+.dk-code-window .ts-punct {
+  color: #94a3b8;
+}
+
+.dk-code-window .ts-plain {
+  color: #cbd5e1;
+}
+
 /* ── Dark island: terminal output well ── */
 .dk-well {
   background: rgba(0, 0, 0, 0.50);
@@ -260,14 +361,21 @@ code {
 .dk-input:focus { border-color: var(--dk-fuchsia-br); }
 
 .dk-select {
-  background: rgba(0, 0, 0, 0.3);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: rgba(0, 0, 0, 0.3);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 12px 12px;
   border: 1px solid rgba(217, 70, 239, 0.25);
   border-radius: 10px;
   color: var(--dk-text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.81rem;
   height: 38px;
-  padding: 0 12px;
+  padding: 0 34px 0 12px;
   box-sizing: border-box;
   outline: none;
   transition: border-color 0.15s;
@@ -277,6 +385,12 @@ code {
 .dk-select:focus { border-color: var(--dk-fuchsia-br); }
 
 /* ── Dark island: Execute button (fuchsia — restored original) ── */
+.dk-execute-spacer {
+  flex-shrink: 0;
+  width: 7.25rem;
+  height: 1px;
+}
+
 .dk-execute-btn {
   background: var(--dk-fuchsia-bg);
   border: 1px solid var(--dk-fuchsia-br);
@@ -292,11 +406,30 @@ code {
   transition: background 0.15s, border-color 0.15s;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
   white-space: nowrap;
 }
 .dk-execute-btn:hover    { background: rgba(217, 70, 239, 0.22); border-color: rgba(217, 70, 239, 0.6); }
 .dk-execute-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 560px) {
+  .dk-execute-spacer {
+    width: 38px;
+  }
+
+  .dk-execute-btn {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .dk-execute-btn .dk-execute-label {
+    display: none;
+  }
+}
 
 /* ── Dark island: prop pills ── */
 .dk-pill {
@@ -367,6 +500,11 @@ code {
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
 /* ── GitHub Corner ── */
+.github-corner .octo-arm,
+.github-corner .octo-body {
+  fill: var(--page-bg);
+}
+
 .github-corner:hover .octo-arm {
   animation: octocat-wave 560ms ease-in-out;
 }
