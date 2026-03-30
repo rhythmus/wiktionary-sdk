@@ -139,7 +139,7 @@ async function conjugateSingleLexeme(
     lexeme: Lexeme,
     query: string,
     criteria: Partial<ConjugateCriteria>,
-    sourceLang: WikiLang
+    _sourceLang: WikiLang
 ): Promise<string[] | Record<string, any> | null> {
     const conjug = findConjugationTemplate(lexeme);
     if (!conjug) {
@@ -234,7 +234,7 @@ async function declineSingleLexeme(
     lexeme: Lexeme,
     query: string,
     criteria: Partial<DeclineCriteria>,
-    sourceLang: WikiLang
+    _sourceLang: WikiLang
 ): Promise<string[] | Record<string, any> | null> {
     const nominalTpl = findDeclensionTemplate(lexeme);
     if (!nominalTpl) {

@@ -1,7 +1,8 @@
 import type { EtymologyStep } from "./library";
 import type { GrammarTraits } from "./morphology";
 import type { WordStems } from "./stem";
-import { Sense, RichEntry, InflectionTable, SCHEMA_VERSION, EtymologyData } from "./types";
+import { SCHEMA_VERSION } from "./types";
+import type { Sense, RichEntry, InflectionTable, EtymologyData } from "./types";
 import Handlebars from "handlebars";
 import { HTML_ENTRY_TEMPLATE, MD_ENTRY_TEMPLATE, ENTRY_CSS } from "./templates/templates";
 

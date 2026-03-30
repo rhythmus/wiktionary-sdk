@@ -393,9 +393,7 @@ registry.register({
     id: "wikidata-p31",
     handlesTemplates: [],
     matches: (ctx) => !!ctx.page.pageprops?.wikibase_item,
-    decode: (ctx) => {
-        // This is a placeholder since index.ts handles the actual fetching, 
-        // but it signals that we care about this field.
+    decode: (_ctx) => {
         return {};
     },
 });

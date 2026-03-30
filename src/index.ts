@@ -151,7 +151,6 @@ export async function wiktionaryRecursive({
 
     let lexemes: Lexeme[] = [];
     const allDebugEvents: DecoderDebugEvent[][] = [];
-    const combinedLangBlock = searchSections.map(s => s.block).join("\n\n");
 
     for (const section of searchSections) {
         const etyms = splitEtymologiesAndPOS(section.block);
