@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import {
   parseTemplates,
   extractLanguageSection,
@@ -128,6 +130,140 @@ Second origin.
     expect(etyms).toHaveLength(2);
     expect(etyms[0].posBlocks[0].posHeading).toBe("Noun");
     expect(etyms[1].posBlocks[0].posHeading).toBe("Verb");
+  });
+
+  it("does not create posBlocks for non-PoS headings like Antonyms or Conjugation", () => {
+    const block = `==Greek==
+===Etymology===
+From stuff.
+
+===Pronunciation===
+{{IPA|el|/ˈɣra.fo/}}
+
+===Verb===
+{{el-verb}}
+# to write
+
+====Conjugation====
+{{el-conj|γράφ}}
+
+====Antonyms====
+* {{l|el|ξεγράφω}}
+
+====Related terms====
+* {{l|el|γραφή}}
+
+===References===
+<references />`;
+
+    const etyms = splitEtymologiesAndPOS(block);
+    expect(etyms).toHaveLength(1);
+    expect(etyms[0].posBlocks).toHaveLength(1);
+    expect(etyms[0].posBlocks[0].posHeading).toBe("Verb");
+  });
+
+  it("preserves non-PoS heading markers inside posBlock wikitext", () => {
+    const block = `==Greek==
+===Etymology===
+From stuff.
+
+===Verb===
+{{el-verb}}
+# to write
+
+====Conjugation====
+{{el-conj|γράφ}}
+
+====Antonyms====
+* {{l|el|ξεγράφω}}`;
+
+    const etyms = splitEtymologiesAndPOS(block);
+    const verbWikitext = etyms[0].posBlocks[0].wikitext;
+
+    expect(verbWikitext).toContain("====Conjugation====");
+    expect(verbWikitext).toContain("====Antonyms====");
+    expect(verbWikitext).toContain("el-conj");
+    expect(verbWikitext).toContain("ξεγράφω");
+  });
+
+  it("buffers pre-PoS headings (e.g. Pronunciation) and prepends them to the first PoS block", () => {
+    const block = `==Greek==
+===Etymology===
+From stuff.
+
+===Pronunciation===
+{{IPA|el|/ˈɣra.fo/}}
+
+===Verb===
+{{el-verb}}
+# to write`;
+
+    const etyms = splitEtymologiesAndPOS(block);
+    expect(etyms[0].posBlocks).toHaveLength(1);
+    const verbWikitext = etyms[0].posBlocks[0].wikitext;
+    expect(verbWikitext).toContain("===Pronunciation===");
+    expect(verbWikitext).toContain("/ˈɣra.fo/");
+  });
+
+  describe("with γράφω fixture", () => {
+    const fixture = readFileSync(
+      resolve(__dirname, "fixtures/γράφω.wikitext"),
+      "utf-8"
+    ).normalize("NFC");
+
+    it("Greek section produces exactly one posBlock (Verb)", () => {
+      const elBlock = extractLanguageSection(fixture, "Greek");
+      expect(elBlock).not.toBeNull();
+      const etyms = splitEtymologiesAndPOS(elBlock!);
+      expect(etyms).toHaveLength(1);
+
+      const posHeadings = etyms[0].posBlocks.map((pb: any) => pb.posHeading);
+      expect(posHeadings).toEqual(["Verb"]);
+    });
+
+    it("Greek Verb posBlock wikitext contains subsection heading markers", () => {
+      const elBlock = extractLanguageSection(fixture, "Greek");
+      const etyms = splitEtymologiesAndPOS(elBlock!);
+      const verbWikitext = etyms[0].posBlocks[0].wikitext;
+
+      expect(verbWikitext).toContain("====Conjugation====");
+      expect(verbWikitext).toContain("====Antonyms====");
+      expect(verbWikitext).toContain("====Related terms====");
+      expect(verbWikitext).toContain("===References===");
+    });
+
+    it("Ancient Greek section produces exactly one posBlock (Verb)", () => {
+      const grcBlock = extractLanguageSection(fixture, "Ancient Greek");
+      expect(grcBlock).not.toBeNull();
+      const etyms = splitEtymologiesAndPOS(grcBlock!);
+      expect(etyms).toHaveLength(1);
+
+      const posHeadings = etyms[0].posBlocks.map((pb: any) => pb.posHeading);
+      expect(posHeadings).toEqual(["Verb"]);
+    });
+
+    it("Ancient Greek Verb posBlock wikitext contains subsection heading markers", () => {
+      const grcBlock = extractLanguageSection(fixture, "Ancient Greek");
+      const etyms = splitEtymologiesAndPOS(grcBlock!);
+      const verbWikitext = etyms[0].posBlocks[0].wikitext;
+
+      expect(verbWikitext).toContain("====Conjugation====");
+      expect(verbWikitext).toContain("====Derived terms====");
+      expect(verbWikitext).toContain("====Descendants====");
+      expect(verbWikitext).toContain("===References===");
+      expect(verbWikitext).toContain("===Further reading===");
+    });
+
+    it("all three language sections produce exactly one Verb posBlock each", () => {
+      for (const langName of ["Greek", "Ancient Greek", "Italiot Greek"]) {
+        const block = extractLanguageSection(fixture, langName);
+        expect(block).not.toBeNull();
+        const etyms = splitEtymologiesAndPOS(block!);
+        expect(etyms).toHaveLength(1);
+        expect(etyms[0].posBlocks).toHaveLength(1);
+        expect(etyms[0].posBlocks[0].posHeading).toBe("Verb");
+      }
+    });
   });
 });
 

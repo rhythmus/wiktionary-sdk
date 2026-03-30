@@ -19,10 +19,14 @@ export function escapeRegExp(s: string) {
 }
 
 export function splitEtymologiesAndPOS(langBlock: string) {
+    // PoS headings create posBlocks; other H3–H5 headings become content
+    // lines within the nearest PoS. Heading marker lines are preserved in
+    // posBlock wikitext so section-based decoders can still locate them.
     const lines = langBlock.split("\n");
     const etyms: any[] = [];
     let currentEtym: any = { idx: 0, title: "Etymology", posBlocks: [], preamble: [] };
     let currentPOS: any = null;
+    let pendingNonPosLines: string[] = [];
 
     function flushPOS() {
         if (currentPOS) {
@@ -33,6 +37,7 @@ export function splitEtymologiesAndPOS(langBlock: string) {
     function flushEtym() {
         flushPOS();
         if (currentEtym.posBlocks.length > 0) etyms.push(currentEtym);
+        pendingNonPosLines = [];
     }
 
     for (let i = 0; i < lines.length; i++) {
@@ -44,7 +49,6 @@ export function splitEtymologiesAndPOS(langBlock: string) {
             const level = m[1].length;
             const heading = m[2].trim();
 
-            // Check for Etymology first (H3)
             if (level === 3 && heading.startsWith("Etymology")) {
                 flushEtym();
                 const etymMatch = heading.match(/Etymology\s+(\d+)/);
@@ -58,26 +62,38 @@ export function splitEtymologiesAndPOS(langBlock: string) {
                 continue;
             }
 
-            // Check for POS (H3-H5)
             if (level >= 3 && level <= 5) {
-                flushPOS();
-                currentPOS = { posHeading: heading, lines: [] };
+                const mappedPos = mapHeadingToPos(heading);
+                if (mappedPos !== null) {
+                    flushPOS();
+                    if (pendingNonPosLines.length > 0) {
+                        currentPOS = { posHeading: heading, lines: [...pendingNonPosLines] };
+                        pendingNonPosLines = [];
+                    } else {
+                        currentPOS = { posHeading: heading, lines: [] };
+                    }
+                } else {
+                    if (currentPOS) {
+                        currentPOS.lines.push(line);
+                    } else {
+                        pendingNonPosLines.push(line);
+                    }
+                }
                 continue;
             }
         }
 
-        // Collect lines
         if (currentPOS) {
             currentPOS.lines.push(line);
+        } else if (pendingNonPosLines.length > 0) {
+            pendingNonPosLines.push(line);
         } else {
-            // This is preamble content (Etymology text, Pronunciation, etc.)
             currentEtym.preamble.push(line);
         }
     }
     flushEtym();
 
     if (etyms.length === 0) {
-        // Fallback for language blocks without explicit etymology headers
         return [
             {
                 idx: 0,
@@ -89,7 +105,7 @@ export function splitEtymologiesAndPOS(langBlock: string) {
 
     for (const e of etyms) {
         const preambleText = e.preamble.join("\n");
-        e.etymology_raw_text = preambleText; // preserve for etymology decoder
+        e.etymology_raw_text = preambleText;
         for (const pb of e.posBlocks) {
             pb.wikitext = (preambleText ? preambleText + "\n" : "") + pb.lines.join("\n");
             delete pb.lines;

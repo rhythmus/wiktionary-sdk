@@ -10,23 +10,6 @@ exports[`golden: fixture → wiktionary (offline) > basic-verb Greek lexeme 1`] 
           "source_lang": "grc",
           "term": "γράφω",
         },
-      ],
-    },
-    "form": "golden-basic-verb",
-    "hyphenation": undefined,
-    "language": "el",
-    "part_of_speech": undefined,
-    "semantic_relations": undefined,
-    "senses": [],
-  },
-  {
-    "etymology": {
-      "chain": [
-        {
-          "relation": "inherited",
-          "source_lang": "grc",
-          "term": "γράφω",
-        },
         {
           "relation": "inherited",
           "source_lang": "grc",

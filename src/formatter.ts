@@ -73,8 +73,8 @@ export function format(data: any, options: FormatOptions = {}): string {
         return style.nullValue();
     }
 
-    // 1. Handle Rich Entries (RichEntry) or raw Entries
-    if (typeof data === "object" && data !== null && ("headword" in data || "form" in data) && ("senses" in data || "inflection_table" in data || "inflection_table_ref" in data)) {
+    // 1. Handle Rich Entries (RichEntry) or normalized Lexeme objects from wiktionary()
+    if (isDictionaryEntryLike(data)) {
         return style.rich(data as RichEntry, options);
     }
 
@@ -275,7 +275,8 @@ class MarkdownStyle extends TextStyle {
             headword: entry.headword || entry.form,
             pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
             schema_version: SCHEMA_VERSION,
-            standalone: options.mode === "markdown"
+            standalone: options.mode === "markdown",
+            relations: entry.relations ?? entry.semantic_relations,
         };
         return mdEntryTemplate(context);
     }
@@ -329,7 +330,8 @@ class HtmlStyle extends TextStyle {
             headword: entry.headword || entry.form,
             pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
             schema_version: SCHEMA_VERSION,
-            standalone
+            standalone,
+            relations: entry.relations ?? entry.semantic_relations,
         };
 
         let html = htmlEntryTemplate(context);
@@ -530,6 +532,21 @@ class TerminalHtmlStyle extends HtmlStyle {
 // ---------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------
+
+/**
+ * True for RichEntry / Lexeme shapes passed to format().
+ * Lexeme often omits `senses` when empty; it still must route to `rich()`, not stringify to "{}".
+ */
+function isDictionaryEntryLike(data: unknown): boolean {
+    if (typeof data !== "object" || data === null) return false;
+    const o = data as Record<string, unknown>;
+    if (!("headword" in o) && !("form" in o)) return false;
+    if ("senses" in o || "inflection_table" in o || "inflection_table_ref" in o) return true;
+    if ("id" in o && "type" in o && "form" in o) return true;
+    if ("templates" in o && "language" in o && "form" in o) return true;
+    if ("headword" in o && "pos" in o) return true;
+    return false;
+}
 
 function formatGrammarBase(traits: Partial<GrammarTraits>): string {
     const parts: string[] = [];
