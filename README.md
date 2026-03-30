@@ -16,11 +16,42 @@ You can invoke the primary engine to receive the complete, normalized YAML/JSON 
 ```typescript
 import { wiktionary } from "wiktionary-sdk";
 
-// Fetch full normalized AST (New: lang and pos are optional, default to "Auto")
+// Fetch full normalized AST — lexemes are returned in Wikitext source order by default
 const result = await wiktionary({ query: "bank" }); 
-// Auto-discovers English, Danish, Dutch, etc. and sorts by priority (el > grc > en).
-console.log(result.entries.map(e => `${e.language}: ${e.part_of_speech_heading}`));
+console.log(result.lexemes.map(l => `${l.language}: ${l.part_of_speech_heading}`));
+
+// Opt-in: sort lexemes by language priority (el > grc > en) instead of source order
+const sorted = await wiktionary({ query: "γράφω", sort: "priority" });
+console.log(sorted.lexemes.map(l => l.language)); // ['el', 'grc', 'Italiot Greek']
 ```
+
+#### `wiktionary()` Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `query` | `string` | *(required)* | The term to look up (e.g. `"γράφω"`, `"bank"`) |
+| `lang` | `string` | `"Auto"` | BCP-47 language code (e.g. `"el"`, `"grc"`) or `"Auto"` to discover all languages |
+| `pos` | `string` | `"Auto"` | Part-of-speech filter (e.g. `"verb"`, `"noun"`) or `"Auto"` |
+| `enrich` | `boolean` | `true` | Fetch Wikidata enrichment (QID, labels, P18 image) |
+| `sort` | `"source" \| "priority"` | `"source"` | Lexeme ordering strategy — see below |
+| `debugDecoders` | `boolean` | `false` | Include per-lexeme decoder match diagnostics in the result |
+
+**Lexeme ordering (`sort`)**
+
+By default, `wiktionary()` returns lexemes in **source order** — the order in which language sections and PoS blocks appear in the Wiktionary markup. This honours the project's core principle of source-faithful extraction.
+
+Set `sort: "priority"` to apply a hardcoded language-priority heuristic instead:
+
+| Priority | Language |
+|----------|----------|
+| 1 | Modern Greek (`el`) |
+| 2 | Ancient Greek (`grc`) |
+| 3 | English (`en`) |
+| 100 | All others (alphabetical) |
+
+Within the same priority tier, lexemes are sorted alphabetically by language code; within the same language, by PoS heading.
+
+> **Note:** The priority values above are provisional. A future release will make them configurable and expand coverage — see [Roadmap](docs/ROADMAP.md).
 
 ### 2. CLI Execution (DevOps pipelines)
 You can execute exactly the same core engine natively from your shell. By default, it dumps the entire requested schema:
@@ -43,8 +74,8 @@ wiktionary-sdk έγραψες --extract conjugate --props '{"number":"plural", "
 **Out** (normalized entries):
 
 ```yaml
-schema_version: "1.0.0"
-entries:
+schema_version: "3.0.0"
+lexemes:
     - id: "el:γράφω#E1#verb#LEXEME"
     language: el
     query: γράφω
@@ -88,66 +119,80 @@ entries:
 
 Beyond the low-level `wiktionary` engine, the library provides high-level convenience wrappers to extract exact data points easily. These are organized by their linguistic and structural semantics.
 
+**All lexeme-scoped wrappers return `LexemeResult<T>[]`** — an array of results tagged with lexeme identity metadata. Each element carries the extracted `value` alongside `lexeme_id`, `language`, `pos`, and `etymology_index`, so the caller always knows which lexeme produced which data. When `lang` and `pos` are specified, the array typically has one element. When both are `"Auto"`, it contains one result per discovered lexeme.
+
+```typescript
+import type { LexemeResult } from "wiktionary-sdk";
+// LexemeResult<T> = { lexeme_id, language, pos, etymology_index?, value: T }
+
+const results = await synonyms("γράφω");
+// [
+//   { lexeme_id: "grc:γράφω#E1#verb#LEXEME", language: "grc", pos: "Verb", value: [...] },
+//   { lexeme_id: "el:γράφω#E1#verb#LEXEME",  language: "el",  pos: "Verb", value: ["σημειώνω", ...] },
+//   ...
+// ]
+```
+
+**Exceptions** that stay scalar: `lemma()` (form resolution), `pageMetadata()` (page-level), and `getMainLexeme()` (single-lexeme shortcut utility).
+
 #### 1. Identity & Part of Speech
 Resolve lemmas and identify structural categories.
 
 ```typescript
 import { lemma, partOfSpeech, richEntry, wiktionary } from "wiktionary-sdk";
 
-// Resolve inflected forms (Now works in "Auto" mode by default!)
+// lemma() stays scalar — it resolves an inflected form to its dictionary form
 await lemma("έγραψε"); // "γράφω" (Greek)
 await lemma("banks");  // "bank" (English)
-await lemma("bank");   // "bank" (Found as English LEXEME first)
 
-// Get structural data
-await partOfSpeech("έγραψε", "el"); // "verb"
+// LexemeResult<string | null>[] — one result per lexeme
+await partOfSpeech("έγραψε", "el"); // [{ value: "verb", language: "el", ... }]
 
-// Get the full rich entry object
-const entry = await richEntry("γράφω"); 
+// LexemeResult<RichEntry | null>[] — full rich entry per lexeme
+await richEntry("γράφω"); 
 ```
 
 #### 2. Pronunciation
 Extract phonetic transcriptions, rhymes, and audio resources.
 
 ```typescript
-import { ipa, pronounce, rhymes, homophones, audioDetails } from "wiktionary-sdk";
+import { ipa, pronounce, rhymes, homophones, audioGallery } from "wiktionary-sdk";
 
-await ipa("έγραψε"); // "/ˈɣra.pse/"
-await pronounce("έγραψε"); // Resolved Wikimedia Commons audio URL
+await ipa("έγραψε");     // [{ value: "/ˈɣra.pse/", language: "el", ... }]
+await pronounce("έγραψε"); // [{ value: "https://...audio.ogg", ... }]
 
-// High-fidelity audio with dialect labels
-await audioDetails("γράφω"); 
-// [{ url: "...", label: "Audio (Greece)", filename: "El-γράφω.ogg" }]
+// Per-lexeme audio gallery with dialect labels
+await audioGallery("γράφω"); 
+// [{ value: [{ url: "...", label: "Audio (Greece)", filename: "El-γράφω.ogg" }], ... }]
 
-await rhymes("γράφω");     // ["-afo"]
-await homophones("γράφω"); // ["γράφω (variant)"]
+await rhymes("γράφω");     // [{ value: ["-afo"], ... }]
+await homophones("γράφω"); // [{ value: [...], ... }]
 ```
 
 #### 3. Morphology (Stems & Inflection)
 Extract native stems and perform dynamic inflection (declension/conjugation).
 
 ```typescript
-import { stem, morphology, conjugate, decline, gender, transitivity, inflectionTableRef } from "wiktionary-sdk";
+import { stem, morphology, conjugate, decline, gender, transitivity } from "wiktionary-sdk";
 
-// Extract inherent grammar from any inflected form!
+// LexemeResult<GrammarTraits>[] — grammar per lexeme
 await morphology("έγραψες");
-/* { person: "2", number: "singular", tense: "past", ... } */
+// [{ value: { person: "2", number: "singular", tense: "past", ... }, ... }]
 
-// Conjugate verbs dynamically (Uses DOM parsing on MediaWiki API)
+// LexemeResult<string[] | Record | null>[] — conjugation per lexeme
 await conjugate("έγραψες", { number: "plural" }); 
-// ["γράψατε"] (Inherits past perfective indicative active from "έγραψες")
+// [{ value: ["γράψατε"], ... }]
 
-// Decline nominals (Nouns and Adjectives)
+// Decline nominals per lexeme
 await decline("άνθρωπος", { case: "genitive", number: "plural" });
-// ["ανθρώπων"]
+// [{ value: ["ανθρώπων"], ... }]
 
-// Native word stems mapped from declarative templates
+// LexemeResult<WordStems>[] — stems per lexeme via templates_all
 await stem("έγραψα");
-/* { verb: { present: ["γράφ"], ... }, aliases: ["γράφ", "γράψ", ...] } */
+// [{ value: { verb: { present: ["γράφ"], ... }, aliases: ["γράφ", "γράψ", ...] }, ... }]
 
-await gender("μήλο");         // "neuter"
-await transitivity("γράφω");  // "both"
-await inflectionTableRef("γράφω"); // { template_name: "el-conj-γράφω", ... }
+await gender("μήλο");         // [{ value: "neuter", ... }]
+await transitivity("γράφω");  // [{ value: "both", ... }]
 ```
 
 #### 4. Hyphenation
@@ -156,8 +201,8 @@ Retrieve syllable structures and counts.
 ```typescript
 import { hyphenate, syllableCount } from "wiktionary-sdk";
 
-await hyphenate("έγραψε"); // ["έ", "γρα", "ψε"]
-await syllableCount("έγραψε"); // 3
+await hyphenate("έγραψε"); // [{ value: ["έ", "γρα", "ψε"], ... }]
+await syllableCount("έγραψε"); // [{ value: 3, ... }]
 ```
 
 #### 5. Etymology
@@ -166,25 +211,25 @@ Trace the linguistic lineage and cognates of a term.
 ```typescript
 import { etymology, etymologyChain, etymologyCognates, etymologyText } from "wiktionary-sdk";
 
-// Structured etymology chain (Ancestors)
+// LexemeResult<any[]>[] — per-lexeme etymology chain
 await etymologyChain("έγραψε", "el");
-/* [{ lang: "grc", term: "γράφω" }, ...] */
+// [{ value: [{ lang: "grc", term: "γράφω" }, ...], ... }]
 
-await etymologyCognates("έγραψε"); // List of cognate terms
-await etymologyText("γράφω");     // Raw etymology prose text
+await etymologyCognates("έγραψε"); // [{ value: [...cognates], ... }]
+await etymologyText("γράφω");     // [{ value: "From Ancient Greek...", ... }]
 ```
 
 #### 6. Senses, Examples & Usage
-Extract prosecutorial definitions and usage metadata.
+Extract prose definitions and usage metadata.
 
 ```typescript
 import { exampleDetails, usageNotes } from "wiktionary-sdk";
 
-// High-fidelity examples (Prose + Translations + Citations)
+// LexemeResult<any[]>[] — per-lexeme examples
 await exampleDetails("γράφω"); 
-/* [{ text: "...", translation: "...", author: "...", ... }] */
+// [{ value: [{ text: "...", translation: "...", author: "...", ... }], ... }]
 
-await usageNotes("μήλο"); // ["Used with the accusative...", ...]
+await usageNotes("μήλο"); // [{ value: ["Used with the accusative...", ...], ... }]
 ```
 
 #### 7. Semantic Relations
@@ -193,10 +238,10 @@ Navigate synonyms, antonyms, and ontological hierarchies.
 ```typescript
 import { synonyms, antonyms, hypernyms, hyponyms } from "wiktionary-sdk";
 
-await synonyms("έγραψε"); // ["σημειώνω", "καταγράφω"]
-await antonyms("έγραψε"); // ["σβήνω"]
-await hypernyms("μήλο");  // ["φρούτο"]
-await hyponyms("φρούτο"); // ["μήλο", "μπανάνα"]
+await synonyms("έγραψε"); // [{ value: ["σημειώνω", "καταγράφω"], language: "el", ... }]
+await antonyms("έγραψε"); // [{ value: ["σβήνω"], ... }]
+await hypernyms("μήλο");  // [{ value: ["φρούτο"], ... }]
+await hyponyms("φρούτο"); // [{ value: ["μήλο", "μπανάνα"], ... }]
 ```
 
 #### 8. Derived, Related & Descendants
@@ -205,9 +250,9 @@ Explore connected terms across history and usage.
 ```typescript
 import { derivedTerms, relatedTerms, descendants } from "wiktionary-sdk";
 
-await derivedTerms("έγραψε"); // [{ term: "συγγραφέας", ... }]
-await relatedTerms("έγραψε"); // [{ term: "γραπτός", ... }]
-await descendants("γράφω");   // [{ term: "...", ... }]
+await derivedTerms("έγραψε"); // [{ value: [{ term: "συγγραφέας", ... }], ... }]
+await relatedTerms("έγραψε"); // [{ value: [{ term: "γραπτός", ... }], ... }]
+await descendants("γράφω");   // [{ value: [{ term: "...", ... }], ... }]
 ```
 
 #### 9. See also & Anagrams
@@ -216,8 +261,8 @@ Quick links and character permutations.
 ```typescript
 import { seeAlso, anagrams } from "wiktionary-sdk";
 
-await seeAlso("ζωγραφίζω"); // ["γράφω"]
-await anagrams("αγράφω");    // ["γράφω"]
+await seeAlso("ζωγραφίζω"); // [{ value: ["γράφω"], ... }]
+await anagrams("αγράφω");    // [{ value: ["γράφω"], ... }]
 ```
 
 #### 10. Translations
@@ -226,8 +271,8 @@ Query 1-to-1 translations natively (gloss mode) or fetch full native prose defin
 ```typescript
 import { translate } from "wiktionary-sdk";
 
-await translate("έγραψε", "el", "nl"); // ["schrijven"]
-await translate("έγραψε", "el", "fr", { mode: "senses" }); // ["écrire"]
+await translate("έγραψε", "el", "nl"); // [{ value: ["schrijven"], ... }]
+await translate("έγραψε", "el", "fr", { mode: "senses" }); // [{ value: ["écrire"], ... }]
 ```
 
 #### 11. Connectivity & Media
@@ -236,12 +281,10 @@ Aggregate all media resources and link metadata.
 ```typescript
 import { allImages, image, externalLinks, internalLinks } from "wiktionary-sdk";
 
-// Aggregate gallery (Wiktionary + Wikidata images)
-await allImages("γράφω"); 
-
-await image("μήλο");          // Primary thumbnail resolved from Wikidata
-await externalLinks("γράφω");  // External URLs (references, external sites)
-await internalLinks("γράφω");  // Wiktionary term links within the article
+await allImages("γράφω");      // [{ value: ["https://...thumb.jpg", ...], ... }]
+await image("μήλο");           // [{ value: "https://...apple.jpeg", ... }]
+await externalLinks("γράφω");  // [{ value: ["https://..."], ... }]
+await internalLinks("γράφω");  // [{ value: ["σημειώνω", ...], ... }]
 ```
 
 #### 12. Wikidata Enrichment
@@ -250,9 +293,9 @@ Access the global entity knowledge graph.
 ```typescript
 import { wikidataQid, isInstance, wikipediaLink } from "wiktionary-sdk";
 
-await wikidataQid("μήλο", "el"); // "Q89" (Apple)
-await isInstance("Σωκράτης", "Q5"); // true (Person check)
-await wikipediaLink("μήλο", "el", "en"); // En-wiki URL
+await wikidataQid("μήλο", "el"); // [{ value: "Q89", ... }]
+await isInstance("Σωκράτης", "Q5"); // [{ value: true, ... }]
+await wikipediaLink("μήλο", "el", "en"); // [{ value: "https://en.wikipedia.org/wiki/Apple", ... }]
 ```
 
 #### 13. Presentation Layer (Smart Formatter)

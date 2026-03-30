@@ -241,12 +241,187 @@ This section records **intentionally partial** choices from the testing hardenin
 
 ---
 
-## 🚀 Stage 23: Recursive Resolution & Paradigm Expansion (TBD)
+## 🔀 Stage 23: Configurable Lexeme Sort & Language Priorities (TBD)
+
+**Goal**: make the `sort: "priority"` language ranking user-configurable and expand the default priority table beyond the current three-language prototype.
+
+- **Configurable Priority Map**
+    - Allow callers to supply a custom `Record<string, number>` mapping language codes to priority values, overriding or extending the built-in defaults.
+    - Support configuration via both the TypeScript API (`sort: { strategy: "priority", priorities: { ... } }`) and a CLI flag (`--sort-priority --lang-priorities el=1,grc=2,...`).
+- **Expanded Default Priorities**
+    - Research Wiktionary usage statistics to establish a sensible default priority ranking for the top 20–30 languages.
+    - Consider ISO 639-3 macro-language groupings (e.g. treating all Greek varieties as a cluster).
+- **Secondary Sort Keys**
+    - Within the same language, allow sorting by `etymology_index` (ascending) and then by PoS heading.
+    - Expose an option for custom secondary comparators for domain-specific consumers.
+- **CLI & Webapp Integration**
+    - Add `--sort source|priority` flag to the CLI (`cli/index.ts`).
+    - Surface a sort toggle in the webapp Playground UI.
+- **Documentation & Schema**
+    - Update the spec, README, and JSON Schema to reflect any extended configuration surface.
+
+---
+
+## 📖 Stage 24: Lexicographic Standard Output Formats (TBD)
+
+**Goal**: add Handlebars templates and/or serializers for established lexicographic data interchange formats and semantically rigorous HTML, so the SDK can produce output consumable by academic tools, NLP pipelines, digital humanities corpora, and linked-data platforms.
+
+### Context
+
+The SDK's `format()` function already supports multiple output modes (`text`,
+`markdown`, `html`, `ansi`, `terminal-html`) via registered styles. The HTML
+output uses a Handlebars template (`entry.html.hbs`) that prioritizes
+typographic density and print-dictionary aesthetics. However, none of the
+current formats conform to established lexicographic data standards used in
+academia and the language-technology ecosystem. Adding these would
+dramatically broaden the SDK's utility as a "Layer 1" data source.
+
+### Deliverables
+
+#### 1. Semantic HTML5 ("purist" rendition)
+
+A Handlebars template producing semantically correct HTML Living Standard
+markup for a single dictionary entry, using the most appropriate native
+elements:
+
+- `<article lang="…">` as the entry wrapper (with BCP-47 `lang` attribute).
+- `<header>` containing the headword in `<h1>` (or `<h2>` for embedding)
+  and PoS/morphology metadata in a `<dl>` (definition list).
+- `<abbr title="…">` for genuine abbreviations (e.g., *n.*, *v.*, *adj.*,
+  *masc.*, *fem.*), not for full words that happen to be labels.
+- `<dl>` / `<dt>` / `<dd>` for the senses list — the HTML-native fit for
+  term–definition pairs, with sense numbers and register labels in `<dt>`.
+- `<ol>` for numbered subsenses, `<blockquote>` for usage examples and
+  literary citations (with `<cite>` for attributed sources).
+- `<aside>` for etymology, pronunciation, and "See also" sections.
+- `<ruby>` for romanization/transliteration annotation where appropriate.
+- Microdata or `data-*` attributes carrying machine-readable fields
+  (`data-pos`, `data-lang`, `data-sense-id`) for downstream JS consumers.
+- ARIA roles where beneficial (e.g., `role="definition"` on `<dd>`).
+
+**Rationale:** A semantically correct HTML fragment is maximally accessible,
+indexable by search engines, and style-agnostic. It can be embedded in any
+web context and styled entirely by the host's CSS.
+
+**Implementation:** New Handlebars template `entry.semantic-html.hbs` +
+a registered `FormatterStyle` named `"semantic-html"`.
+
+#### 2. TEI Lex-0 (Text Encoding Initiative — Lexicographic subset)
+
+TEI is the dominant XML standard in digital humanities for encoding texts.
+**TEI Lex-0** is a constrained profile of TEI P5 specifically designed for
+machine-readable dictionaries. It is the format used by major digitisation
+projects (DARIAH, ELEXIS, Lexical Computing).
+
+Key elements to map:
+
+| SDK field | TEI Lex-0 element |
+|-----------|-------------------|
+| Entry / headword | `<entry>` with `<form type="lemma"><orth>γράφω</orth></form>` |
+| Part of speech | `<gramGrp><gram type="pos">verb</gram></gramGrp>` |
+| Pronunciation (IPA) | `<form type="lemma"><pron notation="IPA">/ˈɣra.fo/</pron></form>` |
+| Sense / gloss | `<sense n="1"><def>to write, pen</def></sense>` |
+| Usage example | `<cit type="example"><quote>…</quote><cit type="translation"><quote>…</quote></cit></cit>` |
+| Etymology | `<etym><mentioned xml:lang="grc">γράφω</mentioned></etym>` |
+| Semantic relations | `<xr type="synonymy"><ref target="…">σημειώνω</ref></xr>` |
+| Translations | `<cit type="translation" xml:lang="nl"><quote>schrijven</quote></cit>` |
+
+**Rationale:** TEI Lex-0 is the _de facto_ standard for interoperability
+between dictionary projects in the European research infrastructure. Adding
+this format lets the SDK feed into CLARIN, DARIAH-EU, and Sketch Engine
+pipelines directly.
+
+**Implementation:** New Handlebars template `entry.tei.hbs` producing a TEI
+`<entry>` XML fragment (not a full `<TEI>` document — consumers wrap it).
+Registered as `FormatterStyle` named `"tei"`.
+
+**Reference:** [TEI Lex-0 specification](https://dariah-eric.github.io/lexicalresources/pages/TEILex0/TEILex0.html)
+
+#### 3. OntoLex-Lemon (JSON-LD / RDF)
+
+OntoLex-Lemon is the W3C community standard for representing lexical
+resources as Linked Data. It is the format used by Wikidata Lexemes,
+DBnary, and BabelNet.
+
+Key mappings:
+
+| SDK field | OntoLex-Lemon class/property |
+|-----------|------------------------------|
+| Lexeme (entry) | `ontolex:LexicalEntry` |
+| Headword / lemma | `ontolex:canonicalForm` → `ontolex:Form` with `ontolex:writtenRep` |
+| Part of speech | `lexinfo:partOfSpeech` (using LexInfo vocabulary URIs) |
+| Sense | `ontolex:LexicalSense` with `skos:definition` |
+| Translation | `vartrans:Translation` linking two `ontolex:LexicalEntry` instances |
+| Etymology | `lexinfo:etymology` (or custom `wikt:etymologicalLink`) |
+| Synonym/Antonym | `vartrans:lexicalRel` with `lexinfo:synonym` / `lexinfo:antonym` |
+
+Output would be a JSON-LD `@graph` array conforming to the OntoLex module
+ontology, with `@context` referencing `ontolex:`, `lexinfo:`, `vartrans:`,
+and `skos:` namespaces.
+
+**Rationale:** JSON-LD is the most web-developer-friendly RDF serialization.
+Producing OntoLex output lets the SDK interoperate with the Linguistic
+Linked Open Data cloud, SPARQL endpoints, and knowledge-graph platforms.
+
+**Implementation:** A serializer function (not Handlebars — JSON-LD is
+better produced programmatically) registered as `FormatterStyle` named
+`"jsonld"` or `"ontolex"`.
+
+**Reference:** [OntoLex-Lemon](https://www.w3.org/2016/05/ontolex/),
+[LexInfo](https://lexinfo.net/)
+
+#### 4. LMF (Lexical Markup Framework — ISO 24613)
+
+LMF is the ISO standard for the representation of computational lexicons.
+It provides a meta-model for NLP lexicons (morphological analysers,
+machine translation dictionaries, etc.). LMF XML is used by tools like
+GATE, FreeLing, and Apertium.
+
+Core structure: `<LexicalResource>` → `<Lexicon>` → `<LexicalEntry>` →
+`<Lemma>`, `<Sense>`, `<WordForm>`.
+
+**Rationale:** LMF bridges the gap between human-readable dictionaries and
+NLP-consumable lexicons. For users who want to feed Wiktionary data into
+computational morphology pipelines, LMF is the expected interchange format.
+
+**Implementation:** XML serializer registered as `FormatterStyle` named
+`"lmf"`. May share structural logic with the TEI serializer.
+
+**Reference:** [ISO 24613:2008](https://www.iso.org/standard/37327.html)
+
+#### 5. XDXF (XML Dictionary Exchange Format)
+
+XDXF is a lightweight XML format for bilingual/multilingual dictionaries,
+used by StarDict, GoldenDict, and other desktop dictionary applications.
+
+**Rationale:** XDXF export would allow the SDK's output to be imported
+directly into popular desktop dictionary readers, making Wiktionary data
+available offline in GoldenDict/StarDict format.
+
+**Implementation:** XML serializer or Handlebars template, registered as
+`FormatterStyle` named `"xdxf"`.
+
+### Architecture notes
+
+- **Fragment-first:** All formats should produce entry-level fragments, not
+  full documents. Consumers wrap fragments into `<TEI>` documents, JSON-LD
+  `@graph` arrays, or LMF `<LexicalResource>` containers as needed.
+- **Round-trip fidelity:** Every field in the output must be traceable back
+  to a `Lexeme` field. No data is synthesized or inferred.
+- **Environment agnosticism:** Templates and serializers must be bundled as
+  TypeScript strings (per `AGENTS.md` §5) so they work in both Node and
+  browser contexts.
+- **Priority order:** Semantic HTML5 and TEI Lex-0 are highest priority
+  (broadest user base). OntoLex-Lemon is medium priority (Linked Data
+  community). LMF and XDXF are lower priority (specialised NLP / desktop
+  dictionary use cases).
+
+---
+
+## 🚀 Stage 25: Recursive Resolution & Paradigm Expansion (TBD)
 
 **Goal**: expand the depth of alternative forms and automate full paradigm reconstruction.
 
-- **Recursion**: implement recursive resolution for "Alternative forms" to fetch the variant's full entry.
-- **Paradigms**: research the feasibility of reconstructing full 5x6 tables from template-extracted stems without API fallbacks.
+- **Recursion**: implement recursive resolution for "Alternative forms" to fetch the variant's full lexeme.
+- **Paradigms**: research the feasibility of reconstructing full 5×6 tables from template-extracted stems without API fallbacks.
 - **MetaLang**: finalize the mapping of Wiktionary translations to MetaLang concept IDs.
-
----

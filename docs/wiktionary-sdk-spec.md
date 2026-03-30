@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v2.5)
+# Wiktionary SDK — Formal Specification (v3.1)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -12,6 +12,14 @@ Given:
 - `pos: string` (optional; defaults to `"Auto"`)
 - optional disambiguators:
   - `enrich_wikidata?: boolean` (lemma-only)
+  - `sort?: "source" | "priority"` (defaults to `"source"`)
+    - `"source"`: preserve the order in which language sections and PoS blocks
+      appear in the Wiktionary source markup. This is the default, honoring
+      the principle of source-faithful extraction.
+    - `"priority"`: apply a hardcoded language-priority heuristic
+      (`el` > `grc` > `en`; all others at equal rank), then sort
+      alphabetically within the same tier. Useful when the caller wants
+      Modern Greek results first regardless of source order.
 
 Return:
 
@@ -78,9 +86,9 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "2.5.0"
+schema_version: "3.0.0"
 rawLanguageBlock: "==Greek==..."
-entries: [...]
+lexemes: [...]
 notes: [...]
 debug: [...]      # optional; present when debugDecoders=true
 metadata:          # page-level data from the API
@@ -90,15 +98,21 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"2.4.0"`.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.0.0"`.
 - `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
-  `debug[i]` is an array of `DecoderDebugEvent` for `entries[i]`, listing which
+  `debug[i]` is an array of `DecoderDebugEvent` for `lexemes[i]`, listing which
   decoder matched which templates and what fields it produced.
 - `metadata` (optional): Page-level data fetched alongside the wikitext
-  (categories, langlinks, page info). Separate from per-entry `categories` and
+  (categories, langlinks, page info). Separate from per-lexeme `categories` and
   `langlinks` which are filtered by language section.
 
-Each `Entry` contains:
+**Terminology note (v3.0):** The array was renamed from `entries` to `lexemes`
+and the interface from `Entry` to `Lexeme` to align with the correct
+lexicographic semantics (see §12.25). A _lexeme_ is the data for a single
+concept with a specific language, part-of-speech, and etymology. An _entry_
+is the page-level aggregate of all lexemes sharing a headword.
+
+Each `Lexeme` contains:
 
 | Field | Type | Source |
 |-------|------|--------|
@@ -129,7 +143,7 @@ Each `Entry` contains:
 | `descendants` | `SectionWithLinks` | From `{{l}}`/`{{link}}` in `====Descendants====` |
 | `templates` | `Record<name, StoredTemplate[]>` | All template calls, stored verbatim |
 | `templates_all` | `StoredTemplateInstance[]` | Templates in document order with optional `start`, `end`, `line` |
-| `lemma_triggered_by_entry_id` | string? | Entry id that triggered lemma resolution |
+| `lemma_triggered_by_lexeme_id` | string? | Lexeme id that triggered lemma resolution |
 | `categories` | `string[]` | API categories filtered by language section |
 | `langlinks` | `Array<{lang, title}>` | Interwiki links to other Wiktionary editions |
 | `page_links` | `string[]` | Internal wikilinks extracted from the page |
@@ -335,7 +349,7 @@ derived_terms:
 
 ### 3.7 Schema versioning
 
-The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`2.5.0`** (v2.4 added granular subclasses; v2.5 adds template-driven stems and registers).
+The output shape is formalized in `schema/normalized-entry.schema.json` (JSON Schema draft-07). The current schema version is **`3.0.0`** (v3.0 renamed `Entry` to `Lexeme`, `entries` to `lexemes`, and fixed PoS segmentation to produce correct lexeme boundaries).
 
 Human-readable schema examples are in `docs/schemata/`:
 - `exhaustive_schema_v2.5.0.yaml`: the canonical "Gold Standard" specimen.
@@ -353,57 +367,62 @@ A `RichEntry` is a comprehensive, flattened representation of a linguistic term,
 #### 3.9.2 `InflectionTable` (The Structured Paradigm)
 An `InflectionTable` is a hierarchical representation of a grammatical paradigm (e.g., all forms of a verb across mood, tense, and voice). It is returned by `conjugate()` and `decline()` when called in "full-table" mode (empty criteria).
 
-| Wrapper | Return type | Notes |
-|---------|-------------|-------|
-| `lemma(q, l)` | `string` | Resolves inflections to canonical lemma. |
-| `ipa(q, l)` | `string\|null` | Primary IPA transcription. |
-| `pronounce(q, l)` | `string\|null` | Audio URL (prefers `audio_url`, falls back to filename or IPA). |
-| `hyphenate(q, l, opts)` | `string[]\|string\|null` | Syllable list or joined string. |
-| `synonyms(q, l)` | `string[]` | Synonyms list. |
-| `antonyms(q, l)` | `string[]` | Antonyms list. |
-| `hypernyms(q, l)` | `string[]` | Hypernyms. |
-| `hyponyms(q, l)` | `string[]` | Hyponyms. |
-| `translate(q, l, t)` | `string[]` | Gloss-mode translation. |
-| `etymology(q, l)` | `EtymologyStep[]` | Structured lineage (reads `chain` with `links` fallback). |
-| `partOfSpeech(q, l)` | `string\|null` | Normalized POS tag. |
-| `conjugate(q, l, c)` | `string[]\|Record\|null` | Full paradigm or targeted cell. |
-| `decline(q, l, c)` | `string[]\|Record\|null` | Full declension or targeted cell. |
-| `morphology(q, l)` | `GrammarTraits` | Inherent grammatical traits. |
-| `richEntry(q, l)` | `RichEntry` | Aggregate high-fidelity object. |
-| `stem(q, l)` | `WordStems` | Logical stems from templates. |
-
-**New in v2** (morphology, etymology, metadata, sections):
+From v3.1, all lexeme-scoped wrappers return `LexemeResult<T>[]` — an array
+of results tagged with lexeme identity (see §12.26). Scalar exceptions are
+marked below.
 
 | Wrapper | Return type | Notes |
 |---------|-------------|-------|
-| `principalParts(q, l)` | `Record<string,string>\|null` | Verb paradigm slots from headword template params. |
-| `gender(q, l)` | `"masculine"\|"feminine"\|"neuter"\|null` | Noun/adj grammatical gender. |
-| `transitivity(q, l)` | `"transitive"\|"intransitive"\|"both"\|null` | Verb transitivity. |
-| `alternativeForms(q, l)` | `Array<{term, qualifier?}>` | From `====Alternative forms====`. |
-| `seeAlso(q, l)` | `string[]` | From `====See also====`. |
-| `anagrams(q, l)` | `string[]` | From `====Anagrams====`. |
-| `usageNotes(q, l)` | `string[]` | From `===Usage notes===`. |
-| `derivedTerms(q, l)` | `SectionLinkItem[]` | From `====Derived terms====`. |
-| `relatedTerms(q, l)` | `SectionLinkItem[]` | From `====Related terms====`. |
-| `descendants(q, l)` | `SectionLinkItem[]` | From `====Descendants====`. |
-| `referencesSection(q, l)` | `string[]` | From `====References====`. |
-| `etymologyChain(q, l)` | `EtymologyLink[]` | Ancestor chain (inherited/borrowed/derived). |
-| `etymologyCognates(q, l)` | `EtymologyLink[]` | Cognate list from `{{cog}}`. |
-| `etymologyText(q, l)` | `string\|null` | Raw prose text of the etymology section. |
-| `categories(q, l)` | `string[]` | Language-filtered page categories. |
-| `langlinks(q, l)` | `Array<{lang,title}>` | Links to other Wiktionary editions (`interwiki` is an alias). |
-| `isCategory(q, cat, l)` | `boolean` | Checks if `cat` appears in the categories list. |
-| `pageMetadata(q, l)` | `object` | Raw page info (`last_modified`, `length`, `pageid`). |
-| `inflectionTableRef(q, l)` | `{template_name, raw}\|null` | Name of the conjugation/declension template. |
-| `audioGallery(q, l)` | `AudioDetail[]` | Full list of audio files with URLs and labels. |
-| `audioDetails(q, l)` | `AudioDetail[]` | Alias for `audioGallery` (deprecated). |
-| `exampleDetails(q, l)` | `Example[]` | Structured usage examples with translations. |
-| `citations(q, l)` | `Example[]` | Literary citations extracted from `{{quote-book}}` etc. |
-| `isInstance(q, qid, l)` | `boolean` | Checks if entry belongs to Wikidata instance `qid`. |
-| `isSubclass(q, qid, l)` | `boolean` | Checks if entry belongs to Wikidata subclass `qid`. |
-| `wikipediaLink(q, l)` | `string\|null` | Direct link to the corresponding Wikipedia article. |
-| `internalLinks(q, l)` | `string[]` | List of internal wikilinks on the page. |
-| `externalLinks(q, l)` | `string[]` | List of external HTTP links on the page. |
+| `lemma(q, l)` | `string` | **Scalar.** Resolves inflections to canonical lemma. |
+| `pageMetadata(q, l)` | `object` | **Scalar.** Raw page info (`last_modified`, `length`, `pageid`). |
+| `getMainLexeme(result)` | `Lexeme\|null` | **Scalar.** First-match heuristic utility. |
+| `ipa(q, l)` | `LexemeResult<string\|null>[]` | Primary IPA transcription per lexeme. |
+| `pronounce(q, l)` | `LexemeResult<string\|null>[]` | Audio URL per lexeme. |
+| `hyphenate(q, l, opts)` | `LexemeResult<any>[]` | Syllable list or joined string per lexeme. |
+| `syllableCount(q, l)` | `LexemeResult<number>[]` | Number of syllables per lexeme. |
+| `synonyms(q, l)` | `LexemeResult<string[]>[]` | Synonyms per lexeme. |
+| `antonyms(q, l)` | `LexemeResult<string[]>[]` | Antonyms per lexeme. |
+| `hypernyms(q, l)` | `LexemeResult<string[]>[]` | Hypernyms per lexeme. |
+| `hyponyms(q, l)` | `LexemeResult<string[]>[]` | Hyponyms per lexeme. |
+| `translate(q, l, t)` | `LexemeResult<string[]>[]` | Translations per lexeme. |
+| `etymology(q, l)` | `LexemeResult<EtymologyStep[]\|null>[]` | Structured lineage per lexeme. |
+| `partOfSpeech(q, l)` | `LexemeResult<string\|null>[]` | Normalized POS tag per lexeme. |
+| `conjugate(q, l, c)` | `LexemeResult<string[]\|Record\|null>[]` | Paradigm per lexeme. |
+| `decline(q, l, c)` | `LexemeResult<string[]\|Record\|null>[]` | Declension per lexeme. |
+| `morphology(q, l)` | `LexemeResult<GrammarTraits>[]` | Grammar traits per lexeme. |
+| `richEntry(q, l)` | `LexemeResult<RichEntry\|null>[]` | Aggregate profile per lexeme. |
+| `stem(q, l)` | `LexemeResult<WordStems>[]` | Logical stems per lexeme. |
+| `principalParts(q, l)` | `LexemeResult<Record\|null>[]` | Verb paradigm slots per lexeme. |
+| `gender(q, l)` | `LexemeResult<string\|null>[]` | Grammatical gender per lexeme. |
+| `transitivity(q, l)` | `LexemeResult<string\|null>[]` | Verb transitivity per lexeme. |
+| `alternativeForms(q, l)` | `LexemeResult<Array<{term, qualifier?}>>[]` | Alternative forms per lexeme. |
+| `seeAlso(q, l)` | `LexemeResult<string[]>[]` | See-also terms per lexeme. |
+| `anagrams(q, l)` | `LexemeResult<string[]>[]` | Anagrams per lexeme. |
+| `usageNotes(q, l)` | `LexemeResult<string[]>[]` | Usage notes per lexeme. |
+| `derivedTerms(q, l)` | `LexemeResult<any[]>[]` | Derived terms per lexeme. |
+| `relatedTerms(q, l)` | `LexemeResult<any[]>[]` | Related terms per lexeme. |
+| `descendants(q, l)` | `LexemeResult<any[]>[]` | Descendants per lexeme. |
+| `referencesSection(q, l)` | `LexemeResult<string[]>[]` | References per lexeme. |
+| `etymologyChain(q, l)` | `LexemeResult<any[]>[]` | Ancestor chain per lexeme. |
+| `etymologyCognates(q, l)` | `LexemeResult<any[]>[]` | Cognates per lexeme. |
+| `etymologyText(q, l)` | `LexemeResult<string\|null>[]` | Raw etymology text per lexeme. |
+| `categories(q, l)` | `LexemeResult<string[]>[]` | Categories per lexeme. |
+| `langlinks(q, l)` | `LexemeResult<any[]>[]` | Interwiki links per lexeme (`interwiki` is alias). |
+| `isCategory(q, cat, l)` | `LexemeResult<boolean>[]` | Category membership per lexeme. |
+| `inflectionTableRef(q, l)` | `LexemeResult<{template_name, raw}\|null>[]` | Inflection template per lexeme. |
+| `audioGallery(q, l)` | `LexemeResult<AudioDetail[]>[]` | Audio files per lexeme. |
+| `exampleDetails(q, l)` | `LexemeResult<any[]>[]` | Usage examples per lexeme. |
+| `citations(q, l)` | `LexemeResult<any[]>[]` | Literary citations per lexeme. |
+| `isInstance(q, qid, l)` | `LexemeResult<boolean>[]` | Wikidata P31 membership per lexeme. |
+| `isSubclass(q, qid, l)` | `LexemeResult<boolean>[]` | Wikidata P279 membership per lexeme. |
+| `wikipediaLink(q, l)` | `LexemeResult<string\|null>[]` | Wikipedia link per lexeme. |
+| `internalLinks(q, l)` | `LexemeResult<string[]>[]` | Internal wikilinks per lexeme. |
+| `externalLinks(q, l)` | `LexemeResult<string[]>[]` | External links per lexeme. |
+| `wikidataQid(q, l)` | `LexemeResult<string\|null>[]` | Wikidata QID per lexeme. |
+| `image(q, l)` | `LexemeResult<string\|null>[]` | Primary image URL per lexeme. |
+| `allImages(q, l)` | `LexemeResult<string[]>[]` | All images per lexeme. |
+| `rhymes(q, l)` | `LexemeResult<string[]>[]` | Rhyming words per lexeme. |
+| `homophones(q, l)` | `LexemeResult<string[]>[]` | Homophones per lexeme. |
 
 ### 3.11 Morphological Extraction Methodology (The "Source-Faithful" Pivot)
 
@@ -437,18 +456,148 @@ The `conjugate()` and `decline()` functions implement a **Smart Override** strat
 
 - Locate exact language header `==Greek==` for `lang=el`, etc.
 - **Auto-discovery (`lang="Auto"`)**: When no language is specified, the engine scans the entire page for level-2 headings (`==...==`) and extracts all sections matching the internal language map.
-- **Priority-Based Sorting**: Discovered entries are sorted by linguistic significance:
+- **Lexeme Ordering**: By default (`sort: "source"`), discovered lexemes
+  preserve the order in which language sections appear in the Wiktionary
+  source markup. When `sort: "priority"` is requested, lexemes are sorted
+  by a hardcoded linguistic-significance heuristic:
   1. **Greek (`el`)** (Primary target)
   2. **Ancient Greek (`grc`)**
   3. **English (`en`)**
   4. Others (Alphabetical)
-- **Unknown language codes:** If `lang` is specified but not found in the mapping, `fetchWiktionary()` returns early with `empty entries`.
+- **Unknown language codes:** If `lang` is specified but not found in the mapping, `fetchWiktionary()` returns early with an empty `lexemes` array.
 
-### 4.2 Etymology and PoS segmentation
+### 4.2 Etymology and PoS segmentation — the Wikitext hierarchy problem
 
-- **Robust Heading Detection**: Split on symmetrical level-3 to level-5 headings (e.g., `===Etymology===`, `====Verb====`, `=====Noun=====`).
-- **Nesting Support**: Correctly identifies PoS blocks nested under Etymology or other H3 headers.
-- **Whitespace Sanitation**: Trims all headings and block content to prevent parsing artifacts.
+#### 4.2.1 The problem: flat headings, implicit hierarchy
+
+Wikitext uses `=` delimiters for heading levels (`==` for H2, `===` for H3,
+`====` for H4, etc.), but Wiktionary's conventions use these levels
+inconsistently across the semantic hierarchy of a dictionary entry. Consider
+the actual heading structure for the Greek word **γράφω**:
+
+```
+==Ancient Greek==           ← H2: language section
+===Etymology===             ← H3: metadata
+===Pronunciation===         ← H3: metadata
+===Verb===                  ← H3: actual part-of-speech (lexeme)
+====Conjugation====         ← H4: subsection of Verb
+====Derived terms====       ← H4: subsection of Verb
+====Descendants====         ← H4: subsection of Verb
+===References===            ← H3: metadata
+===Further reading===       ← H3: metadata
+==Greek==                   ← H2: new language section
+===Etymology===             ← H3: metadata
+===Pronunciation===         ← H3: metadata
+===Verb===                  ← H3: actual part-of-speech (lexeme)
+====Conjugation====         ← H4: subsection of Verb
+====Antonyms====            ← H4: subsection of Verb
+====Related terms====       ← H4: subsection of Verb
+===References===            ← H3: metadata
+==Italiot Greek==           ← H2: new language section
+===Etymology===             ← H3: metadata
+===Pronunciation===         ← H3: metadata
+===Verb===                  ← H3: actual part-of-speech (lexeme)
+```
+
+The critical structural ambiguity is that **all H3 headings are at the same
+level**, yet they serve fundamentally different roles:
+
+- **`===Verb===`** introduces a _part-of-speech block_ that defines a
+  lexeme — a concept with definitions, templates, and semantic relations.
+- **`===Etymology===`**, **`===Pronunciation===`**, **`===References===`**
+  are _metadata sections_ that provide auxiliary data _about_ a lexeme but
+  do not constitute independent lexemes themselves.
+- **`====Conjugation====`**, **`====Antonyms====`**, etc. are _subsections_
+  nested within a PoS block that extend the data of their parent lexeme.
+
+Wikitext has no way to express that "Pronunciation" is _metadata belonging to
+the Verb lexeme that follows it_, or that "Conjugation" is _a subsection of
+the Verb above_. The hierarchy is purely implicit, relying on editorial
+convention and reading order.
+
+#### 4.2.2 The category error: headings are not entries
+
+A naïve parser that treats every H3–H5 heading as a separate lexeme/entry
+produces catastrophic conflation. For γράφω, a flat-heading parser produces
+**15 "entries"** — one for "Pronunciation", one for "Antonyms", one for
+"Conjugation", etc. — each promoted to the same level as an actual "Verb"
+entry. This is a **category error**: metadata sections (Etymology,
+Pronunciation, References, Further Reading) and relational subsections
+(Antonyms, Derived Terms, Conjugation) are misidentified as independent
+lexemes, resulting in:
+
+1. **Semantic pollution**: UI elements (pills, tabs, exports) display
+   "Entry: Antonyms" or "Entry: Pronunciation" as if they were distinct
+   vocabulary entries.
+2. **Data loss by dilution**: The actual lexeme's antonyms, pronunciation,
+   and conjugation data get scattered across isolated pseudo-entries instead
+   of being collected on the real lexeme object.
+3. **Ambiguous identity**: Consumers of the API cannot distinguish between
+   a result that represents a real lexeme and one that is an artifact of
+   misparse.
+
+#### 4.2.3 Correct interpretation: PoS headings define lexeme boundaries
+
+The SDK's parsing rule, implemented in `splitEtymologiesAndPOS()` in
+`src/parser.ts`, is:
+
+> **Only headings that `mapHeadingToPos()` recognizes as actual
+> parts-of-speech create lexeme boundaries.** All other headings
+> (Etymology, Pronunciation, Conjugation, References, Antonyms, etc.)
+> are treated as content _within_ the nearest PoS block.
+
+The known parts-of-speech are maintained in `mapHeadingToPos()` and include:
+Verb, Noun, Adjective, Adverb, Pronoun, Numeral, Article, Participle,
+Proper noun, Interjection, Conjunction, Preposition, Determiner, Suffix,
+Prefix, Letter, Symbol, Phrase, Proverb, Idiom, etc.
+
+**Algorithm:**
+
+1. Walk the lines of the language block sequentially.
+2. When an H3–H5 heading is encountered:
+   - If `mapHeadingToPos(heading)` returns a recognized PoS → start a new
+     `posBlock` (i.e., a new lexeme boundary).
+   - Otherwise → include the heading and its content as part of the current
+     `posBlock`, preserving the heading marker so downstream decoders can
+     still locate subsections by name.
+3. Content that appears _before_ the first PoS heading (e.g., Etymology
+   and Pronunciation at the top of the language block) is buffered and
+   prepended to the first PoS block.
+
+This means for the γράφω example above, the parser correctly produces
+**3 lexemes** (one per language × PoS combination), not 15:
+
+| Lexeme | Language | PoS | Embedded subsections |
+|--------|----------|-----|----------------------|
+| 1 | Ancient Greek (`grc`) | Verb | Etymology, Pronunciation, Conjugation, Derived terms, Descendants, References, Further reading |
+| 2 | Greek (`el`) | Verb | Etymology, Pronunciation, Conjugation, Antonyms, Related terms, References |
+| 3 | Italiot Greek | Verb | Etymology, Pronunciation |
+
+#### 4.2.4 Multi-PoS entries within a single language
+
+Some words have multiple parts-of-speech within a single language section.
+For example, English "bank" has:
+
+```
+==English==
+===Etymology 1===
+====Noun====
+# A financial institution.
+====Verb====
+# To deposit money.
+===Etymology 2===
+====Noun====
+# The edge of a river.
+```
+
+Here the parser correctly produces **3 lexemes** (Noun/E1, Verb/E1, Noun/E2),
+not one. The `etymology_index` field disambiguates between the two Noun
+lexemes sharing the same language + PoS but arising from different
+etymologies.
+
+**General rule:** Lexeme identity is the tuple
+`(language, part_of_speech, etymology_index)`. This triple uniquely
+identifies a lexeme within a page.
 
 ### 4.3 Template extraction
 
@@ -515,16 +664,16 @@ Each decoder may declare `handlesTemplates: string[]` for introspection; `regist
 
 ## 6. Lemma Resolution (explicit only)
 
-For `INFLECTED_FORM` entries:
+For `INFLECTED_FORM` lexemes:
 
 - Detect form-of templates (e.g. `{{inflection of|...}}`)
 - Extract lemma from template parameters (explicit)
-- **Prioritization**: When resolving a lemma, the engine prioritizes entries explicitly marked as `INFLECTED_FORM` over metadata-only blocks (like Pronunciation sections) to ensure the correct entry is chosen for the query.
-- Fetch lemma page and include lemma LEXEME entry
+- **Prioritization**: When resolving a lemma, the engine prioritizes lexemes explicitly marked as `INFLECTED_FORM` over metadata-only blocks (like Pronunciation sections) to ensure the correct lexeme is chosen for the query.
+- Fetch lemma page and include lemma LEXEME lexeme
 
 Disambiguation:
 
-- If lemma has multiple PoS entries, mark those matching `preferred_pos` as `preferred: true`.
+- If lemma has multiple PoS lexemes, mark those matching `preferred_pos` as `preferred: true`.
 - Do **not** guess if absent.
 
 ## 7. Translation Parsing (explicit only)
@@ -639,13 +788,35 @@ HTML and Markdown outputs are designed as **fragments/snippets**, not standalone
 - **Font Independence**: No `font-family` declarations are hardcoded; the snippet inherits the typeface of its host environment (e.g., an iOS app, a web dashboard, or a terminal emulator).
 - **Single-Column Flow**: Avoids forced multi-column layouts to ensure the snippet adapts naturally to its container width.
 
-### 12.11 Playground as Authentic CLI Mirror
-The webapp's API Playground is designed to mirror the real CLI as closely as possible. The pseudo-terminal displays the exact command the user could run in a shell (`wiktionary-sdk γράφω --lang el --extract stem`) alongside the colour-coded output. This reinforces the playground's role as a teaching and exploration tool, not just a debugging panel, and makes the CLI feel immediately approachable. The macOS window chrome (traffic-light dots, centred window title) reinforces the terminal analogy.
+### 12.11 Playground: Multi-Interface Triple-Window Architecture
+The webapp's API Playground presents the SDK's three consumption interfaces —
+TypeScript library, CLI tool, and REST API — as three stacked pseudo-windows
+that stay in sync with the current playground state (query, language, PoS,
+target wrapper, and props). Each window mimics a different operating-system
+chrome to visually distinguish the interfaces:
+
+1. **TypeScript** (Windows-style): title-bar with minimize/maximize/close
+   controls (`─ ☐ ✕`) on the right. Displays the equivalent `import` +
+   `await` call with syntax-highlighted TypeScript and the result as
+   trailing comments.
+2. **CLI** (macOS-style): traffic-light dots (red/yellow/green) on the left.
+   Shows the shell command (`wiktionary-sdk γράφω --lang Auto --extract stem`)
+   with colour-coded arguments, followed by formatted output via
+   `TerminalHtmlStyle`.
+3. **REST API** (Linux/Ubuntu-style): minimize/maximize/close controls
+   (`▽ △ ✕`) on the right with a `user@sdk:~$` prompt. Displays the
+   equivalent `curl` command targeting `http://localhost:3000/api/fetch`
+   with the current query parameters, followed by raw JSON output.
+
+All three title bars share a uniform dark background (`rgba(0,0,0,0.22)`)
+and height (32px) for visual cohesion. The triple-window layout reinforces
+that every playground action has an equivalent in all three interfaces,
+teaching users to transition naturally between them.
 
 ### 12.12 API Enrichment: Structured Metadata Over Wikitext Parsing
 From v2.0, the API call is extended to fetch `categories`, `langlinks`, and `info` alongside the Wikitext revision. **Rationale:** fetching these fields from the structured MediaWiki API is more reliable than parsing them from Wikitext (e.g., categories appear in Wikitext as `[[Category:...]]` entries scattered throughout, and are easily missed). The API also returns the revision ID and last-modified timestamp in the same request at no extra cost, enabling consumers to implement cache invalidation by revision.
 
-**Design choice:** categories are filtered per language entry (entries only see categories relevant to their language section) using a heuristic that strips generic "Pages with..." administrative categories. The raw unfiltered list is available in `FetchResult.metadata.categories`.
+**Design choice:** categories are filtered per language lexeme (lexemes only see categories relevant to their language section) using a heuristic that strips generic "Pages with..." administrative categories. The raw unfiltered list is available in `FetchResult.metadata.categories`.
 
 ### 12.13 Etymology: Ancestors vs. Cognates
 Prior to v2, the `etymology.links` array mixed direct ancestors (`{{inh}}`, `{{der}}`, `{{bor}}`) with lateral cognates (`{{cog}}`). This was a design error: cognates are _not_ on the direct lineage path. In v2:
@@ -713,6 +884,127 @@ The SDK serves as the foundational "Layer 1" for the **Text-to-Dictionary** arch
 - **Context-Aware Extraction**: Future layers will use the SDK's metadata to disambiguate senses based on provided input text.
 - **Token-to-Lemma Mapping**: T2D maps specific morphological occurrences in a text back to their exhaustive SDK entries.
 
+### 12.25 Lexicographic Model: Entry vs. Lexeme
+
+The project adopts a precise lexicographic terminology to avoid semantic
+conflation between the page level and the concept level:
+
+- **Entry** (or "vocabulary entry"): The page-level aggregate of all lexemes
+  that share a headword. The Wiktionary page for "γράφω" is one entry.
+- **Lexeme**: A single linguistic concept identified by the combination of
+  **(language + part-of-speech + etymology index)**. A lexeme has one
+  canonical form (the lemma), one set of definitions (senses), one
+  pronunciation, and one set of semantic relations. If the entry for "γράφω"
+  contains data for Ancient Greek Verb, Modern Greek Verb, and Italiot Greek
+  Verb, those are three distinct lexemes.
+
+**Mapping to the data model:**
+- `FetchResult.lexemes: Lexeme[]` — the array of all lexemes found for a
+  query. When `lang` and `pos` are specified, this typically contains one
+  element. When both are `"Auto"`, it contains all lexemes discovered on the
+  page.
+- Each `Lexeme.id` encodes the triple: `el:γράφω#E1#verb#LEXEME`.
+- The previous `entries` field and `Entry` interface were renamed to
+  `lexemes` and `Lexeme` in v3.0 to align code semantics with this model.
+
+**Why this matters:**
+A Wiktionary page conflates multiple lexemes into a single document. Without
+a clear lexeme-level identity model, downstream operations (filtering,
+translating, inflecting) silently operate on the wrong lexeme or discard
+valid alternatives. The v3 model makes every lexeme individually addressable.
+
+### 12.26 Per-Lexeme Convenience Wrappers (`LexemeResult<T>`)
+
+**Problem:** Prior to v3.1, convenience wrappers like `synonyms()`,
+`stem()`, and `ipa()` called `getMainLexeme()` or `.find()` to select a
+single lexeme from `FetchResult` and silently discarded the rest. When
+`lang="Auto"` and `pos="Auto"`, a query like `"γράφω"` yields 3 lexemes,
+but the caller only saw data from one — with no indication that alternatives
+existed or were discarded.
+
+**Design:** All lexeme-scoped wrappers now return `LexemeResult<T>[]`:
+
+```typescript
+interface LexemeResult<T> {
+  lexeme_id: string;   // e.g. "el:γράφω#E1#verb#LEXEME"
+  language: string;    // e.g. "el"
+  pos: string;         // e.g. "Verb"
+  etymology_index?: number;
+  value: T;            // the extracted data
+}
+```
+
+The internal utility `mapLexemes<T>(result, extractor)` maps an extractor
+function over every lexeme and wraps each output in this envelope.
+
+**Consequences:**
+- Callers always see the full picture: every lexeme's data, tagged with
+  enough metadata to identify which lexeme produced it.
+- Lexemes with no data for the requested field are included with empty/null
+  values (e.g., `{ value: [] }`). The _absence_ of data is informative;
+  callers can filter with `.filter(r => r.value.length > 0)`.
+- When a specific language and PoS are provided, the array has one element,
+  and `result[0].value` gives the direct answer.
+- Boolean predicates (`isCategory`, `isInstance`, `isSubclass`) return
+  `LexemeResult<boolean>[]`; callers derive `results.some(r => r.value)` for
+  "any" semantics.
+
+**Scalar exceptions:**
+- `lemma()`: A form-resolution utility that returns a string. It selects the
+  best lemma by priority heuristic; used internally by other wrappers as a
+  pre-resolution step.
+- `pageMetadata()`: Returns `result.metadata?.info`, which is inherently
+  page-level, not lexeme-level.
+- `getMainLexeme()`: Retained as a public convenience utility for callers
+  who explicitly want single-lexeme shortcutting. Documented as a "first
+  match" heuristic.
+
+### 12.27 Stem and Morphology Extraction: Per-Lexeme Templates
+
+**Problem:** The `stem()`, `conjugate()`, and `decline()` functions
+originally operated on `result.rawLanguageBlock` — the monolithic Wikitext
+of the entire language section — and used `parseTemplates()` to find
+paradigm templates. This meant they could not distinguish between templates
+belonging to different lexemes within the same language block.
+
+**Solution (v3.1):** These functions now operate on each lexeme's
+`templates_all` field, which contains pre-parsed template data scoped to
+that specific lexeme (with `params.positional` and `params.named` already
+available).
+
+- `stem()` uses a pure `extractStemsFromLexeme(lexeme)` function that
+  iterates over `lexeme.templates_all`, filtering for paradigm template
+  names (`el-conjug-*`, `el-noun-*`, `el-adj-*`, `el-decl-*`, etc.) and
+  extracting stems from their parameters.
+- `conjugate()` finds the conjugation template in `lexeme.templates_all`,
+  sends it to the MediaWiki parse API for HTML expansion, then scrapes the
+  inflection table — but now scoped per-lexeme.
+- `decline()` follows the same pattern for declension templates.
+
+This means a query returning multiple lexemes (e.g., grc + el + Italiot
+Greek for "γράφω") now extracts stems/paradigms independently for each
+lexeme, rather than conflating them from the shared language block.
+
+### 12.28 Lexeme Sort Order: Source vs. Priority
+
+**Problem:** Wiktionary pages list language sections in a specific order
+(often alphabetical, sometimes editorial). This order is meaningful — it
+reflects editorial convention and can vary between pages. However, some
+consumers (particularly those focused on Modern Greek) want the most
+relevant language first regardless of source order.
+
+**Solution:** The `sort` option on `wiktionary()` controls lexeme ordering:
+- `"source"` (default): preserves the order in which language sections
+  appear in the Wiktionary source markup. For "γράφω", this gives
+  `[Ancient Greek, Greek, Italiot Greek]`.
+- `"priority"`: applies a hardcoded heuristic (`el` > `grc` > `en`, then
+  alphabetical), yielding `[Greek, Ancient Greek, Italiot Greek]`.
+
+**Design choice:** Source order is the default because it honors the
+"source-faithful extraction" principle. Priority sorting is opt-in. The
+priority map is minimal and intentionally limited; a future roadmap item
+(Stage 23) covers configurable priority maps and secondary sort keys.
+
 ---
 
 **Artifacts:**
@@ -720,9 +1012,9 @@ The SDK serves as the foundational "Layer 1" for the **Text-to-Dictionary** arch
 - `src/types.ts`: Canonical type definitions.
 - `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`: The typographic gold standard.
 - `docs/TEXT_TO_DICTIONARY_PLAN.md`: Future architecture for text analysis.
-- `schema/normalized-entry.schema.json`: Formal output schema (v2.1.0).
+- `schema/normalized-entry.schema.json`: Formal output schema (v3.0.0).
 - `docs/dictionary-entry-v2.yaml`: Canonical machine-readable specimen.
-- `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and CLI playground.
+- `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and triple-window playground.
 - `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
 - `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.
 - `server.ts`: HTTP API wrapper.
@@ -743,13 +1035,13 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 - **Schema versioning**: `FetchResult` always includes `schema_version`.
 - **Distribution hardening**: CLI and server compiled to `dist/`; `bin` and
   `serve` point to built JS. Cache key normalization for redirects.
-- **Type alignment**: `EntryType` matches schema enum.
+- **Type alignment**: `LexemeType` matches schema enum.
 - **Registry-driven debug events**: `fetchWiktionary({ debugDecoders: true })` returns
-  `FetchResult.debug` with per-entry decoder match info.
-- **Template ordering and location**: `Entry.templates_all` stores templates in document
+  `FetchResult.debug` with per-lexeme decoder match info.
+- **Template ordering and location**: `Lexeme.templates_all` stores templates in document
   order with optional `start`, `end`, `line`. Parser supports `parseTemplates(..., withLocation)`.
 - **Cycle protection and lemma linkage**: `fetchWiktionaryRecursive` with visited set;
-  `lemma_triggered_by_entry_id` on resolved lemma entries.
+  `lemma_triggered_by_lexeme_id` on resolved lemma lexemes.
 - **Declared decoder coverage**: `handlesTemplates` on decoders; `getHandledTemplates()` for
   introspection. Template-introspect uses declared coverage instead of probe-based logic.
 - **Sense gloss_raw**: `Sense.gloss_raw` stores exact text before stripping.
@@ -806,16 +1098,13 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   [rhythmus.github.io/salve](https://rhythmus.github.io/salve/): left-aligned, Inter
   sans-serif, bold app name followed by inline descriptor, small muted tagline below.
 
-- **Webapp: authentic CLI terminal experience**: The pseudo-terminal in the API Playground now
-  renders the exact CLI command that corresponds to the current widget state (e.g.
-  `~ wiktionary-sdk γράφω --lang el --extract stem`) before showing the colour-coded output.
-  The macOS window chrome (traffic-light dots + centred `wiktionary-sdk` title) completes the
-  terminal aesthetic. Output is formatted via `TerminalHtmlStyle` and injected via
-  `dangerouslySetInnerHTML`.
+- **Webapp: triple-window playground**: The API Playground now presents three synced
+  pseudo-windows — TypeScript (Windows chrome), CLI (macOS chrome), and REST API
+  (Linux/Ubuntu chrome) — each showing the equivalent invocation and output. See §12.11.
 
 - **Webapp: GitHub corner**: Canonical tholman-style GitHub corner with octocat wag animation
-  on hover, linking to `https://github.com/rhythmus/wiktionary-sdk`. Replaces the previous
-  inline link.
+  on hover, linking to `https://github.com/rhythmus/wiktionary-sdk`. Uses document-flow
+  positioning (`position: absolute`) so it scrolls with the page.
 
 - **Webapp: Wikidata checkbox removed**: The `enrich` boolean toggle was removed from the UI.
   Wikidata enrichment is unconditionally enabled (`enrich: true`) in the Playground — the flag
@@ -842,9 +1131,10 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 **Completed (v1.4 Auto-discovery & PoS Filtering):**
 
 - **Auto-discovery Mode**: Implemented `lang="Auto"` as the default, enabling the SDK to scan
-  and aggregate entries across all language sections found on a page.
-- **Language Priority Engine**: Introduced a `LANG_PRIORITY` map to ensure results are 
-  consistently sorted (Greek > Ancient Greek > English).
+  and aggregate lexemes across all language sections found on a page.
+- **Language Priority Engine**: Introduced a `LANG_PRIORITY` map for opt-in sorting 
+  via `sort: "priority"` (Greek > Ancient Greek > English). Default is `sort: "source"`,
+  preserving Wiktionary source order.
 - **Optional PoS Filtering**: Added `pos` as an optional parameter (defaulting to `"Auto"`)
   supporting both precise PoS matching and broad discovery.
 - **Robust H3-H5 Parser**: Refactored the core segmentation logic to use symmetrical regex
@@ -860,7 +1150,7 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 **Completed (v2.0 Comprehensive Schema Evolution & API Enrichment):**
 
 - **API Enrichment**: Extended `prop` to include `categories`, `langlinks`, and `info` on every
-  fetch. `FetchResult.metadata` now exposes all three. Per-entry `categories` and `langlinks`
+  fetch. `FetchResult.metadata` now exposes all three. Per-lexeme `categories` and `langlinks`
   are filtered by language section; `source.wiktionary.revision_id`, `last_modified`, and
   `pageid` provide full audit provenance.
 - **Schema bump to v2.0.0**: Major version increment reflecting structural changes to
@@ -869,7 +1159,7 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 - **Etymology restructure**: `etymology.links` split into `chain[]` (ancestors) and
   `cognates[]` (lateral cognates), each with an explicit `relation` field. `raw_text` preserves
   the full etymology prose preamble.
-- **Headword morphology**: New `headword_morphology` field on `Entry` with `transitivity`,
+- **Headword morphology**: New `headword_morphology` field on `Lexeme` with `transitivity`,
   `aspect`, `voice`, `gender`, and `principal_parts`, all extracted from headword template
   params — never guessed.
 - **Pronunciation extended**: `audio_url` (resolved Commons URL), `romanization`, `rhymes`,
@@ -896,3 +1186,43 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   `test/decoder-coverage.test.ts`, `test/parser.invariants.test.ts`,
   `test/network-replay.test.ts`, `test/fixtures/api-recordings/`; `vitest` default run
   excludes `test/bench.test.ts` (`npm run test:perf`); see `test/README.md`.
+
+### v3.1.0 — Per-Lexeme Convenience Wrappers
+
+- **`LexemeResult<T>` generic interface**: All lexeme-scoped convenience wrappers now
+  return `LexemeResult<T>[]` — an array where each element is tagged with `lexeme_id`,
+  `language`, `pos`, and `etymology_index`, plus the extracted `value: T`. This eliminates
+  the silent data discard that occurred when queries returned multiple lexemes (e.g.
+  `lang="Auto"` yielding grc + el + Italiot Greek for "γράφω").
+- **`mapLexemes<T>()` utility**: A generic mapping function in `library.ts` that applies
+  an extractor to each lexeme and wraps it in a `LexemeResult<T>` envelope.
+- **Scalar exceptions**: `lemma()` (form resolution), `pageMetadata()` (page-level data),
+  and `getMainLexeme()` (convenience shortcut) remain scalar.
+- **`stem()` refactored**: Now extracts stems from each lexeme's `templates_all` field
+  instead of parsing the monolithic `rawLanguageBlock`, via a pure
+  `extractStemsFromLexeme()` function.
+- **`morphology()`, `conjugate()`, `decline()` refactored**: Now operate per-lexeme,
+  finding paradigm templates in `lexeme.templates_all` and returning tagged results.
+- **~38 lexeme-scoped wrappers updated**: `synonyms`, `antonyms`, `ipa`, `translate`,
+  `richEntry`, `isCategory`, `isInstance`, `isSubclass`, and all others now return
+  `LexemeResult<T>[]`.
+- **Schema version**: `SCHEMA_VERSION` remains `"3.0.0"` (the `LexemeResult` envelope
+  is a library-level contract, not a change to the normalized entry schema).
+
+### v3.1.1 — Playground Triple-Window & Lexicographic Formats Roadmap
+
+- **Triple-window playground**: The API Playground now presents three stacked,
+  synced pseudo-windows — TypeScript (Windows chrome), CLI (macOS chrome), and
+  REST API (Linux/Ubuntu chrome) — showing the equivalent invocation for each
+  SDK interface. See §12.11 for architecture details.
+- **REST API curl preview**: A new `buildPlaygroundCurlSnippet()` function generates
+  the equivalent `curl` command for the REST API server (`GET /api/fetch?query=…`),
+  dynamically synced with the current playground state.
+- **GitHub corner scroll fix**: Changed from `position: fixed` (viewport-locked) to
+  `position: absolute` (document-flow) so the GitHub corner scrolls with the page.
+- **Unified title-bar styling**: All three window chrome bars share the same
+  background, height, and border for visual cohesion.
+- **Roadmap: Lexicographic Standard Output Formats (Stage 24)**: Added a detailed
+  roadmap issue for implementing five standard output formats: Semantic HTML5,
+  TEI Lex-0, OntoLex-Lemon (JSON-LD), LMF (ISO 24613), and XDXF. Includes
+  element mapping tables, architecture notes, and priority ordering.
