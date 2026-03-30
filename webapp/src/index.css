@@ -45,6 +45,10 @@ body {
   overflow-x: hidden;
 }
 
+#root {
+  padding-left: 12px;
+}
+
 pre,
 code {
   font-family: 'JetBrains Mono', monospace;

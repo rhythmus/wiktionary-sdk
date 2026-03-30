@@ -268,7 +268,17 @@ function buildPlaygroundCurlSnippet(
     } catch { /* ignore invalid JSON */ }
   }
 
-  return `curl "${base}?${params.toString()}"`;
+  const encodedUrl = `${base}?${params.toString()}`;
+  const displayUrl = (() => {
+    try {
+      // Mirror browser address-bar behavior: keep a valid URL, but show Unicode.
+      return decodeURI(encodedUrl);
+    } catch {
+      return encodedUrl;
+    }
+  })();
+
+  return `curl "${displayUrl}"`;
 }
 
 function highlightTsLine(line: string): ReactNode {
