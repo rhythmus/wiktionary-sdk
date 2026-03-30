@@ -785,8 +785,18 @@ The move to Handlebars allows for:
 #### 12.10.2 Typographic Neutrality (Fragment Architecture)
 HTML and Markdown outputs are designed as **fragments/snippets**, not standalone documents.
 - **Scoped Styles**: CSS targets the `.wiktionary-entry` class to prevent global pollution.
-- **Font Independence**: No `font-family` declarations are hardcoded; the snippet inherits the typeface of its host environment (e.g., an iOS app, a web dashboard, or a terminal emulator).
-- **Single-Column Flow**: Avoids forced multi-column layouts to ensure the snippet adapts naturally to its container width.
+- **Default face in bundled CSS**: The shipped `ENTRY_CSS` may set a readable serif stack (e.g. Alegreya) so the fragment looks intentional out of the box. Host applications can override `.wiktionary-entry` (or wrap the fragment) to inherit their own typeface.
+- **Inline flow**: The HTML fragment is structured as a single block with inline / inline-block children so sections (head, etymology, senses, relations) participate in one wrapping text flow unless the container width forces natural line breaks.
+- **Single-Column Flow**: Avoids forced multi-column layouts so the snippet adapts to its container width.
+
+#### 12.10.3 Bundled `templates.ts` (environment-agnostic runtime)
+The runtime imports **compiled template strings** from `src/templates/templates.ts` (`HTML_ENTRY_TEMPLATE`, `MD_ENTRY_TEMPLATE`, `ENTRY_CSS`). This keeps Node, CLI, and browser bundles free of `fs`/`path` at render time (see architectural constraint in `AGENTS.md`). The human-editable sources live beside it as `entry.html.hbs`, `entry.md.hbs`, and `entry.css`; they must be **re-bundled** into `templates.ts` when those files change (see §12.10.4).
+
+#### 12.10.4 Webapp: live sync from template sources
+The Vite dev server (`webapp/`) registers a small plugin that watches `src/templates/entry.html.hbs`, `entry.md.hbs`, and `entry.css`, regenerates `src/templates/templates.ts` on save, and triggers a reload. **Rationale:** authors edit the real `.hbs` / `.css` files while the demo hot-updates, without manually copying strings into `templates.ts`. Production builds of the SDK should still commit an up-to-date `templates.ts` so consumers who do not run Vite receive the same output.
+
+#### 12.10.5 Etymology language labels in Handlebars (`langLabel`)
+Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang slot) for every chain/cognate row. The optional `source_lang_name` field is not always present. Handlebars templates therefore use a **`langLabel`** helper (registered in `src/formatter.ts`) that prints `source_lang_name` when set, otherwise **`source_lang`**, matching the fallback behaviour already used in plain-text formatters. **Rationale:** avoids empty language tags in HTML/Markdown when only the code is extracted from template parameters.
 
 ### 12.11 Playground: Multi-Interface Triple-Window Architecture
 The webapp's API Playground presents the SDK's three consumption interfaces —
@@ -807,11 +817,17 @@ chrome to visually distinguish the interfaces:
    (`▽ △ ✕`) on the right with a `user@sdk:~$` prompt. Displays the
    equivalent `curl` command targeting `http://localhost:3000/api/fetch`
    with the current query parameters, followed by raw JSON output.
+   Non-ASCII query text is shown in the **decoded** form in the preview
+   (Unicode in the URL path/query), matching browser address-bar behaviour;
+   the wire format still uses percent-encoding when the request is sent.
 
 All three title bars share a uniform dark background (`rgba(0,0,0,0.22)`)
 and height (32px) for visual cohesion. The triple-window layout reinforces
 that every playground action has an equivalent in all three interfaces,
 teaching users to transition naturally between them.
+
+The webapp root (`#root`) applies light horizontal padding so the layout does
+not sit flush against the viewport edge on narrow screens.
 
 ### 12.12 API Enrichment: Structured Metadata Over Wikitext Parsing
 From v2.0, the API call is extended to fetch `categories`, `langlinks`, and `info` alongside the Wikitext revision. **Rationale:** fetching these fields from the structured MediaWiki API is more reliable than parsing them from Wikitext (e.g., categories appear in Wikitext as `[[Category:...]]` entries scattered throughout, and are easily missed). The API also returns the revision ID and last-modified timestamp in the same request at no extra cost, enabling consumers to implement cache invalidation by revision.

@@ -422,6 +422,12 @@ npm install
 npm run dev
 ```
 
+While Vite is running, edits to `src/templates/entry.html.hbs`, `entry.md.hbs`, or
+`entry.css` (at the repo root) are written into `src/templates/templates.ts`
+automatically so the demo and hot reload stay aligned with the bundled SDK
+strings. Commit `templates.ts` after template changes so CLI and package users
+see the same output without the webapp.
+
 ### 💻 Using the CLI Pipeline
 ```bash
 # Standard Output

@@ -34,6 +34,7 @@ A custom parser handles nested `{{...}}` structures.
 ### 5. Environment-Agnostic Assets (Cross-Platform Parity)
 - **Strict Rule**: Templates and static assets MUST be bundled as imported TypeScript strings (see `src/templates/templates.ts`) rather than loaded via Node-specific filesystem APIs (`fs`, `path`).
 - **Reason**: To ensure the SDK remains fully functional in both Node.js (CLI/Server) and Browser (Webapp) environments without a runtime filesystem.
+- **Authoring workflow**: Edit the source files `src/templates/entry.html.hbs`, `entry.md.hbs`, and `entry.css`. The webapp Vite dev server watches them and regenerates `templates.ts` on save; commit the regenerated `templates.ts` so CLI and package consumers stay in sync without running Vite.
 
 ### 6. Schema Synchronization (High-Fidelity Parity)
 - **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
@@ -59,7 +60,10 @@ The SDK uses **Handlebars** for high-fidelity rendering of dictionary entries.
 1.  **HTML Design**: Edit `src/templates/entry.html.hbs`.
 2.  **Markdown Design**: Edit `src/templates/entry.md.hbs`.
 3.  **Styling**: Edit `src/templates/entry.css`.
-4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`) are defined in `src/formatter.ts`.
+4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`) are defined in `src/formatter.ts`.
+5.  **Bundle**: After editing the `.hbs` / `.css` sources, ensure `src/templates/templates.ts` is updated (run `npm run dev` in `webapp/` and save, or regenerate by the same logic the Vite plugin uses) and commit it.
+
+**Etymology labels in templates:** use `{{langLabel this}}` inside `{{#each etymology.chain}}` / cognate loops. Decoders set `source_lang` on every link; `source_lang_name` is optional. The helper mirrors the `source_lang_name || source_lang` fallback used elsewhere so tags never render empty.
 
 When modifying templates, ensure you maintain the "Gold Standard" typographic density and academic aesthetic.
 
