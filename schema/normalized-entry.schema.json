@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json",
   "title": "Wiktionary SDK Normalized Output",
-  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Entry types). v2.4.0.",
+  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Lexeme types). v3.0.0.",
   "type": "object",
   "$defs": {
     "schemaVersion": {
@@ -15,10 +15,10 @@
       "description": "BCP-47-style language code.",
       "examples": ["el", "grc", "en", "nl", "de", "fr"]
     },
-    "EntryType": {
+    "LexemeType": {
       "type": "string",
       "enum": ["LEXEME", "INFLECTED_FORM", "FORM_OF"],
-      "description": "Discriminator for the kind of dictionary entry."
+      "description": "Discriminator for the kind of lexeme."
     },
     "Pronunciation": {
       "type": "object",
@@ -420,7 +420,7 @@
       "properties": {
         "headword": { "type": "string" },
         "pos": { "type": "string" },
-        "type": { "$ref": "#/$defs/EntryType" },
+        "type": { "$ref": "#/$defs/LexemeType" },
         "form_of": { "$ref": "#/$defs/FormOf" },
         "morphology": { "type": "object", "additionalProperties": true },
         "pronunciation": { "$ref": "#/$defs/Pronunciation" },
@@ -440,7 +440,7 @@
       },
       "additionalProperties": true
     },
-    "Entry": {
+    "Lexeme": {
       "type": "object",
       "required": [
         "id", "language", "query", "type", "form",
@@ -450,7 +450,7 @@
         "id": { "type": "string" },
         "language": { "$ref": "#/$defs/WikiLang" },
         "query": { "type": "string" },
-        "type": { "$ref": "#/$defs/EntryType" },
+        "type": { "$ref": "#/$defs/LexemeType" },
         "form": { "type": "string" },
         "etymology_index": { "type": "integer", "minimum": 0 },
         "part_of_speech_heading": { "type": "string" },
@@ -528,7 +528,7 @@
         },
         "wikidata": { "$ref": "#/$defs/WikidataEnrichment" },
         "resolved_for_query": { "type": "string" },
-        "lemma_triggered_by_entry_id": { "type": "string" },
+        "lemma_triggered_by_lexeme_id": { "type": "string" },
         "preferred": { "type": "boolean" },
         "source": {
           "type": "object",
@@ -574,9 +574,9 @@
   "properties": {
     "schema_version": { "$ref": "#/$defs/schemaVersion" },
     "rawLanguageBlock": { "type": "string" },
-    "entries": {
+    "lexemes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/Entry" }
+      "items": { "$ref": "#/$defs/Lexeme" }
     },
     "notes": {
       "type": "array",
@@ -595,7 +595,7 @@
           }
         }
       },
-      "description": "Detailed trace of decoder matches per entry. Primarily for engine developers."
+      "description": "Detailed trace of decoder matches per lexeme. Primarily for engine developers."
     },
     "metadata": {
       "type": "object",
@@ -608,5 +608,5 @@
       "additionalProperties": true
     }
   },
-  "required": ["rawLanguageBlock", "entries", "notes"]
+  "required": ["rawLanguageBlock", "lexemes", "notes"]
 }

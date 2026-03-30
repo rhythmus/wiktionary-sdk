@@ -114,7 +114,7 @@ describe('Auto-discovery and PoS Filtering', () => {
 
   it('should auto-discover multiple languages for "bank"', async () => {
     const mockResult = {
-      entries: [
+      lexemes: [
         { id: "en:bank", language: "en", type: "LEXEME" },
         { id: "nl:bank", language: "nl", type: "LEXEME" },
         { id: "de:bank", language: "de", type: "LEXEME" },
@@ -126,42 +126,42 @@ describe('Auto-discovery and PoS Filtering', () => {
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
 
     const res = await wiktionary({ query: 'bank' });
-    expect(res.entries.length).toBeGreaterThan(0);
-    const languages = res.entries.map(e => e.language);
+    expect(res.lexemes.length).toBeGreaterThan(0);
+    const languages = res.lexemes.map(e => e.language);
     expect(languages).toContain('en');
     expect(languages.length).toBeGreaterThan(5); 
   });
 
   it('should filter by PoS for "bank" (verb only)', async () => {
     const mockResult = {
-      entries: [
+      lexemes: [
         { id: "en:bank#V", language: "en", part_of_speech: "verb" }
       ]
     };
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
 
     const res = await wiktionary({ query: 'bank', pos: 'verb' });
-    expect(res.entries.length).toBeGreaterThan(0);
-    for (const entry of res.entries) {
-      expect(entry.part_of_speech).toBe('verb');
+    expect(res.lexemes.length).toBeGreaterThan(0);
+    for (const lex of res.lexemes) {
+      expect(lex.part_of_speech).toBe('verb');
     }
   });
 
   it('should handle "Auto" as explicit string for lang', async () => {
     const mockResult = {
-      entries: [
+      lexemes: [
         { id: "el:γράφω", language: "el" }
       ]
     };
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
 
     const res = await wiktionary({ query: 'γράφω', lang: 'Auto' });
-    expect(res.entries.some(e => e.language === 'el')).toBe(true);
+    expect(res.lexemes.some(e => e.language === 'el')).toBe(true);
   });
 
   it('should default to "Auto" for lemma()', async () => {
     const mockResult = {
-      entries: [
+      lexemes: [
         { id: "en:bank", language: "en", type: "LEXEME" }
       ]
     };
@@ -172,7 +172,7 @@ describe('Auto-discovery and PoS Filtering', () => {
 
   it('should resolve lemma across languages in Auto mode', async () => {
     const mockResult = {
-      entries: [
+      lexemes: [
         { id: "en:banks", language: "en", type: "INFLECTED_FORM", form_of: { lemma: "bank" } }
       ]
     };

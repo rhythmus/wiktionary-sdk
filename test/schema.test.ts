@@ -3,7 +3,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import type { Entry, FetchResult } from "../src/types";
+import type { Lexeme, FetchResult } from "../src/types";
 
 const schemaPath = resolve(__dirname, "../schema/normalized-entry.schema.json");
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
@@ -12,7 +12,7 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 const validate = ajv.compile(schema);
 
-function makeLexemeEntry(overrides?: Partial<Entry>): Entry {
+function makeLexemeEntry(overrides?: Partial<Lexeme>): Lexeme {
   return {
     id: "el:γράφω#E1#verb#LEXEME",
     language: "el",
@@ -46,7 +46,7 @@ describe("JSON Schema validation", () => {
     const result: FetchResult = {
       schema_version: "1.0.0",
       rawLanguageBlock: "==Greek==\nsome content",
-      entries: [makeLexemeEntry()],
+      lexemes: [makeLexemeEntry()],
       notes: [],
     };
     const valid = validate(result);
@@ -59,7 +59,7 @@ describe("JSON Schema validation", () => {
     const result: FetchResult = {
       schema_version: "1.0.0",
       rawLanguageBlock: "==Greek==",
-      entries: [makeLexemeEntry({ pronunciation: { IPA: "/ˈɣra.fo/" } })],
+      lexemes: [makeLexemeEntry({ pronunciation: { IPA: "/ˈɣra.fo/" } })],
       notes: [],
     };
     expect(validate(result)).toBe(true);
@@ -79,7 +79,7 @@ describe("JSON Schema validation", () => {
     const result: FetchResult = {
       schema_version: "1.0.0",
       rawLanguageBlock: "==Greek==",
-      entries: [entry],
+      lexemes: [entry],
       notes: [],
     };
     expect(validate(result)).toBe(true);
@@ -89,7 +89,7 @@ describe("JSON Schema validation", () => {
     const bad = {
       schema_version: "1.0.0",
       rawLanguageBlock: "",
-      entries: [{ id: "x" }],
+      lexemes: [{ id: "x" }],
       notes: [],
     };
     expect(validate(bad)).toBe(false);

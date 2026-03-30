@@ -1,7 +1,7 @@
 import type {
     WikiLang,
     FetchResult,
-    Entry,
+    Lexeme,
     DecodeContext,
     DecoderDebugEvent,
 } from "./types";
@@ -24,14 +24,20 @@ import { registry, FORM_OF_TEMPLATES, VARIANT_TEMPLATES } from "./registry";
 import { deepMerge, commonsThumbUrl } from "./utils";
 
 /**
- * Fetches and normalizes a Wiktionary entry.
+ * Fetches and normalizes a Wiktionary entry into lexemes.
  *
  * @param options.query - The term to look up (e.g. `"γράφω"`)
  * @param options.lang - BCP-47 language code (e.g. `"el"`) or `"Auto"` (default)
  * @param options.pos - Optional POS filter (e.g. `"verb"`, `"noun"`) or `"Auto"` (default)
  * @param options.preferredPos - Optional POS filter for disambiguation (legacy, use pos)
  * @param options.enrich - Whether to fetch Wikidata enrichment (default `true`)
- * @returns A {@link FetchResult} containing normalized entries and raw wikitext
+ * @param options.sort - Lexeme ordering strategy (default `"source"`):
+ *   - `"source"`: preserve the order in which language sections and PoS blocks
+ *     appear in the Wiktionary source markup.
+ *   - `"priority"`: apply a hardcoded language-priority heuristic (el > grc > en),
+ *     then sort alphabetically within the same priority tier. Useful when the
+ *     caller wants Modern Greek results first regardless of source order.
+ * @returns A {@link FetchResult} containing normalized lexemes and raw wikitext
  */
 export async function wiktionary(
     opts: {
@@ -41,6 +47,7 @@ export async function wiktionary(
         preferredPos?: string;
         enrich?: boolean;
         debugDecoders?: boolean;
+        sort?: "source" | "priority";
     }
 ): Promise<FetchResult> {
     const visited = new Set<string>();
@@ -48,6 +55,7 @@ export async function wiktionary(
         ...opts, 
         lang: opts.lang || "Auto", 
         pos: opts.pos || "Auto",
+        sort: opts.sort || "source",
         _visited: visited 
     });
 }
@@ -67,6 +75,7 @@ export async function wiktionaryRecursive({
     preferredPos,
     enrich = true,
     debugDecoders = false,
+    sort = "source",
     _visited,
 }: {
     query: string;
@@ -75,6 +84,7 @@ export async function wiktionaryRecursive({
     preferredPos?: string;
     enrich?: boolean;
     debugDecoders?: boolean;
+    sort?: "source" | "priority";
     _visited: Set<string>;
 }): Promise<FetchResult> {
     query = query.normalize("NFC");
@@ -83,7 +93,7 @@ export async function wiktionaryRecursive({
         return {
             schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
-            entries: [],
+            lexemes: [],
             notes: [`Cycle detected: ${query} already visited in ${lang}.`],
         };
     }
@@ -94,7 +104,7 @@ export async function wiktionaryRecursive({
         return {
             schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
-            entries: [],
+            lexemes: [],
             notes: [`No page found for ${query} on en.wiktionary.org (after redirects).`],
         };
     }
@@ -116,7 +126,7 @@ export async function wiktionaryRecursive({
             return {
                 schema_version: SCHEMA_VERSION,
                 rawLanguageBlock: "",
-                entries: [],
+                lexemes: [],
                 notes: [`Unknown language code: ${lang}. No language section searched.`],
             };
         }
@@ -130,7 +140,7 @@ export async function wiktionaryRecursive({
         return {
             schema_version: SCHEMA_VERSION,
             rawLanguageBlock: "",
-            entries: [],
+            lexemes: [],
             notes: [
                 lang === "Auto" 
                     ? `No language sections found on en.wiktionary.org for ${qPage.title}.`
@@ -139,7 +149,7 @@ export async function wiktionaryRecursive({
         };
     }
 
-    let entries: Entry[] = [];
+    let lexemes: Lexeme[] = [];
     const allDebugEvents: DecoderDebugEvent[][] = [];
     const combinedLangBlock = searchSections.map(s => s.block).join("\n\n");
 
@@ -149,16 +159,15 @@ export async function wiktionaryRecursive({
             for (const pb of e.posBlocks) {
                 const mappedPos = mapHeadingToPos(pb.posHeading);
 
-                // Apply POS filter if not Auto
                 if (pos !== "Auto") {
                     if (mappedPos !== pos && pb.posHeading.toLowerCase() !== pos.toLowerCase()) {
                         continue;
                     }
                 }
 
-                const templates = parseTemplates(pb.wikitext, true) as any[]; // always withLocation for templates_all
+                const templates = parseTemplates(pb.wikitext, true) as any[];
                 const lines = pb.wikitext.split("\n");
-                const entryType = guessEntryTypeFromTemplates(templates);
+                const lexemeType = guessLexemeTypeFromTemplates(templates);
 
                 const ctx: DecodeContext = {
                     lang: section.lang,
@@ -174,13 +183,13 @@ export async function wiktionaryRecursive({
 
                 const result = registry.decodeAll(ctx, { debug: debugDecoders });
                 const patch: any = typeof result === "object" && "patch" in result ? result.patch : result;
-                const id = `${section.lang}:${qPage.title}#E${e.idx}#${slug(pb.posHeading)}#${entryType}`;
+                const id = `${section.lang}:${qPage.title}#E${e.idx}#${slug(pb.posHeading)}#${lexemeType}`;
 
-                const base: Entry = {
+                const base: Lexeme = {
                     id,
                     language: section.lang,
                     query,
-                    type: entryType,
+                    type: lexemeType,
                     form: qPage.title,
                     etymology_index: e.idx,
                     part_of_speech_heading: pb.posHeading,
@@ -217,11 +226,10 @@ export async function wiktionaryRecursive({
 
                 base.form = qPage.title;
                 
-                // Attach metadata and filter categories
                 const langName = section.langName;
                 base.categories = (qPage as any).categories?.filter((c: string) => 
                     c.toLowerCase().includes(langName.toLowerCase()) || 
-                    c.toLowerCase().includes("pages with") // e.g. "Pages with 3 entries"
+                    c.toLowerCase().includes("pages with")
                 ) || [];
                 base.langlinks = (qPage as any).langlinks || [];
                 base.images = (qPage as any).images || [];
@@ -233,20 +241,19 @@ export async function wiktionaryRecursive({
                     pageid: (qPage as any).info?.pageid,
                 };
 
-                entries.push(base);
+                lexemes.push(base);
             }
         }
     }
 
-    // Lemma resolution with cycle protection
     const lemmaRequests: Array<{ lemma: string; lang: WikiLang; triggeredBy: string }> = [];
-    for (const ent of entries) {
-        const lemma = ent.form_of?.lemma;
-        const lemmaLang = ent.form_of?.lang ?? ent.language;
-        if (ent.type === "INFLECTED_FORM" && lemma) {
-            const key = lemmaKey(lemmaLang, lemma);
+    for (const lex of lexemes) {
+        const lm = lex.form_of?.lemma;
+        const lemmaLang = lex.form_of?.lang ?? lex.language;
+        if (lex.type === "INFLECTED_FORM" && lm) {
+            const key = lemmaKey(lemmaLang, lm);
             if (!_visited.has(key)) {
-                lemmaRequests.push({ lemma, lang: lemmaLang, triggeredBy: ent.id });
+                lemmaRequests.push({ lemma: lm, lang: lemmaLang, triggeredBy: lex.id });
             }
         }
     }
@@ -258,7 +265,7 @@ export async function wiktionaryRecursive({
         return true;
     });
 
-    const lemmaEntries: Entry[] = [];
+    const resolvedLexemes: Lexeme[] = [];
     const triggerMap = new Map<string, string>();
     for (const { lemma, lang: lLang, triggeredBy } of uniqueRequests) {
         triggerMap.set(`${lLang}:${lemma}`, triggeredBy);
@@ -271,94 +278,93 @@ export async function wiktionaryRecursive({
             preferredPos,
             enrich,
             debugDecoders,
+            sort,
             _visited,
         });
-        let cands = res.entries.filter((e) => e.type === "LEXEME");
+        let cands = res.lexemes.filter((l) => l.type === "LEXEME");
         cands.sort(
             (a, b) =>
                 preferredPosSortKey(a.part_of_speech || "", preferredPos) -
                 preferredPosSortKey(b.part_of_speech || "", preferredPos)
         );
-        return cands[0] ? { lemma, lang: lLang, entry: cands[0] } : null;
+        return cands[0] ? { lemma, lang: lLang, lexeme: cands[0] } : null;
     });
     const resolved = await Promise.all(fetchPromises);
     for (const r of resolved) {
         if (r) {
             const triggeredBy = triggerMap.get(`${r.lang}:${r.lemma}`);
             if (triggeredBy) {
-                (r.entry as any).lemma_triggered_by_entry_id = triggeredBy;
+                (r.lexeme as any).lemma_triggered_by_lexeme_id = triggeredBy;
             }
-            lemmaEntries.push(r.entry);
+            resolvedLexemes.push(r.lexeme);
         }
     }
 
-    // Wikidata enrichment
     if (enrich) {
-        for (const ent of entries) {
-            if (ent.type !== "LEXEME") continue;
+        for (const lex of lexemes) {
+            if (lex.type !== "LEXEME") continue;
             const qid = qPage.pageprops?.wikibase_item;
             if (!qid) continue;
-            ent.wikidata = { qid };
+            lex.wikidata = { qid };
             try {
                 const wd = await fetchWikidataEntity(qid);
                 if (wd) {
-                    ent.wikidata.labels = wd.labels || {};
-                    ent.wikidata.descriptions = wd.descriptions || {};
-                    ent.wikidata.sitelinks = wd.sitelinks || {};
+                    lex.wikidata.labels = wd.labels || {};
+                    lex.wikidata.descriptions = wd.descriptions || {};
+                    lex.wikidata.sitelinks = wd.sitelinks || {};
                     const p18 = wd.claims?.P18;
                     if (Array.isArray(p18) && p18[0]?.mainsnak?.datavalue?.value) {
                         const filename = p18[0].mainsnak.datavalue.value;
-                        ent.wikidata.media = {
+                        lex.wikidata.media = {
                             P18: filename,
                             commons_file: `File:${filename}`,
                         };
-                        ent.wikidata.media.thumbnail = commonsThumbUrl(filename, 420);
+                        lex.wikidata.media.thumbnail = commonsThumbUrl(filename, 420);
                     }
-                    // Extract types (P31 Instance Of and P279 Subclass Of)
                     const p31 = wd.claims?.P31 ?? [];
-                    ent.wikidata.instance_of = p31.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
+                    lex.wikidata.instance_of = p31.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
                     
                     const p279 = wd.claims?.P279 ?? [];
-                    ent.wikidata.subclass_of = p279.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
+                    lex.wikidata.subclass_of = p279.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
                 }
             } catch (err: any) {
-                (ent as any).wikidata_error = String(err?.message || err);
+                (lex as any).wikidata_error = String(err?.message || err);
             }
         }
     }
 
-    const merged = entries.concat(
-        lemmaEntries.map((le) => ({ ...le, resolved_for_query: query }))
+    const merged = lexemes.concat(
+        resolvedLexemes.map((rl) => ({ ...rl, resolved_for_query: query }))
     );
 
     if (preferredPos) {
-        for (const ent of merged) {
-            if (ent.type === "LEXEME" && ent.part_of_speech === preferredPos)
-                ent.preferred = true;
+        for (const lex of merged) {
+            if (lex.type === "LEXEME" && lex.part_of_speech === preferredPos)
+                lex.preferred = true;
         }
     }
 
-    const LANG_PRIORITY: Record<string, number> = {
-        el: 1,
-        grc: 2,
-        en: 3,
-    };
-
-    // Sort entries by language priority, then POS heading
-    merged.sort((a, b) => {
-        if (a.language !== b.language) {
-            const pA = LANG_PRIORITY[a.language] || 100;
-            const pB = LANG_PRIORITY[b.language] || 100;
-            if (pA !== pB) return pA - pB;
-            return a.language.localeCompare(b.language);
-        }
-        return a.part_of_speech_heading.localeCompare(b.part_of_speech_heading);
-    });
+    if (sort === "priority") {
+        const LANG_PRIORITY: Record<string, number> = {
+            el: 1,
+            grc: 2,
+            en: 3,
+        };
+        merged.sort((a, b) => {
+            if (a.language !== b.language) {
+                const pA = LANG_PRIORITY[a.language] || 100;
+                const pB = LANG_PRIORITY[b.language] || 100;
+                if (pA !== pB) return pA - pB;
+                return a.language.localeCompare(b.language);
+            }
+            return a.part_of_speech_heading.localeCompare(b.part_of_speech_heading);
+        });
+    }
 
     const out: FetchResult = { 
         schema_version: SCHEMA_VERSION, 
         rawLanguageBlock: lang === "Auto" ? qPage.wikitext : (searchSections[0]?.block || ""), 
-        entries: merged, 
+        lexemes: merged, 
         notes: [],
         metadata: {
             categories: (qPage as any).categories || [],
@@ -367,12 +373,12 @@ export async function wiktionaryRecursive({
         }
     };
     if (debugDecoders && allDebugEvents.length > 0) {
-        out.debug = allDebugEvents.concat(Array(lemmaEntries.length).fill([]));
+        out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
     }
     return out;
 }
 
-function guessEntryTypeFromTemplates(templates: any[]) {
+function guessLexemeTypeFromTemplates(templates: any[]) {
     for (const t of templates) {
         if (VARIANT_TEMPLATES.has(t.name)) return "FORM_OF";
         if (FORM_OF_TEMPLATES.has(t.name)) return "INFLECTED_FORM";
@@ -397,3 +403,4 @@ export * from "./library";
 export * from "./formatter";
 export * from "./stem";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";
+export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry } from "./types";

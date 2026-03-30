@@ -2,14 +2,14 @@
  * The canonical version of the normalized output schema.
  * Follows Semantic Versioning (SemVer) principles.
  */
-export const SCHEMA_VERSION = "2.4.0";
+export const SCHEMA_VERSION = "3.0.0";
 
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
 export type WikiLang = "el" | "grc" | "en" | "nl" | "de" | "fr" | string;
 
-/** Discriminator for the kind of dictionary entry. Matches schema enum. */
-export type EntryType = "LEXEME" | "INFLECTED_FORM" | "FORM_OF";
+/** Discriminator for the kind of lexeme. Matches schema enum. */
+export type LexemeType = "LEXEME" | "INFLECTED_FORM" | "FORM_OF";
 
 export interface Pronunciation {
   IPA?: string;
@@ -147,14 +147,15 @@ export interface SectionWithLinks {
 }
 
 /**
- * A single normalized dictionary entry produced by the extraction pipeline.
- * Each entry is fully traceable to its source wikitext section.
+ * A single normalized lexeme produced by the extraction pipeline.
+ * Each lexeme represents a unique (language + PoS + etymology) slice,
+ * fully traceable to its source wikitext section.
  */
-export interface Entry {
+export interface Lexeme {
   id: string;
   language: WikiLang;
   query: string;
-  type: EntryType;
+  type: LexemeType;
   form: string;
   etymology_index: number;
   part_of_speech_heading: string;
@@ -286,10 +287,10 @@ export interface InflectionTable {
 export interface RichEntry {
   headword: string;
   pos: string;
-  type?: EntryType;
-  form_of?: Entry["form_of"];
+  type?: LexemeType;
+  form_of?: Lexeme["form_of"];
   morphology?: any;
-  headword_morphology?: Entry["headword_morphology"];
+  headword_morphology?: Lexeme["headword_morphology"];
   pronunciation?: Pronunciation;
   hyphenation?: Hyphenation;
   etymology?: EtymologyData;
@@ -301,7 +302,7 @@ export interface RichEntry {
   usage_notes?: string[];
   references?: string[];
   inflection_table?: InflectionTable;
-  translations?: Entry["translations"];
+  translations?: Lexeme["translations"];
   wikidata?: WikidataEnrichment;
   images?: string[];
   source: WiktionarySource;
@@ -313,13 +314,27 @@ export interface DecoderDebugEvent {
   fieldsProduced: string[];
 }
 
+/**
+ * Tagged per-lexeme result returned by convenience wrappers.
+ * Each element in the array corresponds to one lexeme found for the query,
+ * carrying both the extracted value and enough identity metadata for the
+ * caller to know which lexeme produced it.
+ */
+export interface LexemeResult<T> {
+  lexeme_id: string;
+  language: string;
+  pos: string;
+  etymology_index?: number;
+  value: T;
+}
+
 /** Top-level result returned by {@link wiktionary}. */
 export interface FetchResult {
   schema_version: string;
   rawLanguageBlock: string;
-  entries: Entry[];
+  lexemes: Lexeme[];
   notes: string[];
-  /** Present when debugDecoders option is true. debug[i] corresponds to entries[i]. */
+  /** Present when debugDecoders option is true. debug[i] corresponds to lexemes[i]. */
   debug?: DecoderDebugEvent[][];
   /** Global metadata for the page. */
   metadata?: {

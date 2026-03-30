@@ -44,8 +44,8 @@ function stubTitleToFixture(title: string, basename: string) {
 }
 
 /** Stable subset for regression snapshots (no ids, revision fields, or full template dumps). */
-function projectLexemes(entries: any[]) {
-  return entries
+function projectLexemes(lexemes: any[]) {
+  return lexemes
     .filter((e) => e.type === "LEXEME")
     .map((e) => ({
       language: e.language,
@@ -82,13 +82,13 @@ describe("golden: fixture → wiktionary (offline)", () => {
   it("basic-verb Greek lexeme", async () => {
     stubTitleToFixture("golden-basic-verb", "basic-verb");
     const res = await wiktionary({ query: "golden-basic-verb", lang: "el", enrich: false });
-    expect(projectLexemes(res.entries)).toMatchSnapshot();
+    expect(projectLexemes(res.lexemes)).toMatchSnapshot();
   });
 
   it("form-of-inflected Greek INFLECTED_FORM", async () => {
     stubTitleToFixture("golden-form-of", "form-of-inflected");
     const res = await wiktionary({ query: "golden-form-of", lang: "el", enrich: false });
-    const inflected = res.entries.filter((e) => e.type === "INFLECTED_FORM");
+    const inflected = res.lexemes.filter((e) => e.type === "INFLECTED_FORM");
     expect(
       inflected.map((e) => ({
         type: e.type,
