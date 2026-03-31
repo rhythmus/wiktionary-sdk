@@ -30,6 +30,8 @@
     "test:all": "vitest run && vitest run --config vitest.bench.config.ts",
     "test:network": "WIKT_TEST_LIVE=1 vitest run test/network-replay.test.ts",
     "refresh-recording": "tsx tools/refresh-api-recording.ts",
+    "sync:copy": "tsx tools/sync-shared-copy.ts",
+    "check:sync-copy": "npm run sync:copy && git diff --exit-code -- README.md webapp/src/shared-copy.generated.ts",
     "test:watch": "vitest",
     "cli": "tsx cli/index.ts",
     "introspect": "tsx tools/template-introspect.ts",

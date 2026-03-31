@@ -1,0 +1,6 @@
+heroTitle: Wiktionary SDK — extraction, normalization, and formatting
+heroTagline: Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia, and Wikimedia
+introLead: Wiktionary is the world’s largest open multilingual dictionary, but its underlying wiki markup is far from a rigorous database. Extracting unambiguous, strongly typed, machine-readable data from its vast template ecosystem is messy — often a real
+introTail: Wiktionary SDK solves this with an easy-to-use interface that spares you the headache of wrestling with the official REST API’s bewildering outputs.
+wiktionaryUrl: https://www.wiktionary.org/
+pitaQuery: pain in the ass
