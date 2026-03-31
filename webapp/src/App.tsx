@@ -13,6 +13,7 @@ import {
   categories, langlinks, inflectionTableRef, gender, transitivity
 } from '@engine/index';
 import { ENTRY_CSS } from '@engine/templates/templates';
+import { SHARED_COPY } from './shared-copy.generated';
 function langName(lang: string) {
   const m: Record<string, string> = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
   return m[lang] || lang;
@@ -348,8 +349,14 @@ function highlightPlaygroundTs(code: string): ReactNode {
 
 // ── Component ────────────────────────────────────────────────────────────────
 const App: React.FC = () => {
+  const getQueryFromUrl = () => {
+    if (typeof window === 'undefined') return '';
+    const raw = new URLSearchParams(window.location.search).get('q');
+    return (raw ?? '').trim();
+  };
+
   // Search & results state
-  const [query, setQuery] = useState('γράφω');
+  const [query, setQuery] = useState(() => getQueryFromUrl() || 'γράφω');
   const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
   const [loading, setLoading] = useState(false);
@@ -390,6 +397,16 @@ const App: React.FC = () => {
   }, []);
 
   // ── Handlers ────────────────────────────────────────────────────────────
+  const syncUrlQuery = useCallback((nextQuery: string, mode: 'push' | 'replace' = 'push') => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const q = nextQuery.trim();
+    if (q) url.searchParams.set('q', q);
+    else url.searchParams.delete('q');
+    if (mode === 'push') window.history.pushState({}, '', url);
+    else window.history.replaceState({}, '', url);
+  }, []);
+
   const handleMethodChange = (method: string) => {
     setApiMethod(method);
     setApiProps('');
@@ -442,6 +459,7 @@ const App: React.FC = () => {
   const handleSearch = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim()) return;
+    syncUrlQuery(query, e ? 'push' : 'replace');
     setLoading(true);
     setError(null);
     setSelectedEntryIdx(0);
@@ -466,12 +484,21 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [query, lang, prefPos, compareMode, compareLang, debugMode]);
+  }, [query, lang, prefPos, compareMode, compareLang, debugMode, syncUrlQuery]);
 
   // Initial fetch on mount
   useEffect(() => { 
     handleSearch(); 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onPopState = () => {
+      const q = getQueryFromUrl();
+      setQuery(q || 'γράφω');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // ── YAML rendering helpers ───────────────────────────────────────────────
   const formatYaml = (data: any) => {
@@ -600,39 +627,25 @@ const App: React.FC = () => {
         </svg>
       </a>
 
-      <div style={{ padding: '3.5rem 0 2rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <div className="app-hero-wrap">
 
         {/* Title — salve-style: left-aligned, sans-serif, bold name + rest inline */}
-        <div style={{ marginBottom: results.length || loading ? '1.5rem' : '1.75rem' }}>
+        <div className={`app-hero-block${results.length || loading ? ' has-results' : ''}`}>
           <h1
-            className="app-hero-title"
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontSize: results.length || loading ? '1.45rem' : '1.85rem',
-              fontWeight: 400,
-              color: '#111',
-              lineHeight: 1.2,
-              margin: 0,
-            }}
+            className={`app-hero-title${results.length || loading ? ' compact' : ''}`}
           >
-            <strong style={{ fontWeight: 700 }}>Wiktionary SDK</strong>
-            {' '}— extraction, normalization and formatting
+            <strong className="app-hero-title-strong">{SHARED_COPY.heroTitle.split(' — ')[0]}</strong>
+            {' '}— {SHARED_COPY.heroTitle.split(' — ').slice(1).join(' — ')}
           </h1>
-          <p style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: '0.78rem',
-            fontWeight: 400,
-            color: '#6b7280',
-            marginTop: '1.1rem',
-            lineHeight: 1.5,
-          }}>
-            Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia and Wikimedia
+          <p className="app-hero-tagline app-body-paragraph">
+            {SHARED_COPY.heroTagline}
           </p>
+          
         </div>
 
         {/* Search bar */}
-        <form onSubmit={handleSearch} className="google-bar" style={{ width: '100%' }}>
-          {!narrowSearchBar && <Search size={17} style={{ color: '#9ca3af', flexShrink: 0 }} />}
+        <form onSubmit={handleSearch} className="google-bar app-search-form">
+          {!narrowSearchBar && <Search size={17} className="app-search-icon" />}
           <input
             type="text"
             value={query}
@@ -710,7 +723,6 @@ const App: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="app-error-banner"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, marginBottom: '1rem', color: '#ef4444', fontSize: '0.875rem' }}
           >
             <AlertCircle size={16} />
             {error}
@@ -718,14 +730,30 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
+      <p className="app-hero-intro app-body-paragraph">
+            <a href={SHARED_COPY.wiktionaryUrl} target="_blank" rel="noreferrer">Wiktionary</a> {SHARED_COPY.introLead.replace(/^Wiktionary\s+/, "")}{" "}
+            <a
+              href={`/?q=${encodeURIComponent(SHARED_COPY.pitaQuery)}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const next = SHARED_COPY.pitaQuery;
+                setQuery(next);
+                syncUrlQuery(next, 'push');
+              }}
+              className="app-inline-link"
+            >
+              pita
+            </a>
+            . {SHARED_COPY.introTail}
+          </p>
+
       {/* Dictionary result card */}
       <AnimatePresence>
         {currentEntry && (
           <motion.div
             key={currentEntry.form + selectedEntryIdx}
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="dict-card"
-            style={{ marginBottom: '1.5rem' }}
+            className="dict-card app-dict-card"
           >
             {/* Render handle-bars based high-fidelity output */}
             <div dangerouslySetInnerHTML={{ __html: highFidelityHtml }} />
@@ -750,7 +778,7 @@ const App: React.FC = () => {
       <div className="dark-island">
 
         {/* ── Live API Playground ──────────────────── */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div className="app-playground-block">
           <div className="dk-section-title" style={{ marginBottom: '1.25rem' }}>
             <Terminal size={13} style={{ color: 'var(--dk-fuchsia)' }} />
             Live API Playground
@@ -803,7 +831,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Prop pills below the controls row */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+          <div className="dk-pills-row">
             {pills.map((pill) => (
               <button key={pill} className={`dk-pill${apiProps === pill ? ' active' : ''}`} onClick={() => setApiProps(pill)}>
                 {pill}
@@ -812,46 +840,18 @@ const App: React.FC = () => {
           </div>
 
           {/* README-style TypeScript sample for the selected wrapper */}
-          <div className="dk-code-window" style={{ marginTop: '1rem' }}>
+          <div className="dk-code-window dk-block-gap-md">
             {/* Windows-style title bar */}
-            <div
-              style={{
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                padding: '0 0 0 12px',
-                display: 'flex',
-                alignItems: 'center',
-                background: 'rgba(0,0,0,0.22)',
-                height: 32,
-              }}
-            >
-              <span
-                style={{
-                  color: 'rgba(255,255,255,0.4)',
-                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontSize: '0.69rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.07em',
-                  textTransform: 'uppercase',
-                  flex: 1,
-                }}
-              >
+            <div className="dk-window-titlebar dk-window-titlebar-win">
+              <span className="dk-window-title dk-window-title-win">
                 TypeScript
               </span>
-              <span style={{ display: 'flex', alignItems: 'stretch', height: '100%', flexShrink: 0 }}>
+              <span className="dk-window-controls dk-window-controls-win">
                 {['─', '☐', '✕'].map((sym, i) => (
                   <span
                     key={i}
                     aria-hidden
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 40,
-                      height: '100%',
-                      color: 'rgba(255,255,255,0.35)',
-                      fontSize: i === 2 ? '0.8rem' : '0.75rem',
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
+                    className={`dk-window-control dk-window-control-win${i === 2 ? ' is-close' : ''}`}
                   >
                     {sym}
                   </span>
@@ -864,121 +864,89 @@ const App: React.FC = () => {
           </div>
 
           {/* Terminal output well */}
-          <div className="dk-well" style={{ marginTop: '0.65rem' }}>
+          <div className="dk-well dk-block-gap-sm">
             {/* macOS-style title bar */}
-            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'rgba(0,0,0,0.22)', height: 32 }}>
+            <div className="dk-window-titlebar dk-window-titlebar-mac">
               {/* Traffic-light dots */}
-              <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#febc2e', display: 'inline-block' }} />
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
+              <span className="dk-traffic-lights">
+                <span className="dk-dot dk-dot-red" />
+                <span className="dk-dot dk-dot-amber" />
+                <span className="dk-dot dk-dot-green" />
               </span>
-              <span
-                style={{
-                  color: 'rgba(255,255,255,0.35)',
-                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  flex: 1,
-                  textAlign: 'left',
-                }}
-              >
+              <span className="dk-window-title dk-window-title-mac">
                 CLI
               </span>
             </div>
             {/* Output */}
-            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)' }}>
+            <div className="dk-well-output">
               {/* CLI prompt line — always shown */}
-              <div style={{ marginBottom: apiResult?.__uninitialized ? 0 : '0.35rem' }}>
-                <span style={{ color: 'rgba(255,255,255,0.28)' }}>~</span>
+              <div className={`dk-cli-prompt${apiResult?.__uninitialized ? '' : ' has-output'}`}>
+                <span className="dk-c-dim">~</span>
                 {' '}
-                <span style={{ color: '#c4b5fd' }}>wiktionary-sdk</span>
+                <span className="dk-c-violet">wiktionary-sdk</span>
                 {' '}
-                <span style={{ color: '#fbbf24' }}>{query || '…'}</span>
+                <span className="dk-c-amber">{query || '…'}</span>
                 {' '}
-                <span style={{ color: '#94a3b8' }}>--lang {lang}</span>
+                <span className="dk-c-muted">--lang {lang}</span>
                 {apiMethod !== 'wiktionary' && (
-                  <span style={{ color: '#94a3b8' }}> --extract {apiMethod.replace('()', '')}</span>
+                  <span className="dk-c-muted"> --extract {apiMethod.replace('()', '')}</span>
                 )}
                 {apiProps && ['conjugate', 'decline', 'hyphenate'].includes(apiMethod.replace('()', '')) && (
-                  <span style={{ color: '#94a3b8' }}> --props <span style={{ color: '#4ade80' }}>'{apiProps}'</span></span>
+                  <span className="dk-c-muted"> --props <span className="dk-c-green">'{apiProps}'</span></span>
                 )}
-                {apiProps && apiMethod.replace('()', '') === 'translate' && (() => { try { const p = JSON.parse(apiProps); return p.target ? <span style={{ color: '#94a3b8' }}> --target <span style={{ color: '#4ade80' }}>{p.target}</span></span> : null; } catch { return null; } })()}
+                {apiProps && apiMethod.replace('()', '') === 'translate' && (() => { try { const p = JSON.parse(apiProps); return p.target ? <span className="dk-c-muted"> --target <span className="dk-c-green">{p.target}</span></span> : null; } catch { return null; } })()}
               </div>
               {/* Result output */}
               {!apiResult?.__uninitialized && (
                 apiFormatted ? (
                   <div dangerouslySetInnerHTML={{ __html: apiFormatted }} />
                 ) : typeof apiResult === 'undefined' ? (
-                  <span style={{ color: '#f59e0b' }}>undefined</span>
+                  <span className="dk-c-warn">undefined</span>
                 ) : apiResult === null ? (
-                  <span style={{ color: '#f59e0b' }}>null</span>
+                  <span className="dk-c-warn">null</span>
                 ) : typeof apiResult === 'string' ? (
-                  <span style={{ color: '#34d399' }}>"{apiResult}"</span>
+                  <span className="dk-c-green">"{apiResult}"</span>
                 ) : (
-                  <span style={{ color: '#94a3b8' }}>{JSON.stringify(apiResult, null, 2)}</span>
+                  <span className="dk-c-muted">{JSON.stringify(apiResult, null, 2)}</span>
                 )
               )}
             </div>
           </div>
 
           {/* REST API — Linux/Ubuntu-style terminal window */}
-          <div className="dk-well" style={{ marginTop: '0.65rem' }}>
-            <div style={{
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              padding: '0 0 0 14px',
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(0,0,0,0.22)',
-              height: 32,
-            }}>
-              <span style={{
-                color: 'rgba(255,255,255,0.4)',
-                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                flex: 1,
-                textAlign: 'left',
-              }}>
+          <div className="dk-well dk-block-gap-sm">
+            <div className="dk-window-titlebar dk-window-titlebar-rest">
+              <span className="dk-window-title dk-window-title-rest">
                 REST API
               </span>
-              <span style={{ display: 'flex', alignItems: 'stretch', height: '100%', flexShrink: 0 }}>
+              <span className="dk-window-controls dk-window-controls-rest">
                 {['▽', '△', '✕'].map((sym, i) => (
                   <span
                     key={i}
                     aria-hidden
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 32,
-                      height: '100%',
-                      color: 'rgba(255,255,255,0.3)',
-                      fontSize: '0.65rem',
-                      fontFamily: 'system-ui, sans-serif',
-                    }}
+                    className="dk-window-control dk-window-control-rest"
                   >
                     {sym}
                   </span>
                 ))}
               </span>
             </div>
-            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)' }}>
+            <div className="dk-well-output">
               <div>
-                <span style={{ color: '#4ade80' }}>user@sdk</span>
-                <span style={{ color: 'rgba(255,255,255,0.28)' }}>:</span>
-                <span style={{ color: '#60a5fa' }}>~</span>
-                <span style={{ color: 'rgba(255,255,255,0.28)' }}>$ </span>
-                <span style={{ color: '#e2e8f0' }}>{playgroundCurlSource}</span>
+                <span className="dk-c-green">user@sdk</span>
+                <span className="dk-c-dim">:</span>
+                <span className="dk-c-blue">~</span>
+                <span className="dk-c-dim">$ </span>
+                <span className="dk-c-light">{playgroundCurlSource}</span>
               </div>
               {!apiResult?.__uninitialized && (
-                <div style={{ marginTop: '0.35rem' }}>
+                <div className="dk-rest-output">
                   {apiLoading ? (
-                    <span style={{ color: '#94a3b8' }}>{'  % Total    % Received    Time     Elapsed\n  …waiting'}</span>
+                    <span className="dk-c-muted">{'  % Total    % Received    Time     Elapsed\n  …waiting'}</span>
                   ) : apiResult && typeof apiResult === 'object' && apiResult !== null && 'error' in apiResult ? (
-                    <span style={{ color: '#f87171' }}>{'{ "error": '}{JSON.stringify((apiResult as { error: unknown }).error)}{'}'}</span>
+                    <span className="dk-c-error">{'{ "error": '}{JSON.stringify((apiResult as { error: unknown }).error)}{'}'}</span>
                   ) : (
-                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#94a3b8' }}>
+                    <pre className="dk-rest-json">
                       {JSON.stringify(apiResult, null, 2)}
                     </pre>
                   )}
@@ -991,7 +959,7 @@ const App: React.FC = () => {
         {/* ── Debug Inspector (collapsible) — hidden on narrow viewports (see index.css) ────────── */}
         <div className="dk-inspector-block">
           {/* Collapse toggle + Debug/Compare buttons in same row */}
-          <div className="dk-inspector-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="dk-inspector-toolbar">
             <button className="dk-toggle" onClick={() => setInspectorOpen((v) => !v)}>
               <motion.span animate={{ rotate: inspectorOpen ? 90 : 0 }} style={{ display: 'flex' }}>
                 <ChevronRight size={14} />
@@ -1019,8 +987,7 @@ const App: React.FC = () => {
 
             {compareMode && (
               <select
-                className="dk-select"
-                style={{ maxWidth: 150, padding: '3px 8px', fontSize: '0.75rem' }}
+                className="dk-select dk-compare-select"
                 value={compareLang}
                 onChange={(e) => setCompareLang(e.target.value as WikiLang)}
               >
@@ -1039,83 +1006,46 @@ const App: React.FC = () => {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                style={{ overflow: 'hidden' }}
+                className="dk-inspector-collapse"
               >
-                <div style={{ paddingTop: '1.25rem' }}>
+                <div className="dk-inspector-content">
 
                   {/* Highlighted template badge */}
                   {highlightedTemplate && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#f59e0b', marginBottom: '0.75rem' }}>
-                      <span>Highlighting: <code className="app-inline-code-chip" style={{ background: 'rgba(245,158,11,0.1)', padding: '1px 6px', borderRadius: 4 }}>{highlightedTemplate}</code></span>
-                      <button onClick={() => setHighlightedTemplate(null)} style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex' }}><X size={13} /></button>
+                    <div className="dk-highlight-row">
+                      <span>Highlighting: <code className="app-inline-code-chip dk-highlight-chip">{highlightedTemplate}</code></span>
+                      <button className="dk-highlight-clear" onClick={() => setHighlightedTemplate(null)}><X size={13} /></button>
                     </div>
                   )}
 
                   {/* Raw Wikitext + Normalized YAML panels */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: compareMode ? '1fr 1fr 1fr' : '1fr 1fr',
-                      gap: '1rem',
-                      alignItems: 'stretch',
-                    }}
-                  >
+                  <div className={`dk-inspector-grid${compareMode ? ' compare' : ''}`}>
 
                     {/* Raw Wikitext */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          fontSize: '0.75rem',
-                          color: 'var(--dk-secondary)',
-                          minHeight: 44,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Languages size={14} style={{ color: '#60a5fa' }} /> Raw Wikitext
+                    <div className="dk-inspector-col">
+                      <div className="dk-inspector-col-title">
+                        <Languages size={14} className="dk-title-icon-blue" /> Raw Wikitext
                       </div>
-                      <div
-                        className="dk-panel"
-                        style={{
-                          flex: 1,
-                          minHeight: 520,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div style={{ borderBottom: '1px solid var(--dk-border)', padding: '5px 12px', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--dk-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div className="dk-panel dk-inspector-panel">
+                        <div className="dk-inspector-panel-meta">
                           <span>Section: {langName(lang)}</span>
                           <span>{rawBlock.length} chars</span>
                         </div>
-                        <pre style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, color: 'var(--dk-secondary)', minHeight: 0 }}>
+                        <pre className="dk-inspector-pre">
                           {renderWikitext(rawBlock)}
                         </pre>
                       </div>
                     </div>
 
                     {/* Normalized YAML */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '0.5rem',
-                          flexWrap: 'nowrap',
-                          minHeight: 44,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)', minWidth: 0 }}>
-                          <ChevronRight size={14} style={{ color: '#818cf8', flexShrink: 0 }} /> Normalized YAML
+                    <div className="dk-inspector-col">
+                      <div className="dk-inspector-col-head">
+                        <div className="dk-inspector-col-title">
+                          <ChevronRight size={14} className="dk-title-icon-violet" /> Normalized YAML
                         </div>
                         {results.length > 1 && (
                           <select
-                            className="dk-select"
-                            style={{ maxWidth: 160, padding: '2px 6px', fontSize: '0.7rem', flexShrink: 0 }}
+                            className="dk-select dk-lexeme-select"
                             value={selectedEntryIdx}
                             onChange={(e) => setSelectedEntryIdx(Number(e.target.value))}
                           >
@@ -1123,29 +1053,20 @@ const App: React.FC = () => {
                           </select>
                         )}
                       </div>
-                      <div
-                        className="dk-panel"
-                        style={{
-                          flex: 1,
-                          minHeight: 520,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div style={{ borderBottom: '1px solid var(--dk-border)', padding: '5px 12px', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--dk-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div className="dk-panel dk-inspector-panel">
+                        <div className="dk-inspector-panel-meta">
                           <span>Entries: {results.length}</span>
                           <span>Schema v1.0.0{debugMode ? ' | Debug ON' : ''}</span>
                         </div>
-                        <div style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, minHeight: 0 }}>
+                        <div className="dk-inspector-scroll">
                           {loading ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--dk-muted)' }}>
+                            <div className="dk-inspector-loading">
                               <Loader2 size={18} className="animate-spin" /> Processing…
                             </div>
                           ) : results.length > 0 ? (
                             highlightYaml(formatYaml({ lexemes: results }))
                           ) : (
-                            <span style={{ color: 'var(--dk-muted)' }}>No results.</span>
+                            <span className="dk-muted-text">No results.</span>
                           )}
                         </div>
                       </div>
@@ -1153,44 +1074,24 @@ const App: React.FC = () => {
 
                     {/* Compare panel */}
                     {compareMode && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            fontSize: '0.75rem',
-                            color: 'var(--dk-secondary)',
-                            minHeight: 44,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Columns2 size={14} style={{ color: '#34d399' }} /> {langName(compareLang)}
+                      <div className="dk-inspector-col">
+                        <div className="dk-inspector-col-title">
+                          <Columns2 size={14} className="dk-title-icon-green" /> {langName(compareLang)}
                         </div>
-                        <div
-                          className="dk-panel"
-                          style={{
-                            flex: 1,
-                            minHeight: 520,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: 'hidden',
-                            borderColor: 'rgba(16,185,129,0.2)',
-                          }}
-                        >
-                          <div style={{ borderBottom: '1px solid rgba(16,185,129,0.15)', padding: '5px 12px', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--dk-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                        <div className="dk-panel dk-inspector-panel dk-inspector-panel-compare">
+                          <div className="dk-inspector-panel-meta dk-inspector-panel-meta-compare">
                             <span>Entries: {compareResults.length}</span>
                             <span>{compareRawBlock.length} chars</span>
                           </div>
-                          <div style={{ flex: 1, padding: '1rem', overflow: 'auto', fontSize: '0.78rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, minHeight: 0 }}>
+                          <div className="dk-inspector-scroll">
                             {compareLoading ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--dk-muted)' }}>
+                              <div className="dk-inspector-loading">
                                 <Loader2 size={18} className="animate-spin" /> Fetching…
                               </div>
                             ) : compareResults.length > 0 ? (
                               highlightYaml(formatYaml({ lexemes: compareResults }))
                             ) : (
-                              <span style={{ color: 'var(--dk-muted)' }}>No results in {langName(compareLang)}.</span>
+                              <span className="dk-muted-text">No results in {langName(compareLang)}.</span>
                             )}
                           </div>
                         </div>
@@ -1200,27 +1101,27 @@ const App: React.FC = () => {
 
                   {/* Decoder matches table */}
                   {debugMode && decoderMatches.length > 0 && (
-                    <div style={{ marginTop: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)', marginBottom: '0.75rem' }}>
-                        <Bug size={14} style={{ color: '#f59e0b' }} /> Decoder Matches — Lexeme {selectedEntryIdx + 1}
+                    <div className="dk-section-block">
+                      <div className="dk-section-row">
+                        <Bug size={14} className="dk-title-icon-amber" /> Decoder Matches — Lexeme {selectedEntryIdx + 1}
                       </div>
-                      <div className="dk-panel" style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', fontSize: '0.78rem', textAlign: 'left', borderCollapse: 'collapse' }}>
+                      <div className="dk-panel dk-table-wrap">
+                        <table className="dk-table">
                           <thead>
-                            <tr style={{ borderBottom: '1px solid var(--dk-border)', color: 'var(--dk-muted)' }}>
-                              {['Decoder', 'Template', 'Raw', 'Fields Produced'].map((h) => <th key={h} style={{ padding: '8px 12px', fontWeight: 600 }}>{h}</th>)}
+                            <tr className="dk-table-head-row">
+                              {['Decoder', 'Template', 'Raw', 'Fields Produced'].map((h) => <th key={h} className="dk-table-head-cell">{h}</th>)}
                             </tr>
                           </thead>
                           <tbody>
                             {decoderMatches.map((m, i) => (
-                              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}
+                              <tr key={i} className="dk-table-row"
                                 onClick={() => m.raw && setHighlightedTemplate(m.raw.slice(0, 40))}>
-                                <td style={{ padding: '7px 12px', color: '#f59e0b', fontFamily: "'JetBrains Mono', monospace" }}>{m.decoderId}</td>
-                                <td style={{ padding: '7px 12px', color: '#60a5fa', fontFamily: "'JetBrains Mono', monospace" }}>{m.templateName ? `{{${m.templateName}}}` : '–'}</td>
-                                <td style={{ padding: '7px 12px', color: 'var(--dk-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem' }}>{m.raw}</td>
-                                <td style={{ padding: '7px 12px' }}>
+                                <td className="dk-table-cell dk-c-amber dk-font-mono">{m.decoderId}</td>
+                                <td className="dk-table-cell dk-c-blue dk-font-mono">{m.templateName ? `{{${m.templateName}}}` : '–'}</td>
+                                <td className="dk-table-cell dk-table-raw dk-font-mono">{m.raw}</td>
+                                <td className="dk-table-cell">
                                   {m.fieldsProduced.map((f: string) => (
-                                    <span key={f} className="decoder-field-chip" style={{ display: 'inline-block', background: 'rgba(129,140,248,0.15)', color: '#a5b4fc', fontSize: '0.68rem', padding: '2px 7px', borderRadius: 999, marginRight: 4, marginBottom: 2 }}>{f}</span>
+                                    <span key={f} className="decoder-field-chip">{f}</span>
                                   ))}
                                 </td>
                               </tr>
@@ -1233,17 +1134,17 @@ const App: React.FC = () => {
 
                   {/* Wikidata media */}
                   {results.some((r) => r.wikidata?.media?.thumbnail) && (
-                    <div style={{ marginTop: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--dk-secondary)', marginBottom: '0.75rem' }}>
-                        <ImageIcon size={14} style={{ color: '#34d399' }} /> Wikidata Media
+                    <div className="dk-section-block">
+                      <div className="dk-section-row">
+                        <ImageIcon size={14} className="dk-title-icon-green" /> Wikidata Media
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div className="dk-media-grid">
                         {results.map((r, i) => r.wikidata?.media?.thumbnail ? (
-                          <div key={i} className="dk-panel" style={{ width: 200 }}>
-                            <img className="wikidata-card-img" src={r.wikidata.media.thumbnail} alt={r.form} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: '11px 11px 0 0' }} />
-                            <div style={{ padding: '0.5rem 0.75rem' }}>
-                              <p style={{ fontSize: '0.8rem', fontWeight: 500 }}>{r.form}</p>
-                              <p style={{ fontSize: '0.7rem', color: 'var(--dk-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.wikidata.media.P18}</p>
+                          <div key={i} className="dk-panel dk-media-card">
+                            <img className="wikidata-card-img" src={r.wikidata.media.thumbnail} alt={r.form} />
+                            <div className="dk-media-meta">
+                              <p className="dk-media-title">{r.form}</p>
+                              <p className="dk-media-file">{r.wikidata.media.P18}</p>
                             </div>
                           </div>
                         ) : null)}
@@ -1258,8 +1159,14 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      <p className="app-body-paragraph">Wiktionary SDK extracts lexicographic data directly from source templates and keeps every field traceable. The same core engine powers the package API, CLI, and web playground so outputs remain consistent across interfaces. Use targeted wrappers for quick lookups, or inspect full lexeme structures when you need complete context. The design favors explicit data and deterministic behavior over linguistic guesswork.
+      </p>
+
+      <p className="app-body-paragraph">Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries** and initial support for **Dutch (NL)** and **German (DE)**.</p>
+      <p className="app-body-paragraph">The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).</p>
+
       {/* ── Footer ────────────────────────────────── */}
-      <footer style={{ marginTop: '3rem', textAlign: 'center', fontSize: '0.72rem', color: '#9ca3af', fontFamily: "'Inter', sans-serif" }}>
+      <footer className="app-footer">
         Copyright © 2026 <a href="https://wso.art">Dr Wouter Soudan</a>. All rights reserved.
       </footer>
     </div>
