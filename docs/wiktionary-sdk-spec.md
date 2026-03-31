@@ -367,46 +367,51 @@ A `RichEntry` is a comprehensive, flattened representation of a linguistic term,
 #### 3.9.2 `InflectionTable` (The Structured Paradigm)
 An `InflectionTable` is a hierarchical representation of a grammatical paradigm (e.g., all forms of a verb across mood, tense, and voice). It is returned by `conjugate()` and `decline()` when called in "full-table" mode (empty criteria).
 
-From v3.1, all lexeme-scoped wrappers return `LexemeResult<T>[]` — an array
-of results tagged with lexeme identity (see §12.26). Scalar exceptions are
-marked below.
+From v3.1, all lexeme-scoped wrappers return `GroupedLexemeResults<T>` — a
+grouped result envelope with:
+- `order: string[]`
+- `lexemes: Record<lexeme_id, { language, pos, etymology_index, value }>`
+
+Use `asLexemeRows()` when row-oriented iteration (`map/find/filter`) is
+preferred. Scalar exceptions are marked below.
 
 | Wrapper | Return type | Notes |
 |---------|-------------|-------|
 | `lemma(q, l)` | `string` | **Scalar.** Resolves inflections to canonical lemma. |
 | `pageMetadata(q, l)` | `object` | **Scalar.** Raw page info (`last_modified`, `length`, `pageid`). |
 | `getMainLexeme(result)` | `Lexeme\|null` | **Scalar.** First-match heuristic utility. |
-| `ipa(q, l)` | `LexemeResult<string\|null>[]` | Primary IPA transcription per lexeme. |
-| `pronounce(q, l)` | `LexemeResult<string\|null>[]` | Audio URL per lexeme. |
-| `hyphenate(q, l, opts)` | `LexemeResult<any>[]` | Syllable list or joined string per lexeme. |
-| `syllableCount(q, l)` | `LexemeResult<number>[]` | Number of syllables per lexeme. |
-| `synonyms(q, l)` | `LexemeResult<string[]>[]` | Synonyms per lexeme. |
-| `antonyms(q, l)` | `LexemeResult<string[]>[]` | Antonyms per lexeme. |
-| `hypernyms(q, l)` | `LexemeResult<string[]>[]` | Hypernyms per lexeme. |
-| `hyponyms(q, l)` | `LexemeResult<string[]>[]` | Hyponyms per lexeme. |
-| `translate(q, l, t)` | `LexemeResult<string[]>[]` | Translations per lexeme. |
-| `etymology(q, l)` | `LexemeResult<EtymologyStep[]\|null>[]` | Structured lineage per lexeme. |
-| `partOfSpeech(q, l)` | `LexemeResult<string\|null>[]` | Normalized POS tag per lexeme. |
-| `conjugate(q, l, c)` | `LexemeResult<string[]\|Record\|null>[]` | Paradigm per lexeme. |
-| `decline(q, l, c)` | `LexemeResult<string[]\|Record\|null>[]` | Declension per lexeme. |
-| `morphology(q, l)` | `LexemeResult<GrammarTraits>[]` | Grammar traits per lexeme. |
-| `richEntry(q, l)` | `LexemeResult<RichEntry\|null>[]` | Aggregate profile per lexeme. |
-| `stem(q, l)` | `LexemeResult<WordStems>[]` | Logical stems per lexeme. |
-| `principalParts(q, l)` | `LexemeResult<Record\|null>[]` | Verb paradigm slots per lexeme. |
-| `gender(q, l)` | `LexemeResult<string\|null>[]` | Grammatical gender per lexeme. |
-| `transitivity(q, l)` | `LexemeResult<string\|null>[]` | Verb transitivity per lexeme. |
-| `alternativeForms(q, l)` | `LexemeResult<Array<{term, qualifier?}>>[]` | Alternative forms per lexeme. |
-| `seeAlso(q, l)` | `LexemeResult<string[]>[]` | See-also terms per lexeme. |
-| `anagrams(q, l)` | `LexemeResult<string[]>[]` | Anagrams per lexeme. |
-| `usageNotes(q, l)` | `LexemeResult<string[]>[]` | Usage notes per lexeme. |
-| `derivedTerms(q, l)` | `LexemeResult<any[]>[]` | Derived terms per lexeme. |
-| `relatedTerms(q, l)` | `LexemeResult<any[]>[]` | Related terms per lexeme. |
-| `descendants(q, l)` | `LexemeResult<any[]>[]` | Descendants per lexeme. |
-| `referencesSection(q, l)` | `LexemeResult<string[]>[]` | References per lexeme. |
-| `etymologyChain(q, l)` | `LexemeResult<any[]>[]` | Ancestor chain per lexeme. |
-| `etymologyCognates(q, l)` | `LexemeResult<any[]>[]` | Cognates per lexeme. |
-| `etymologyText(q, l)` | `LexemeResult<string\|null>[]` | Raw etymology text per lexeme. |
-| `categories(q, l)` | `LexemeResult<string[]>[]` | Categories per lexeme. |
+| `ipa(q, l)` | `GroupedLexemeResults<string\|null>` | Primary IPA transcription per lexeme. |
+| `pronounce(q, l)` | `GroupedLexemeResults<string\|null>` | Audio URL per lexeme. |
+| `hyphenate(q, l, opts)` | `GroupedLexemeResults<any>` | Syllable list or joined string per lexeme. |
+| `syllableCount(q, l)` | `GroupedLexemeResults<number>` | Number of syllables per lexeme. |
+| `synonyms(q, l)` | `GroupedLexemeResults<string[]>` | Synonyms per lexeme. |
+| `antonyms(q, l)` | `GroupedLexemeResults<string[]>` | Antonyms per lexeme. |
+| `hypernyms(q, l)` | `GroupedLexemeResults<string[]>` | Hypernyms per lexeme. |
+| `hyponyms(q, l)` | `GroupedLexemeResults<string[]>` | Hyponyms per lexeme. |
+| `translate(q, l, t)` | `GroupedLexemeResults<string[]>` | Translations per lexeme. |
+| `etymology(q, l)` | `GroupedLexemeResults<EtymologyStep[]\|null>` | Structured lineage per lexeme. |
+| `partOfSpeech(q, l)` | `GroupedLexemeResults<string\|null>` | Normalized POS tag per lexeme. |
+| `conjugate(q, l, c)` | `GroupedLexemeResults<string[]\|Record\|null>` | Paradigm per lexeme. |
+| `decline(q, l, c)` | `GroupedLexemeResults<string[]\|Record\|null>` | Declension per lexeme. |
+| `morphology(q, l)` | `GroupedLexemeResults<GrammarTraits>` | Grammar traits per lexeme. |
+| `richEntry(q, l)` | `GroupedLexemeResults<RichEntry\|null>` | Aggregate profile per lexeme. |
+| `stem(q, l)` | `GroupedLexemeResults<string[]>` | Stem aliases per lexeme (concise output). |
+| `stemByLexeme(q, l)` | `GroupedLexemeResults<WordStems>` | Full structured stems per lexeme. |
+| `principalParts(q, l)` | `GroupedLexemeResults<Record\|null>` | Verb paradigm slots per lexeme. |
+| `gender(q, l)` | `GroupedLexemeResults<string\|null>` | Grammatical gender per lexeme. |
+| `transitivity(q, l)` | `GroupedLexemeResults<string\|null>` | Verb transitivity per lexeme. |
+| `alternativeForms(q, l)` | `GroupedLexemeResults<Array<{term, qualifier?}>>` | Alternative forms per lexeme. |
+| `seeAlso(q, l)` | `GroupedLexemeResults<string[]>` | See-also terms per lexeme. |
+| `anagrams(q, l)` | `GroupedLexemeResults<string[]>` | Anagrams per lexeme. |
+| `usageNotes(q, l)` | `GroupedLexemeResults<string[]>` | Usage notes per lexeme. |
+| `derivedTerms(q, l)` | `GroupedLexemeResults<any[]>` | Derived terms per lexeme. |
+| `relatedTerms(q, l)` | `GroupedLexemeResults<any[]>` | Related terms per lexeme. |
+| `descendants(q, l)` | `GroupedLexemeResults<any[]>` | Descendants per lexeme. |
+| `referencesSection(q, l)` | `GroupedLexemeResults<string[]>` | References per lexeme. |
+| `etymologyChain(q, l)` | `GroupedLexemeResults<any[]>` | Ancestor chain per lexeme. |
+| `etymologyCognates(q, l)` | `GroupedLexemeResults<any[]>` | Cognates per lexeme. |
+| `etymologyText(q, l)` | `GroupedLexemeResults<string\|null>` | Raw etymology text per lexeme. |
+| `categories(q, l)` | `GroupedLexemeResults<string[]>` | Categories per lexeme. |
 | `langlinks(q, l)` | `LexemeResult<any[]>[]` | Interwiki links per lexeme (`interwiki` is alias). |
 | `isCategory(q, cat, l)` | `LexemeResult<boolean>[]` | Category membership per lexeme. |
 | `inflectionTableRef(q, l)` | `LexemeResult<{template_name, raw}\|null>[]` | Inflection template per lexeme. |
@@ -929,7 +934,7 @@ a clear lexeme-level identity model, downstream operations (filtering,
 translating, inflecting) silently operate on the wrong lexeme or discard
 valid alternatives. The v3 model makes every lexeme individually addressable.
 
-### 12.26 Per-Lexeme Convenience Wrappers (`LexemeResult<T>`)
+### 12.26 Per-Lexeme Convenience Wrappers (`GroupedLexemeResults<T>`)
 
 **Problem:** Prior to v3.1, convenience wrappers like `synonyms()`,
 `stem()`, and `ipa()` called `getMainLexeme()` or `.find()` to select a
@@ -938,20 +943,24 @@ single lexeme from `FetchResult` and silently discarded the rest. When
 but the caller only saw data from one — with no indication that alternatives
 existed or were discarded.
 
-**Design:** All lexeme-scoped wrappers now return `LexemeResult<T>[]`:
+**Design:** All lexeme-scoped wrappers now return `GroupedLexemeResults<T>`:
 
 ```typescript
-interface LexemeResult<T> {
-  lexeme_id: string;   // e.g. "el:γράφω#E1#verb#LEXEME"
-  language: string;    // e.g. "el"
-  pos: string;         // e.g. "Verb"
-  etymology_index?: number;
-  value: T;            // the extracted data
+interface GroupedLexemeResults<T> extends Array<LexemeResult<T>> {
+  order: string[];
+  lexemes: Record<string, {
+    language: string;
+    pos: string;
+    etymology_index: number;
+    value: T;
+  }>;
 }
 ```
 
 The internal utility `mapLexemes<T>(result, extractor)` maps an extractor
-function over every lexeme and wraps each output in this envelope.
+function over every lexeme and wraps each output in this envelope. For
+row-oriented iteration APIs (`map`, `find`, `filter`), callers can use
+`asLexemeRows(grouped)` to project the grouped object into ordered rows.
 
 **Consequences:**
 - Callers always see the full picture: every lexeme's data, tagged with
@@ -959,10 +968,10 @@ function over every lexeme and wraps each output in this envelope.
 - Lexemes with no data for the requested field are included with empty/null
   values (e.g., `{ value: [] }`). The _absence_ of data is informative;
   callers can filter with `.filter(r => r.value.length > 0)`.
-- When a specific language and PoS are provided, the array has one element,
-  and `result[0].value` gives the direct answer.
+- When a specific language and PoS are provided, `order` usually has one
+  lexeme id and `lexemes[id].value` gives the direct answer.
 - Boolean predicates (`isCategory`, `isInstance`, `isSubclass`) return
-  `LexemeResult<boolean>[]`; callers derive `results.some(r => r.value)` for
+  `GroupedLexemeResults<boolean>`; callers can use `asLexemeRows(results).some(r => r.value)` for
   "any" semantics.
 
 **Scalar exceptions:**
@@ -1205,23 +1214,22 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 
 ### v3.1.0 — Per-Lexeme Convenience Wrappers
 
-- **`LexemeResult<T>` generic interface**: All lexeme-scoped convenience wrappers now
-  return `LexemeResult<T>[]` — an array where each element is tagged with `lexeme_id`,
-  `language`, `pos`, and `etymology_index`, plus the extracted `value: T`. This eliminates
-  the silent data discard that occurred when queries returned multiple lexemes (e.g.
-  `lang="Auto"` yielding grc + el + Italiot Greek for "γράφω").
+- **`GroupedLexemeResults<T>` envelope**: All lexeme-scoped convenience wrappers now
+  return grouped per-lexeme output with stable `order` and a `lexemes` map, preserving
+  explicit metadata (`language`, `pos`, `etymology_index`) for each extracted `value`.
 - **`mapLexemes<T>()` utility**: A generic mapping function in `library.ts` that applies
-  an extractor to each lexeme and wraps it in a `LexemeResult<T>` envelope.
+  an extractor to each lexeme and wraps it in grouped output.
+- **`asLexemeRows()` helper**: Provides an ordered row projection for callers that prefer
+  `map/find/filter` ergonomics.
 - **Scalar exceptions**: `lemma()` (form resolution), `pageMetadata()` (page-level data),
   and `getMainLexeme()` (convenience shortcut) remain scalar.
 - **`stem()` refactored**: Now extracts stems from each lexeme's `templates_all` field
-  instead of parsing the monolithic `rawLanguageBlock`, via a pure
-  `extractStemsFromLexeme()` function.
+  and returns compact stem aliases; `stemByLexeme()` exposes full `WordStems` structures.
 - **`morphology()`, `conjugate()`, `decline()` refactored**: Now operate per-lexeme,
   finding paradigm templates in `lexeme.templates_all` and returning tagged results.
 - **~38 lexeme-scoped wrappers updated**: `synonyms`, `antonyms`, `ipa`, `translate`,
   `richEntry`, `isCategory`, `isInstance`, `isSubclass`, and all others now return
-  `LexemeResult<T>[]`.
+  grouped results.
 - **Schema version**: `SCHEMA_VERSION` remains `"3.0.0"` (the `LexemeResult` envelope
   is a library-level contract, not a change to the normalized entry schema).
 
@@ -1242,3 +1250,18 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   roadmap issue for implementing five standard output formats: Semantic HTML5,
   TEI Lex-0, OntoLex-Lemon (JSON-LD), LMF (ISO 24613), and XDXF. Includes
   element mapping tables, architecture notes, and priority ordering.
+
+### v3.1.2 — Contract hardening and responsive mobile layout
+
+- **Wrapper contract tests**: Added a dedicated `wrapper-contract` suite to enforce
+  grouped per-lexeme result shape across convenience wrappers.
+- **Decoder coverage evidence tightened**: Added explicit corpus evidence matching for
+  `alternative-forms-section` and `el-noun-stems`, plus fixture evidence for
+  `Alternative forms` sections.
+- **Mobile playground ergonomics**: Added narrow-layout reflow for the Live API
+  Playground controls (split rows, hidden inspector, square execute icon).
+- **Search bar narrow UX**: On narrow viewports, language/PoS filters move below the
+  search bar as a full-width external row; fetch button collapses to icon mode to
+  maximize query input width.
+- **Preview panes constrained**: TypeScript/CLI/REST pseudo-windows now cap at `80vh`
+  with internal vertical scrolling to avoid viewport overflow.

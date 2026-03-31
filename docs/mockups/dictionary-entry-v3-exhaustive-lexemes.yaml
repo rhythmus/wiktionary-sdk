@@ -1,0 +1,364 @@
+# =============================================================================
+# Wiktionary SDK — Exhaustive synthetic Lexeme examples (schema v3.0.0)
+# =============================================================================
+# This file is documentation / fixture inspiration: not guaranteed to match any
+# single live en.wiktionary.org page. It exercises every major Lexeme branch in
+# src/types.ts (Lexeme, WiktionarySource, EtymologyData, SemanticRelations, …).
+#
+# Three YAML documents (---): (1) maximal LEXEME, (2) INFLECTED_FORM, (3) FORM_OF.
+# =============================================================================
+
+# ─── Document 1 of 3: LEXEME — maximal illustrative coverage ─────────────────
+id: "el:γράφω#E1#verb#LEXEME"
+query: "γράφω"
+language: "el"
+type: "LEXEME"
+form: "γράφω"
+etymology_index: 1
+part_of_speech_heading: "Verb"
+part_of_speech: "verb"
+preferred: true
+
+pronunciation:
+  IPA: "/ˈɣra.fo/"
+  romanization: "gráfo"
+  audio: "El-γράφω.ogv"
+  audio_url: "https://upload.wikimedia.org/wikipedia/commons/1/1a/El-γράφω.ogv"
+  audio_details:
+    - url: "https://upload.wikimedia.org/wikipedia/commons/1/1a/El-γράφω.ogv"
+      label: "Standard Modern Greek"
+      filename: "El-γράφω.ogv"
+    - url: "https://upload.wikimedia.org/wikipedia/commons/d/da/El-athens-γράφω.ogv"
+      label: "Athens"
+      filename: "El-athens-γράφω.ogv"
+  rhymes:
+    - "/a.fo/"
+  homophones:
+    - "γράφω"
+
+hyphenation:
+  syllables: ["γρά", "φω"]
+  raw: "{{hyphenation|el|γρά|φω}}"
+
+headword_morphology:
+  transitivity: "both"
+  aspect: "imperfective"
+  voice: "active"
+  gender: null
+  principal_parts:
+    simple_past: "έγραψα"
+    simple_past_alt: "έγραφα"
+    future_active: "γράψω"
+    perfect_passive: "γραφτεί"
+
+etymology:
+  raw_text: >-
+    From Ancient Greek γράφω (gráphō, “to scratch, engrave, write”).
+  chain:
+    - template: "inh"
+      relation: "inherited"
+      source_lang: "grc"
+      source_lang_name: "Ancient Greek"
+      term: "γράφω"
+      gloss: "to scratch, engrave, write"
+      raw: "{{inh|grc|γράφω|t=to scratch, engrave, write}}"
+    - template: "der"
+      relation: "derived"
+      source_lang: "ine-pro"
+      source_lang_name: "Proto-Indo-European"
+      term: "*gerbʰ-"
+      gloss: "to scratch, engrave"
+      raw: "{{der|ine-pro|*gerbʰ-|t=to scratch, engrave}}"
+  cognates:
+    - template: "cog"
+      relation: "cognate"
+      source_lang: "en"
+      source_lang_name: "English"
+      term: "carve"
+      gloss: ""
+      raw: "{{cog|en|carve}}"
+
+senses:
+  - id: "S1"
+    gloss: "to write, record text"
+    gloss_raw: "to write, record text"
+    qualifier: null
+    labels: ["common", "literary"]
+    topics: ["communication"]
+    examples:
+      - text: "Ο μαθητής γράφει στο τετράδιό του."
+        translation: "The student is writing in his notebook."
+        transliteration: null
+        author: "Primary Education Manual"
+        year: "2022"
+        source: null
+        raw: "{{ux|el|Ο μαθητής γράφει στο τετράδιό του.|translation=The student is writing in his notebook.|author=Primary Education Manual|year=2022}}"
+    subsenses:
+      - id: "S1.1"
+        gloss: "to pen a letter"
+        labels: ["formal"]
+
+  - id: "S2"
+    gloss: "to record, register sounds or data"
+    labels: ["technical"]
+    topics: ["computing", "media"]
+
+  - id: "S3"
+    gloss: "to issue a ticket (for traffic violations)"
+    qualifier: "for traffic violations, etc"
+    labels: ["colloquial"]
+
+semantic_relations:
+  synonyms:
+    - term: "σημειώνω"
+      qualifier: "to note down"
+      sense_id: "S1"
+    - term: "καταγράφω"
+      qualifier: "to record"
+  antonyms:
+    - term: "ξεγράφω"
+      qualifier: "to unwrite, delete"
+    - term: "σβήνω"
+  hypernyms:
+    - term: "κάνω"
+  hyponyms:
+    - term: "επιγράφω"
+      qualifier: "to inscribe on"
+  coordinate_terms:
+    - term: "διαβάζω"
+      qualifier: "to read (peer activity)"
+  holonyms:
+    - term: "επικοινωνία"
+      qualifier: "communication (whole domain)"
+  meronyms:
+    - term: "γράμμα"
+      qualifier: "letter (part of writing)"
+  troponyms:
+    - term: "επιστολογραφώ"
+      qualifier: "to write letters (manner)"
+
+derived_terms:
+  raw_text: "From Middle Greek γράφω; many scientific compounds."
+  items:
+    - term: "συγγραφέας"
+      lang: "el"
+      gloss: "author"
+      alt: null
+      template: "l"
+      raw: "{{l|el|συγγραφέας|gloss=author}}"
+
+related_terms:
+  raw_text: "See also related motion verbs."
+  items:
+    - term: "τυπώνω"
+      lang: "el"
+      gloss: "to print"
+      template: "l"
+      raw: "{{l|el|τυπώνω}}"
+
+descendants:
+  raw_text: "Borrowed into several languages."
+  items:
+    - term: "grapho"
+      lang: "la"
+      gloss: null
+      template: "l"
+      raw: "{{l|la|grapho}}"
+
+usage_notes:
+  - "The perfective aorist έγραψα is preferred in narrative past."
+  - "Mediopassive forms are common in formal registers."
+
+alternative_forms:
+  - term: "γραφω"
+    qualifier: "monotonic spelling variant"
+    raw: "'''γραφω'''"
+    type: "monotonic"
+    labels: ["informal"]
+
+see_also:
+  - "διαγράφω"
+  - "αναγράφω"
+
+anagrams:
+  - "φωγρά"
+
+references:
+  - "LSJ s.v. γράφω"
+  - "Triantafyllidis, Μ. (1941), Νεοελληνική Γραμματική"
+
+inflection_table_ref:
+  template_name: "el-conj-γράφω"
+  raw: "{{el-conj-γράφω|...}}"
+
+translations:
+  en:
+    - term: "write"
+      gloss: "to form letters"
+      transliteration: null
+      gender: null
+      alt: null
+      sense: "S1"
+      template: "t"
+      raw: "{{t|en|write}}"
+      params: {}
+
+external_links:
+  - "https://en.wikipedia.org/wiki/Greek_language"
+
+page_links:
+  - "Ancient Greek"
+  - "Modern Greek grammar"
+
+images:
+  - "Example.png"
+
+wikidata:
+  qid: "Q132"
+  labels:
+    en: { language: "en", value: "γράφω" }
+    el: { language: "el", value: "γράφω" }
+  descriptions:
+    en: { language: "en", value: "Greek verb 'write'" }
+  sitelinks:
+    enwiki: { site: "enwiki", title: "γράφω", url: "https://en.wiktionary.org/wiki/γράφω" }
+  media:
+    P18: "Drawing_hands.jpg"
+    commons_file: "File:Drawing_hands.jpg"
+    thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Drawing_hands.jpg/320px-Drawing_hands.jpg"
+  instance_of: ["Q180", "Q249"]
+  subclass_of: ["Q112"]
+
+categories:
+  - "Greek lemmas"
+  - "Greek verbs"
+
+langlinks:
+  - lang: "de"
+    title: "γράφω"
+  - lang: "fr"
+    title: "γράφω"
+
+metadata:
+  last_modified: "2024-03-28T14:30:00Z"
+  length: 4500
+  pageid: 1562
+  lastrevid: 7892141
+
+source:
+  wiktionary:
+    site: "en.wiktionary.org"
+    title: "γράφω"
+    language_section: "Greek"
+    etymology_index: 1
+    pos_heading: "Verb"
+    revision_id: 7892140
+    last_modified: "2024-03-28T14:30:00Z"
+    pageid: 1562
+
+templates:
+  el-verb:
+    - params:
+        positional: ["γράφω"]
+        named: { tr: "yes", past: "έγραψα" }
+      raw: "{{el-verb|γράφω|past=έγραψα|tr=yes}}"
+
+templates_all:
+  - name: "el-verb"
+    raw: "{{el-verb|γράφω|past=έγραψα|tr=yes}}"
+    params:
+      positional: ["γράφω"]
+      named: { tr: "yes", past: "έγραψα" }
+    start: 120
+    end: 158
+    line: 14
+
+---
+# ─── Document 2 of 3: INFLECTED_FORM — form_of + resolution metadata ──────────
+id: "el:έγραψα#E1#verb#INFLECTED_FORM"
+query: "έγραψα"
+language: "el"
+type: "INFLECTED_FORM"
+form: "έγραψα"
+etymology_index: 1
+part_of_speech_heading: "Verb"
+part_of_speech: "verb"
+
+form_of:
+  template: "inflection of"
+  lemma: "γράφω"
+  lang: "el"
+  tags: ["1", "s", "perf", "past", "actv", "indc"]
+  subclass: null
+  label: "1st person singular perfective past indicative active"
+  named: { 1: "γράφω", 2: "el" }
+
+resolved_for_query: "έγραψα"
+lemma_triggered_by_entry_id: "el:γράφω#E1#verb#LEXEME"
+
+pronunciation:
+  IPA: "/ˈe.ɣra.psa/"
+
+etymology:
+  raw_text: "See γράφω."
+
+senses:
+  - id: "IF1"
+    gloss: "I wrote; I have written (perfective past, 1sg)"
+
+semantic_relations: {}
+
+source:
+  wiktionary:
+    site: "en.wiktionary.org"
+    title: "γράφω"
+    language_section: "Greek"
+    etymology_index: 1
+    pos_heading: "Verb"
+    revision_id: 7892140
+
+templates:
+  "inflection of":
+    - params:
+        positional: ["γράφω", "el"]
+        named: {}
+      raw: "{{inflection of|γράφω|el}}"
+
+---
+# ─── Document 3 of 3: FORM_OF — non-lemma surface (e.g. misspelling) ─────────
+id: "en:writen#E1#verb#FORM_OF"
+query: "writen"
+language: "en"
+type: "FORM_OF"
+form: "writen"
+etymology_index: 1
+part_of_speech_heading: "Verb"
+part_of_speech: "verb"
+
+form_of:
+  template: "misspelling of"
+  lemma: "written"
+  lang: "en"
+  tags: []
+  subclass: "misspelling"
+  label: "misspelling of"
+  named: {}
+
+senses: []
+
+semantic_relations: {}
+
+source:
+  wiktionary:
+    site: "en.wiktionary.org"
+    title: "writen"
+    language_section: "English"
+    etymology_index: 1
+    pos_heading: "Verb"
+
+templates:
+  "misspelling of":
+    - params:
+        positional: ["written"]
+        named: {}
+      raw: "{{misspelling of|written}}"

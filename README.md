@@ -119,21 +119,28 @@ lexemes:
 
 Beyond the low-level `wiktionary` engine, the library provides high-level convenience wrappers to extract exact data points easily. These are organized by their linguistic and structural semantics.
 
-**All lexeme-scoped wrappers return `LexemeResult<T>[]`** — an array of results tagged with lexeme identity metadata. Each element carries the extracted `value` alongside `lexeme_id`, `language`, `pos`, and `etymology_index`, so the caller always knows which lexeme produced which data. When `lang` and `pos` are specified, the array typically has one element. When both are `"Auto"`, it contains one result per discovered lexeme.
+**All lexeme-scoped wrappers return `GroupedLexemeResults<T>`** — a concise object with:
+- `order: string[]` (stable lexeme id order)
+- `lexemes: Record<lexeme_id, { language, pos, etymology_index, value }>`
+
+This gives direct per-lexeme access when `lang="Auto"` / `pos="Auto"` return multiple matches.
 
 ```typescript
-import type { LexemeResult } from "wiktionary-sdk";
-// LexemeResult<T> = { lexeme_id, language, pos, etymology_index?, value: T }
+import { asLexemeRows } from "wiktionary-sdk";
 
 const results = await synonyms("γράφω");
-// [
-//   { lexeme_id: "grc:γράφω#E1#verb#LEXEME", language: "grc", pos: "Verb", value: [...] },
-//   { lexeme_id: "el:γράφω#E1#verb#LEXEME",  language: "el",  pos: "Verb", value: ["σημειώνω", ...] },
-//   ...
-// ]
+// results.order -> ["grc:γράφω#E1#verb#LEXEME", "el:γράφω#E1#verb#LEXEME", ...]
+// results.lexemes["el:γράφω#E1#verb#LEXEME"].value -> ["σημειώνω", ...]
+
+// Optional row view for map/filter/find ergonomics:
+const rows = asLexemeRows(results);
+// rows[0] = { lexeme_id, language, pos, etymology_index, value }
 ```
 
 **Exceptions** that stay scalar: `lemma()` (form resolution), `pageMetadata()` (page-level), and `getMainLexeme()` (single-lexeme shortcut utility).
+
+> For readability, many examples below show row-like outputs (`[{ value: ... }]`).
+> In code, obtain that view with `asLexemeRows(groupedResult)`.
 
 #### 1. Identity & Part of Speech
 Resolve lemmas and identify structural categories.
@@ -145,10 +152,10 @@ import { lemma, partOfSpeech, richEntry, wiktionary } from "wiktionary-sdk";
 await lemma("έγραψε"); // "γράφω" (Greek)
 await lemma("banks");  // "bank" (English)
 
-// LexemeResult<string | null>[] — one result per lexeme
+// GroupedLexemeResults<string | null> — one entry per lexeme id
 await partOfSpeech("έγραψε", "el"); // [{ value: "verb", language: "el", ... }]
 
-// LexemeResult<RichEntry | null>[] — full rich entry per lexeme
+// GroupedLexemeResults<RichEntry | null> — full rich entry per lexeme
 await richEntry("γράφω"); 
 ```
 
@@ -173,13 +180,13 @@ await homophones("γράφω"); // [{ value: [...], ... }]
 Extract native stems and perform dynamic inflection (declension/conjugation).
 
 ```typescript
-import { stem, morphology, conjugate, decline, gender, transitivity } from "wiktionary-sdk";
+import { stem, stemByLexeme, morphology, conjugate, decline, gender, transitivity } from "wiktionary-sdk";
 
-// LexemeResult<GrammarTraits>[] — grammar per lexeme
+// GroupedLexemeResults<GrammarTraits> — grammar per lexeme
 await morphology("έγραψες");
 // [{ value: { person: "2", number: "singular", tense: "past", ... }, ... }]
 
-// LexemeResult<string[] | Record | null>[] — conjugation per lexeme
+// GroupedLexemeResults<string[] | Record | null> — conjugation per lexeme
 await conjugate("έγραψες", { number: "plural" }); 
 // [{ value: ["γράψατε"], ... }]
 
@@ -187,9 +194,12 @@ await conjugate("έγραψες", { number: "plural" });
 await decline("άνθρωπος", { case: "genitive", number: "plural" });
 // [{ value: ["ανθρώπων"], ... }]
 
-// LexemeResult<WordStems>[] — stems per lexeme via templates_all
+// GroupedLexemeResults<string[]> — alias stems per lexeme
 await stem("έγραψα");
-// [{ value: { verb: { present: ["γράφ"], ... }, aliases: ["γράφ", "γράψ", ...] }, ... }]
+// grouped.lexemes[lexemeId].value -> ["γράφ", "γράψ", ...]
+
+// GroupedLexemeResults<WordStems> — full structured stems per lexeme
+await stemByLexeme("έγραψα");
 
 await gender("μήλο");         // [{ value: "neuter", ... }]
 await transitivity("γράφω");  // [{ value: "both", ... }]
