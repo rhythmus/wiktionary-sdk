@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { conjugate, decline } from "../src/morphology";
 import * as indexModule from "../src/index";
 import * as apiModule from "../src/api";
+import { asLexemeRows } from "../src/library";
 
 vi.mock("../src/index", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/index")>();
@@ -87,7 +88,7 @@ describe("morphology conjugate", () => {
         const { morphology } = await import("../src/morphology");
         const results = await morphology("έγραψα");
 
-        expect(results[0].value).toEqual({
+        expect(asLexemeRows(results as any)[0].value).toEqual({
             person: "1",
             number: "singular",
             tense: "past",

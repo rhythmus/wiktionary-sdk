@@ -1,6 +1,7 @@
 import { lemma, mapLexemes } from './library';
+import type { GroupedLexemeResults } from './library';
 import { wiktionary } from './index';
-import type { WikiLang, Lexeme, LexemeResult } from './types';
+import type { WikiLang, Lexeme } from './types';
 
 export interface VerbStems {
     present?: string[];
@@ -101,8 +102,18 @@ export function extractStemsFromLexeme(lexeme: Lexeme): WordStems {
  * Extracts morphologically critical stem boundaries from Wiktionary's conjugation
  * and declension templates, returning results tagged per lexeme.
  */
-export async function stem(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<WordStems>[]> {
+export async function stemByLexeme(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<WordStems>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
     return mapLexemes(result, extractStemsFromLexeme);
+}
+
+/**
+ * Convenience wrapper:
+ * returns per-lexeme stem aliases in grouped output form.
+ */
+export async function stem(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string[]>> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return mapLexemes(result, (lexeme) => extractStemsFromLexeme(lexeme).aliases);
 }

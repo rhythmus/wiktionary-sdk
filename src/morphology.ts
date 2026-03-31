@@ -1,8 +1,9 @@
 import { parse } from 'node-html-parser';
 import { lemma, mapLexemes } from './library';
+import type { GroupedLexemeResults } from './library';
 import { wiktionary } from './index';
 import { mwFetchJson } from './api';
-import type { WikiLang, Lexeme, LexemeResult } from './types';
+import type { WikiLang, Lexeme } from './types';
 
 export interface ConjugateCriteria {
     person?: "1" | "2" | "3";
@@ -113,7 +114,7 @@ function extractMorphologyFromLexeme(lexeme: Lexeme, query: string): Partial<Gra
 /**
  * Extracts and decodes grammatical traits for each lexeme.
  */
-export async function morphology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<Partial<GrammarTraits>>[]> {
+export async function morphology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<Partial<GrammarTraits>>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
     return mapLexemes(result, lexeme => extractMorphologyFromLexeme(lexeme, query));
 }
@@ -212,22 +213,16 @@ async function conjugateSingleLexeme(
 /**
  * Conjugates a verb based on criteria, returning results tagged per lexeme.
  */
-export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<string[] | Record<string, any> | null>[]> {
+export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
     const lStr = await lemma(query, sourceLang, "verb");
     const result = await wiktionary({ query: lStr, lang: sourceLang, pos: "verb" });
 
-    const results: LexemeResult<string[] | Record<string, any> | null>[] = [];
+    const byId = new Map<string, string[] | Record<string, any> | null>();
     for (const lexeme of result.lexemes) {
         const value = await conjugateSingleLexeme(lexeme, query, criteria, sourceLang);
-        results.push({
-            lexeme_id: lexeme.id,
-            language: lexeme.language,
-            pos: lexeme.part_of_speech_heading || lexeme.part_of_speech || "unknown",
-            etymology_index: lexeme.etymology_index,
-            value,
-        });
+        byId.set(lexeme.id, value);
     }
-    return results;
+    return mapLexemes(result, (lexeme) => byId.get(lexeme.id) ?? null);
 }
 
 async function declineSingleLexeme(
@@ -292,22 +287,16 @@ async function declineSingleLexeme(
 /**
  * Declines a nominal based on criteria, returning results tagged per lexeme.
  */
-export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<LexemeResult<string[] | Record<string, any> | null>[]> {
+export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
     const lStr = await lemma(query, sourceLang);
     const result = await wiktionary({ query: lStr, lang: sourceLang });
 
-    const results: LexemeResult<string[] | Record<string, any> | null>[] = [];
+    const byId = new Map<string, string[] | Record<string, any> | null>();
     for (const lexeme of result.lexemes) {
         const value = await declineSingleLexeme(lexeme, query, criteria, sourceLang);
-        results.push({
-            lexeme_id: lexeme.id,
-            language: lexeme.language,
-            pos: lexeme.part_of_speech_heading || lexeme.part_of_speech || "unknown",
-            etymology_index: lexeme.etymology_index,
-            value,
-        });
+        byId.set(lexeme.id, value);
     }
-    return results;
+    return mapLexemes(result, (lexeme) => byId.get(lexeme.id) ?? null);
 }
 
 function scrapeFullConjugationTable(html: string): Record<string, any> {

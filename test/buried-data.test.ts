@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { audioGallery, citations, richEntry, isSubclass } from "../src/index";
+import { audioGallery, citations, richEntry, isSubclass, asLexemeRows } from "../src/index";
 import * as api from "../src/api";
 
 vi.mock("../src/api", async (importOriginal) => {
@@ -12,6 +12,7 @@ vi.mock("../src/api", async (importOriginal) => {
 });
 
 describe("Buried Data Extraction (Integration)", () => {
+  const rows = <T>(grouped: any) => asLexemeRows(grouped) as Array<{ value: T; language: string }>;
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -43,7 +44,7 @@ describe("Buried Data Extraction (Integration)", () => {
     });
 
     const galleryResults = await audioGallery("water", "en");
-    const gallery = galleryResults.find(r => r.value.length > 0)?.value || [];
+    const gallery = rows<any[]>(galleryResults).find(r => r.value.length > 0)?.value || [];
     expect(gallery).toHaveLength(3);
     expect(gallery[0]).toEqual({
       url: "https://upload.wikimedia.org/wikipedia/commons/En-us-water.ogg",
@@ -54,7 +55,7 @@ describe("Buried Data Extraction (Integration)", () => {
     expect(gallery[2].label).toBe("Audio (AU)");
 
     const richResults = await richEntry("water", "en");
-    const rich = richResults.find(r => r.value !== null)?.value;
+    const rich = rows<any>(richResults).find(r => r.value !== null)?.value;
     expect(rich?.pronunciation?.audio_details).toHaveLength(3);
     expect(rich?.pronunciation?.audio).toBe("En-us-water.ogg");
   });
@@ -84,7 +85,7 @@ describe("Buried Data Extraction (Integration)", () => {
     });
 
     const citsResults = await citations("book", "en");
-    const cits = citsResults.find(r => r.value.length > 0)?.value || [];
+    const cits = rows<any[]>(citsResults).find(r => r.value.length > 0)?.value || [];
     expect(cits).toHaveLength(1);
     expect(cits[0]).toMatchObject({
       author: "Herman Melville",
@@ -94,7 +95,7 @@ describe("Buried Data Extraction (Integration)", () => {
     });
 
     const richResults = await richEntry("book", "en");
-    const rich = richResults.find(r => r.value !== null)?.value;
+    const rich = rows<any>(richResults).find(r => r.value !== null)?.value;
     const example = rich?.senses?.[0].examples?.[0] as any;
     expect(example.author).toBe("Herman Melville");
     
@@ -127,10 +128,10 @@ describe("Buried Data Extraction (Integration)", () => {
     });
 
     const subclassResults = await isSubclass("dog", "Q34770", "en");
-    expect(subclassResults[0].value).toBe(true);
+    expect(rows<boolean>(subclassResults)[0].value).toBe(true);
 
     const richResults = await richEntry("dog", "en");
-    const rich = richResults.find(r => r.value !== null)?.value;
+    const rich = rows<any>(richResults).find(r => r.value !== null)?.value;
     expect(rich?.wikidata?.subclass_of).toContain("Q34770");
     expect(rich?.wikidata?.instance_of).toContain("Q1084");
   });

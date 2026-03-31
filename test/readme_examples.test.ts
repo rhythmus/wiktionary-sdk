@@ -6,7 +6,7 @@ import {
     wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms,
     etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
     derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
-    partOfSpeech, usageNotes, translate, format, phonetic
+    partOfSpeech, usageNotes, translate, format, phonetic, asLexemeRows
 } from "../src/index";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
@@ -37,6 +37,8 @@ vi.mock("../src/api", async (importOriginal) => {
 });
 
 describe("README Usage Examples Compliance", () => {
+    const rows = <T>(grouped: any) => asLexemeRows(grouped) as Array<{ value: T; language: string }>;
+
     beforeEach(() => {
         vi.mocked(api.fetchWikitextEnWiktionary).mockImplementation(async (title: string) => {
             title = title.normalize("NFC");
@@ -82,9 +84,9 @@ describe("README Usage Examples Compliance", () => {
 
     it("3. Fetch semantic relations", async () => {
         const syns = await synonyms("έγραψε", "el");
-        const synValues = syns.flatMap(r => r.value);
+        const synValues = rows<string[]>(syns).flatMap(r => r.value);
         const ants = await antonyms("έγραψε", "el");
-        const antValues = ants.flatMap(r => r.value);
+        const antValues = rows<string[]>(ants).flatMap(r => r.value);
         expect(synValues).toContain("σημειώνω");
         expect(synValues).toContain("καταγράφω");
         expect(antValues).toContain("ξεγράφω");
@@ -92,34 +94,34 @@ describe("README Usage Examples Compliance", () => {
 
     it("4. Phonetic transcription and audio", async () => {
         const ipaRes = await ipa("έγραψε", "el");
-        const ipaVal = ipaRes.find(r => r.value !== null)?.value;
+        const ipaVal = rows<string | null>(ipaRes).find(r => r.value !== null)?.value;
         expect(ipaVal).toBe("ˈe.ɣrap.se");
         const phoneticRes = await phonetic("έγραψε", "el");
-        const phoneticVal = phoneticRes.find(r => r.value !== null)?.value;
+        const phoneticVal = rows<string | null>(phoneticRes).find(r => r.value !== null)?.value;
         expect(phoneticVal).toBe("ˈe.ɣrap.se");
         const ipaGrafo = await ipa("γράφω", "el");
-        const ipaGrafoVal = ipaGrafo.find(r => r.value !== null)?.value;
+        const ipaGrafoVal = rows<string | null>(ipaGrafo).find(r => r.value !== null)?.value;
         expect(ipaGrafoVal).toBe("/ˈɣra.fo/");
     });
 
     it("5. Hyphenation as structured array", async () => {
         const hRes = await hyphenate("έγραψε", "el");
-        const hVal = hRes.find(r => r.value !== null)?.value;
+        const hVal = rows<any>(hRes).find(r => r.value !== null)?.value;
         expect(hVal).toEqual(["έ", "γρα", "ψε"]);
         const hRes2 = await hyphenate("γράφω", "el");
-        const hVal2 = hRes2.find(r => r.value !== null)?.value;
+        const hVal2 = rows<any>(hRes2).find(r => r.value !== null)?.value;
         expect(hVal2).toEqual(["γρά", "φω"]);
     });
 
     it("6. Smart Formatter for hyphenation", async () => {
         const hRes = await hyphenate("έγραψε", "el");
-        const syllables = hRes.find(r => r.value !== null)?.value;
+        const syllables = rows<any>(hRes).find(r => r.value !== null)?.value;
         expect(format(syllables, { separator: "‧" })).toBe("έ‧γρα‧ψε");
     });
 
     it("7. Structured etymology lineage", async () => {
         const result = await etymology("έγραψε", "el");
-        const etyVal = result.find(r => r.value !== null)?.value;
+        const etyVal = rows<any>(result).find(r => r.value !== null)?.value;
         expect(etyVal).toEqual([
             { lang: "grc", form: "γράφω" },
             { lang: "Proto-Greek", form: "*grəpʰō" },
@@ -129,24 +131,24 @@ describe("README Usage Examples Compliance", () => {
 
     it("8. Wikidata enrichment", async () => {
         const qidRes = await wikidataQid("μήλο", "el");
-        expect(qidRes.find(r => r.value !== null)?.value).toBe("Q89");
+        expect(rows<any>(qidRes).find(r => r.value !== null)?.value).toBe("Q89");
         const imgRes = await image("μήλο", "el");
-        expect(imgRes.find(r => r.value !== null)?.value).toContain("apple.jpeg");
+        expect(rows<any>(imgRes).find(r => r.value !== null)?.value).toContain("apple.jpeg");
         const wikiRes = await wikipediaLink("μήλο", "el", "en");
-        expect(wikiRes.find(r => r.value !== null)?.value).toBe("https://en.wikipedia.org/wiki/Apple");
+        expect(rows<any>(wikiRes).find(r => r.value !== null)?.value).toBe("https://en.wikipedia.org/wiki/Apple");
     });
 
     it("9. Part of speech and usage notes", async () => {
         const posRes = await partOfSpeech("έγραψε", "el");
-        const posVal = posRes.find(r => r.value !== null)?.value;
+        const posVal = rows<any>(posRes).find(r => r.value !== null)?.value;
         expect(posVal).toBe("verb");
         const notesRes = await usageNotes("γράφω", "el");
-        expect(notesRes[0].value).toEqual([]);
+        expect(rows<any>(notesRes)[0].value).toEqual([]);
     });
 
     it("10. Morphology from inflected form", async () => {
         const morphRes = await morphology("έγραψες", "el");
-        const morph = morphRes.find(r => Object.keys(r.value).length > 0)?.value;
+        const morph = rows<any>(morphRes).find(r => Object.keys(r.value).length > 0)?.value;
         expect(morph?.person).toBe("2");
         expect(morph?.number).toBe("singular");
         expect(morph?.tense).toBe("past");
@@ -157,9 +159,9 @@ describe("README Usage Examples Compliance", () => {
     });
 
     it("12. Stems extraction", async () => {
-        const stemResults = await stem("έγραψα", "el");
-        const stems = stemResults.find(r => r.value.aliases.length > 0)?.value;
-        expect(stems?.aliases).toContain("γράψ");
-        expect(format(stems, { mode: "text" })).toContain("Stems:");
+        const grouped = await stem("έγραψα", "el");
+        const aliases = rows<string[]>(grouped).find(r => r.language === "el")?.value || [];
+        expect(aliases).toContain("γράψ");
+        expect(format({ aliases }, { mode: "text" })).toContain("Stems:");
     });
 });

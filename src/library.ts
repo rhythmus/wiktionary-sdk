@@ -6,6 +6,51 @@ import { commonsThumbUrl } from "./utils";
 import type { WikiLang, FetchResult, Lexeme, LexemeResult, RichEntry } from "./types";
 import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
 
+export interface GroupedLexemeResults<T> extends Array<LexemeResult<T>> {
+    order: string[];
+    lexemes: Record<string, {
+        language: string;
+        pos: string;
+        etymology_index: number;
+        value: T;
+    }>;
+}
+
+function groupRows<T>(rows: LexemeResult<T>[]): GroupedLexemeResults<T> {
+    const out = rows as GroupedLexemeResults<T>;
+    out.order = [];
+    out.lexemes = {};
+    rows.forEach((row) => {
+        out.order.push(row.lexeme_id);
+        out.lexemes[row.lexeme_id] = {
+            language: String(row.language),
+            pos: row.pos,
+            etymology_index: row.etymology_index ?? 0,
+            value: row.value,
+        };
+    });
+    return out;
+}
+
+/** Convenience accessor for grouped wrapper output. */
+export function asLexemeMap<T>(grouped: GroupedLexemeResults<T>) {
+    return grouped.lexemes;
+}
+
+/** Row-oriented view (ordered) over grouped wrapper output. */
+export function asLexemeRows<T>(grouped: GroupedLexemeResults<T>): LexemeResult<T>[] {
+    return grouped.order.map((id) => {
+        const item = grouped.lexemes[id];
+        return {
+            lexeme_id: id,
+            language: item.language,
+            pos: item.pos,
+            etymology_index: item.etymology_index,
+            value: item.value,
+        };
+    });
+}
+
 /**
  * Maps over all lexemes in a FetchResult, applying an extractor to each
  * and tagging the output with lexeme identity metadata.
@@ -13,14 +58,15 @@ import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morpho
 export function mapLexemes<T>(
     result: FetchResult,
     extractor: (lexeme: Lexeme) => T
-): LexemeResult<T>[] {
-    return result.lexemes.map(lexeme => ({
+): GroupedLexemeResults<T> {
+    const rows: LexemeResult<T>[] = result.lexemes.map(lexeme => ({
         lexeme_id: lexeme.id,
         language: lexeme.language,
         pos: lexeme.part_of_speech_heading || lexeme.part_of_speech || "unknown",
         etymology_index: lexeme.etymology_index,
         value: extractor(lexeme),
     }));
+    return groupRows(rows);
 }
 
 export interface TranslationOptions {
@@ -91,7 +137,7 @@ export async function translate(
     targetLang: string = "en",
     options: TranslationOptions = { mode: "gloss" },
     pos: string = "Auto"
-): Promise<LexemeResult<string[]>[]> {
+): Promise<GroupedLexemeResults<string[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
 
     if (options.mode === "senses") {
@@ -102,7 +148,13 @@ export async function translate(
             );
         } else {
             const senses = await getNativeSenses(lemmaStr, sourceLang, targetLang);
-            return [{ lexeme_id: "native-senses", language: sourceLang, pos: "unknown", value: senses }];
+            return groupRows([{
+                lexeme_id: "native-senses",
+                language: sourceLang,
+                pos: "unknown",
+                etymology_index: 0,
+                value: senses,
+            }]);
         }
     }
 

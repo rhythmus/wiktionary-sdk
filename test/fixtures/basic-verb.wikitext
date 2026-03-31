@@ -17,6 +17,9 @@ From {{inh|el|grc|γράφω|t=to write}}.
 {{syn|el|σημειώνω|καταγράφω|q=formal}}
 {{ant|el|σβήνω}}
 
+====Alternative forms====
+* [[γραφώ]]
+
 ====Translations====
 * English: {{t|el|en|write}}
 * French: {{t|el|fr|écrire|g=m}}

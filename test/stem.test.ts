@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { stem } from "../src/stem";
+import { stem, stemByLexeme } from "../src/stem";
 import * as indexModule from "../src/index";
 import * as api from "../src/api";
 
@@ -92,9 +92,9 @@ describe("stem extraction", () => {
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        const results = await stem("γράφω");
-        expect(results).toHaveLength(1);
-        const stems = results[0].value;
+        const results = await stemByLexeme("γράφω");
+        expect(results.order).toHaveLength(1);
+        const stems = results.lexemes[results.order[0]].value;
         expect(stems.verb).toBeDefined();
         expect(stems.verb?.present).toEqual(["γράφ"]);
         expect(stems.verb?.imperfect).toEqual(["έγραφ"]);
@@ -123,8 +123,8 @@ describe("stem extraction", () => {
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        const results = await stem("άνθρωπος");
-        const stems = results[0].value;
+        const results = await stemByLexeme("άνθρωπος");
+        const stems = results.lexemes[results.order[0]].value;
         expect(stems.verb).toBeUndefined();
         expect(stems.nominals).toEqual(["άνθρωπ", "ανθρώπ"]);
         expect(stems.aliases).toEqual(expect.arrayContaining(["άνθρωπ", "ανθρώπ"]));
@@ -151,10 +151,48 @@ describe("stem extraction", () => {
         };
         vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        const results = await stem("καλός");
-        const stems = results[0].value;
+        const results = await stemByLexeme("καλός");
+        const stems = results.lexemes[results.order[0]].value;
         expect(stems.verb).toBeUndefined();
         expect(stems.nominals).toEqual(["καλ"]);
         expect(stems.aliases).toEqual(["καλ"]);
+    });
+
+    it("should return grouped aliases from stem()", async () => {
+        const mockFetchWiktionaryResult = {
+            lexemes: [
+                {
+                    id: "grc:γράφω#E1#verb#LEXEME",
+                    language: "grc",
+                    type: "LEXEME",
+                    form: "γράφω",
+                    part_of_speech_heading: "Verb",
+                    templates_all: []
+                },
+                {
+                    id: "el:γράφω#E1#verb#LEXEME",
+                    language: "el",
+                    type: "LEXEME",
+                    form: "γράφω",
+                    part_of_speech_heading: "Verb",
+                    templates_all: [{
+                        name: "el-conjug-1st",
+                        raw: "{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ|a-dependent=γράψ}}",
+                        params: {
+                            positional: [],
+                            named: { present: "γράφ", "a-imperfect": "έγραφ", "a-dependent": "γράψ" }
+                        }
+                    }]
+                }
+            ],
+            rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ|a-dependent=γράψ}}"
+        };
+        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+
+        const grouped = await stem("γράφω");
+        const greek = grouped.order
+            .map((id) => ({ id, ...grouped.lexemes[id] }))
+            .find((r) => r.language === "el");
+        expect(greek?.value).toEqual(expect.arrayContaining(["γράφ", "έγραφ", "γράψ"]));
     });
 });

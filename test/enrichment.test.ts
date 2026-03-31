@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { wiktionary, interwiki, pageMetadata, isCategory } from "../src/index";
+import { wiktionary, interwiki, pageMetadata, isCategory, asLexemeRows } from "../src/index";
 import * as api from "../src/api";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
@@ -24,6 +24,7 @@ vi.mock("../src/api", async (importOriginal) => {
 });
 
 describe("API Enrichment", () => {
+  const rows = <T>(grouped: any) => asLexemeRows(grouped) as Array<{ value: T; language: string }>;
   const mockResult = {
     metadata: {
       categories: ["Greek verbs", "Ancient Greek terms"],
@@ -79,9 +80,9 @@ describe("API Enrichment", () => {
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
     
     const res = await interwiki("γράφω", "el");
-    expect(res).toBeInstanceOf(Array);
-    expect(res.length).toBeGreaterThan(0);
-    const frResult = res.find(r => r.value.some((l: any) => l.lang === "fr"));
+    const r = rows<any[]>(res);
+    expect(r.length).toBeGreaterThan(0);
+    const frResult = r.find(x => x.value.some((l: any) => l.lang === "fr"));
     expect(frResult).toBeDefined();
   });
 
@@ -99,9 +100,9 @@ describe("API Enrichment", () => {
     vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
     
     const isVerb = await isCategory("γράφω", "verbs", "el");
-    expect(isVerb[0].value).toBe(true);
+    expect(rows<boolean>(isVerb)[0].value).toBe(true);
     
     const isNoun = await isCategory("γράφω", "nouns", "el");
-    expect(isNoun[0].value).toBe(false);
+    expect(rows<boolean>(isNoun)[0].value).toBe(false);
   });
 });

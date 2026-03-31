@@ -61,6 +61,12 @@ function hasDecoderEvidence(d: TemplateDecoder, blob: string): boolean {
   if (d.id === "form-of") {
     return /\{\{\s*inflection of/i.test(blob) || /\{\{\s*infl of/i.test(blob);
   }
+  if (d.id === "alternative-forms-section") {
+    return /={3,}\s*Alternative forms\s*={3,}/im.test(blob);
+  }
+  if (d.id === "el-noun-stems") {
+    return /\{\{\s*el-n[MNF]-/i.test(blob);
+  }
 
   return blob.includes(`"${d.id}"`);
 }
