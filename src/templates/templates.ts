@@ -215,6 +215,12 @@ export const ENTRY_CSS = `:root {
     padding-left: 1em;
     text-indent: -1em;
 }
+
+@media (max-width: 640px) {
+    .wiktionary-entry {
+        font-size: 1em;
+    }
+}
 .wiktionary-entry * {
     padding-left: 0;
     text-indent: 0;

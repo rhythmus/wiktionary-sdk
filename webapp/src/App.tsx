@@ -382,7 +382,7 @@ const App: React.FC = () => {
 
   const [narrowSearchBar, setNarrowSearchBar] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 560px)');
+    const mq = window.matchMedia('(max-width: 640px)');
     const sync = () => setNarrowSearchBar(mq.matches);
     sync();
     mq.addEventListener('change', sync);
@@ -588,7 +588,7 @@ const App: React.FC = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 4rem' }}>
+    <div className="app-shell">
       <style>{ENTRY_CSS}</style>
 
       {/* ── GitHub Corner ── */}
@@ -623,7 +623,7 @@ const App: React.FC = () => {
             fontSize: '0.78rem',
             fontWeight: 400,
             color: '#6b7280',
-            marginTop: '0.3rem',
+            marginTop: '1.1rem',
             lineHeight: 1.5,
           }}>
             Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia and Wikimedia
@@ -632,43 +632,75 @@ const App: React.FC = () => {
 
         {/* Search bar */}
         <form onSubmit={handleSearch} className="google-bar" style={{ width: '100%' }}>
-          <Search size={17} style={{ color: '#9ca3af', flexShrink: 0 }} />
+          {!narrowSearchBar && <Search size={17} style={{ color: '#9ca3af', flexShrink: 0 }} />}
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search a term, e.g. γράφω…"
           />
-          <span className="bar-divider" />
-          <select
-            className="bar-select-lang"
-            aria-label="Dictionary language"
-            value={lang}
-            onChange={(e) => setLang(e.target.value as WikiLang)}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>
-                {narrowSearchBar ? l.narrow : `${l.flag} ${l.label}`}
-              </option>
-            ))}
-          </select>
-          <select
-            className="bar-select-pos"
-            aria-label="Part of speech filter"
-            value={prefPos}
-            onChange={(e) => setPrefPos(e.target.value)}
-          >
-            {POS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {narrowSearchBar ? o.narrow : o.label}
-              </option>
-            ))}
-          </select>
+          {!narrowSearchBar && (
+            <div className="bar-filters">
+              <span className="bar-divider" />
+              <select
+                className="bar-select-lang"
+                aria-label="Dictionary language"
+                value={lang}
+                onChange={(e) => setLang(e.target.value as WikiLang)}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {narrowSearchBar ? l.narrow : `${l.flag} ${l.label}`}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="bar-select-pos"
+                aria-label="Part of speech filter"
+                value={prefPos}
+                onChange={(e) => setPrefPos(e.target.value)}
+              >
+                {POS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {narrowSearchBar ? o.narrow : o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <button type="submit" className="fetch-btn" disabled={loading}>
-            {loading ? <Loader2 size={13} className="animate-spin" /> : null}
-            {loading ? 'Loading…' : 'Fetch'}
+            {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={14} className="fetch-icon" aria-hidden />}
+            <span className="fetch-label">{loading ? 'Loading…' : 'Fetch'}</span>
           </button>
         </form>
+        {narrowSearchBar && (
+          <div className="bar-filters-outside">
+            <select
+              className="bar-select-lang"
+              aria-label="Dictionary language"
+              value={lang}
+              onChange={(e) => setLang(e.target.value as WikiLang)}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {`${l.flag} ${l.label}`}
+                </option>
+              ))}
+            </select>
+            <select
+              className="bar-select-pos"
+              aria-label="Part of speech filter"
+              value={prefPos}
+              onChange={(e) => setPrefPos(e.target.value)}
+            >
+              {POS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
       </div>
 
@@ -677,6 +709,7 @@ const App: React.FC = () => {
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="app-error-banner"
             style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, marginBottom: '1rem', color: '#ef4444', fontSize: '0.875rem' }}
           >
             <AlertCircle size={16} />
@@ -724,7 +757,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Labels row */}
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '0.35rem' }}>
+          <div className="dk-controls-labels" style={{ gap: '0.75rem', alignItems: 'flex-end', marginBottom: '0.35rem' }}>
             <div style={{ flexShrink: 0, width: 170 }}>
               <label style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--dk-muted)' }}>
                 Target Wrapper
@@ -739,8 +772,8 @@ const App: React.FC = () => {
           </div>
 
           {/* Controls row — all three on the exact same flex line */}
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <select className="dk-select" style={{ flexShrink: 0, width: 170 }} value={apiMethod} onChange={(e) => handleMethodChange(e.target.value)}>
+          <div className="dk-controls-row">
+            <select className="dk-select dk-method-select" value={apiMethod} onChange={(e) => handleMethodChange(e.target.value)}>
               {API_GROUPS.map((group) => (
                 <optgroup key={group.label} label={group.label}>
                   {group.methods.map((m) => (
@@ -751,16 +784,14 @@ const App: React.FC = () => {
             </select>
             <input
               type="text"
-              className="dk-input font-mono"
-              style={{ flex: 1, minWidth: 0 }}
+              className="dk-input font-mono dk-props-input"
               value={apiProps}
               onChange={(e) => setApiProps(e.target.value)}
               placeholder='e.g. {"tense":"present"}'
             />
             <button
               type="button"
-              className="dk-execute-btn"
-              style={{ flexShrink: 0 }}
+              className="dk-execute-btn dk-controls-execute"
               onClick={handleApiExecute}
               disabled={apiLoading}
               aria-label={apiLoading ? 'Running' : 'Execute'}
@@ -856,7 +887,7 @@ const App: React.FC = () => {
               </span>
             </div>
             {/* Output */}
-            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)', maxHeight: 380, overflow: 'auto' }}>
+            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)' }}>
               {/* CLI prompt line — always shown */}
               <div style={{ marginBottom: apiResult?.__uninitialized ? 0 : '0.35rem' }}>
                 <span style={{ color: 'rgba(255,255,255,0.28)' }}>~</span>
@@ -932,7 +963,7 @@ const App: React.FC = () => {
                 ))}
               </span>
             </div>
-            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)', maxHeight: 380, overflow: 'auto' }}>
+            <div style={{ padding: '1rem', fontSize: '0.8125rem', fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.7, color: 'var(--dk-secondary)' }}>
               <div>
                 <span style={{ color: '#4ade80' }}>user@sdk</span>
                 <span style={{ color: 'rgba(255,255,255,0.28)' }}>:</span>
@@ -957,10 +988,10 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Debug Inspector (collapsible) ────────── */}
-        <div>
+        {/* ── Debug Inspector (collapsible) — hidden on narrow viewports (see index.css) ────────── */}
+        <div className="dk-inspector-block">
           {/* Collapse toggle + Debug/Compare buttons in same row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="dk-inspector-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button className="dk-toggle" onClick={() => setInspectorOpen((v) => !v)}>
               <motion.span animate={{ rotate: inspectorOpen ? 90 : 0 }} style={{ display: 'flex' }}>
                 <ChevronRight size={14} />
@@ -1015,7 +1046,7 @@ const App: React.FC = () => {
                   {/* Highlighted template badge */}
                   {highlightedTemplate && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#f59e0b', marginBottom: '0.75rem' }}>
-                      <span>Highlighting: <code style={{ background: 'rgba(245,158,11,0.1)', padding: '1px 6px', borderRadius: 4 }}>{highlightedTemplate}</code></span>
+                      <span>Highlighting: <code className="app-inline-code-chip" style={{ background: 'rgba(245,158,11,0.1)', padding: '1px 6px', borderRadius: 4 }}>{highlightedTemplate}</code></span>
                       <button onClick={() => setHighlightedTemplate(null)} style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex' }}><X size={13} /></button>
                     </div>
                   )}
@@ -1189,7 +1220,7 @@ const App: React.FC = () => {
                                 <td style={{ padding: '7px 12px', color: 'var(--dk-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem' }}>{m.raw}</td>
                                 <td style={{ padding: '7px 12px' }}>
                                   {m.fieldsProduced.map((f: string) => (
-                                    <span key={f} style={{ display: 'inline-block', background: 'rgba(129,140,248,0.15)', color: '#a5b4fc', fontSize: '0.68rem', padding: '2px 7px', borderRadius: 999, marginRight: 4, marginBottom: 2 }}>{f}</span>
+                                    <span key={f} className="decoder-field-chip" style={{ display: 'inline-block', background: 'rgba(129,140,248,0.15)', color: '#a5b4fc', fontSize: '0.68rem', padding: '2px 7px', borderRadius: 999, marginRight: 4, marginBottom: 2 }}>{f}</span>
                                   ))}
                                 </td>
                               </tr>
@@ -1209,7 +1240,7 @@ const App: React.FC = () => {
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                         {results.map((r, i) => r.wikidata?.media?.thumbnail ? (
                           <div key={i} className="dk-panel" style={{ width: 200 }}>
-                            <img src={r.wikidata.media.thumbnail} alt={r.form} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: '11px 11px 0 0' }} />
+                            <img className="wikidata-card-img" src={r.wikidata.media.thumbnail} alt={r.form} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: '11px 11px 0 0' }} />
                             <div style={{ padding: '0.5rem 0.75rem' }}>
                               <p style={{ fontSize: '0.8rem', fontWeight: 500 }}>{r.form}</p>
                               <p style={{ fontSize: '0.7rem', color: 'var(--dk-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.wikidata.media.P18}</p>
