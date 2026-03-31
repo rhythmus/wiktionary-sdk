@@ -1265,3 +1265,22 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   maximize query input width.
 - **Preview panes constrained**: TypeScript/CLI/REST pseudo-windows now cap at `80vh`
   with internal vertical scrolling to avoid viewport overflow.
+
+### v3.1.3 — Shared copy pipeline and webapp style-system consolidation
+
+- **Single-source copy management**: Added `shared-copy.yaml` as canonical source for
+  hero title/tagline/intro content and link targets. **Rationale:** avoid drift between
+  README marketing copy and webapp hero copy.
+- **Generated web constants**: Added `webapp/src/shared-copy.generated.ts` and
+  `tools/sync-shared-copy.ts`; `npm run sync:copy` now regenerates web constants and
+  rewrites README hero content in one step.
+- **Sync guard in CI**: Added `npm run check:sync-copy` to fail when generated copy is
+  stale. **Rationale:** makes copy drift a detectable build-time issue rather than a
+  manual review burden.
+- **URL query routing**: The webapp now supports `/?q=...` deep-links, initializes the
+  search box from URL state, pushes query changes to browser history, and handles
+  back/forward (`popstate`) updates.
+- **Inline-style extraction complete**: Moved App-level inline style declarations into
+  semantic classes in `webapp/src/index.css` and removed `webapp/src/App.css`.
+  **Rationale:** reduce JSX noise, improve maintainability, and make responsive tuning
+  centralized and deterministic.

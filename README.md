@@ -1,6 +1,10 @@
-# 📖 Wiktionary SDK
+# Wiktionary SDK
 
-> Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia and Wikimedia
+> Get structured lexicographic data from Wiktionary, Wikidata, Wikipedia, and Wikimedia
+
+=> Online demo on https://rhythmus.github.io/wiktionary-sdk/
+
+[Wiktionary](https://www.wiktionary.org/) is the world’s largest open multilingual dictionary, but its underlying wiki markup is far from a rigorous database. Extracting unambiguous, strongly typed, machine-readable data from its vast template ecosystem is messy — often a real _[pita](https://rhythmus.github.io/wiktionary-sdk/?q=pain%20in%20the%20ass)_. Wiktionary SDK solves this with an easy-to-use interface that spares you the headache of wrestling with the official REST API’s bewildering outputs.
 
 Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries** and initial support for **Dutch (NL)** and **German (DE)**.
 
@@ -437,6 +441,19 @@ While Vite is running, edits to `src/templates/entry.html.hbs`, `entry.md.hbs`, 
 automatically so the demo and hot reload stay aligned with the bundled SDK
 strings. Commit `templates.ts` after template changes so CLI and package users
 see the same output without the webapp.
+
+Hero copy is also centralized: edit `shared-copy.yaml` and run:
+
+```bash
+npm run sync:copy
+```
+
+This regenerates `webapp/src/shared-copy.generated.ts` and syncs the README hero
+copy so web and docs stay identical. For CI or pre-commit validation:
+
+```bash
+npm run check:sync-copy
+```
 
 ### 💻 Using the CLI Pipeline
 ```bash
