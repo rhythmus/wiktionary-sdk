@@ -10,7 +10,7 @@ import {
   rhymes, homophones, syllableCount, allImages, audioGallery, audioDetails, exampleDetails,
   externalLinks, internalLinks, isInstance, isSubclass, alternativeForms, seeAlso, anagrams,
   citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
-  categories, langlinks, inflectionTableRef, gender, transitivity
+  categories, langlinks, inflectionTableRef, gender, transitivity, invokeWrapperMethod
 } from '@engine/index';
 import { ENTRY_CSS } from '@engine/templates/templates';
 import { SHARED_COPY } from './shared-copy.generated';
@@ -423,23 +423,11 @@ const App: React.FC = () => {
         catch { setApiResult({ error: 'Invalid JSON' }); setApiFormatted(null); setApiLoading(false); return; }
       }
       const fn = API_METHODS[apiMethod];
-      let res;
-      if (apiMethod === 'translate') {
-        const targetLang = String((propsObj as any)?.target ?? 'en');
-        res = await fn(query, lang, targetLang, propsObj ?? { mode: 'gloss' }, prefPos);
-      } else if (apiMethod === 'wikipediaLink') {
-        const targetWiki = String((propsObj as any)?.target ?? 'en');
-        res = await fn(query, lang, targetWiki as WikiLang, prefPos);
-      } else if (['conjugate', 'decline'].includes(apiMethod)) {
-        res = await fn(query, lang, propsObj ?? {});
-      } else if (['isInstance', 'isSubclass'].includes(apiMethod)) {
-        res = await fn(query, (propsObj as any)?.qid || "Q5", lang);
-      } else if (['hyphenate'].includes(apiMethod)) {
-        res = await fn(query, lang, propsObj, prefPos);
-      } else {
-        // Most functions now support (query, lang, pos)
-        res = await fn(query, lang, prefPos);
-      }
+      const res = await invokeWrapperMethod(apiMethod, fn, query, {
+        sourceLang: lang,
+        preferredPos: prefPos,
+        props: propsObj,
+      });
       setApiResult(res);
       // Format for the terminal using the colour-coded terminal-html style
       try {

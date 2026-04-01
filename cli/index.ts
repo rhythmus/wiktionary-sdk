@@ -24,6 +24,7 @@
 import { wiktionary } from "../src/index";
 import * as SDK from "../src/index";
 import type { WikiLang, FetchResult } from "../src/types";
+import { invokeWrapperMethod } from "../src/wrapper-invoke";
 import { readFileSync, writeFileSync } from "fs";
 
 interface CliOptions {
@@ -38,6 +39,23 @@ interface CliOptions {
   props?: any;
   batchFile?: string;
   outputFile?: string;
+}
+
+export async function invokeExtractWrapper(
+  wrapperName: string,
+  term: string,
+  opts: Pick<CliOptions, "lang" | "targetLang" | "props" | "preferredPos">
+) {
+  const wrapper = (SDK as any)[wrapperName];
+  if (!wrapper || typeof wrapper !== "function") {
+    throw new Error(`Wrapper function '${wrapperName}' does not exist.`);
+  }
+  return await invokeWrapperMethod(wrapperName, wrapper, term, {
+    sourceLang: opts.lang,
+    preferredPos: opts.preferredPos,
+    props: opts.props,
+    targetLang: opts.targetLang,
+  });
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -157,6 +175,9 @@ function loadBatchTerms(filePath: string): string[] {
 async function formatOutput(result: any, format: "yaml" | "json" | "ansi"): Promise<string> {
   if (format === "ansi") {
     const { format: sdkFormat } = await import("../src/index");
+    // #region agent log
+    fetch('http://127.0.0.1:7854/ingest/b4b40b0b-95b1-4dd7-a0db-6d34a2ab77b9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'292a05'},body:JSON.stringify({sessionId:'292a05',runId:'post-fix',hypothesisId:'H8',location:'cli/index.ts:160',message:'cli ansi format output input shape',data:{isArray:Array.isArray(result),type:typeof result,arrayLength:Array.isArray(result)?result.length:null,sampleKeys:Array.isArray(result)&&result[0]&&typeof result[0]==='object'?Object.keys(result[0]).slice(0,8):[]},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return sdkFormat(result, { mode: "ansi" });
   }
   if (format === "json") {
@@ -193,24 +214,7 @@ async function main(): Promise<void> {
       let result;
       
       if (opts.extract) {
-          const wrapper = (SDK as any)[opts.extract];
-          if (!wrapper || typeof wrapper !== "function") {
-              throw new Error(`Wrapper function '${opts.extract}' does not exist.`);
-          }
-          if (["translate"].includes(opts.extract)) {
-              result = await wrapper(term, opts.lang, opts.targetLang, opts.props);
-          } else if (["wikipediaLink"].includes(opts.extract)) {
-              result = await wrapper(term, opts.lang, opts.targetLang);
-          } else if (["isInstance", "isSubclass"].includes(opts.extract)) {
-              result = await wrapper(term, opts.props?.qid || "Q5", opts.lang);
-          } else if (["conjugate", "decline"].includes(opts.extract)) {
-              result = await wrapper(term, opts.props || {}, opts.lang);
-          } else if (["hyphenate"].includes(opts.extract)) {
-              result = await wrapper(term, opts.lang, opts.props, opts.preferredPos);
-          } else {
-              // Most functions now support (term, lang, pos)
-              result = await wrapper(term, opts.lang, opts.preferredPos);
-          }
+          result = await invokeExtractWrapper(opts.extract, term, opts);
       } else {
           result = await wiktionary({
             query: term,
@@ -243,7 +247,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+if (typeof require !== "undefined" && require.main === module) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

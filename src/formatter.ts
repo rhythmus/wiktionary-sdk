@@ -89,6 +89,15 @@ export function format(data: any, options: FormatOptions = {}): string {
         return style.array(data as string[], options);
     }
 
+    // 3b. Handle wrapper arrays [{ lexeme_id, value, ... }] from convenience APIs.
+    if (Array.isArray(data) && data.length > 0 && typeof data[0] === "object" && data[0] !== null && "lexeme_id" in data[0] && "value" in data[0]) {
+        return data.map((row: any, idx: number) => {
+            const label = `[${idx + 1}] ${row.language || "unknown"} ${row.pos || "unknown"} ${row.lexeme_id || ""}`.trim();
+            const rendered = format(row.value, options);
+            return `${label}\n${rendered}`;
+        }).join("\n\n");
+    }
+
     // 4. Handle Etymology Steps (Array of {lang, form}) or data object
     if ((Array.isArray(data) && data.length > 0 && "lang" in data[0] && "form" in data[0]) || 
         (typeof data === "object" && data !== null && ("chain" in data || "cognates" in data))) {
@@ -144,11 +153,11 @@ class TextStyle implements FormatterStyle {
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
             if (data.length === 0) return "(none)";
-            return data.map(s => `${s.lang} ${s.form}`).join(" < ");
+            return data.filter(s => s?.form).map(s => `${s.lang} ${s.form}`).join(" < ") || "(none)";
         }
         if (!data || (!data.chain && !data.cognates)) return "(none)";
-        const chain = (data.chain || []).map((s: any) => `${s.source_lang_name || s.source_lang} ${s.term}`).join(" < ");
-        const cogs = (data.cognates || []).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} ${s.term}`).join(", ");
+        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${s.source_lang_name || s.source_lang} ${s.term}`).join(" < ");
+        const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} ${s.term}`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
@@ -260,11 +269,11 @@ class MarkdownStyle extends TextStyle {
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
             if (data.length === 0) return "*(none)*";
-            return data.map(s => `${s.lang} **${s.form}**`).join(" ← ");
+            return data.filter(s => s?.form).map(s => `${s.lang} **${s.form}**`).join(" ← ") || "*(none)*";
         }
         if (!data || (!data.chain && !data.cognates)) return "*(none)*";
-        const chain = (data.chain || []).map((s: any) => `${s.source_lang_name || s.source_lang} **${s.term}**`).join(" ← ");
-        const cogs = (data.cognates || []).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} **${s.term}**`).join(", ");
+        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${s.source_lang_name || s.source_lang} **${s.term}**`).join(" ← ");
+        const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} **${s.term}**`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }
     table(table: InflectionTable, options: FormatOptions, depth = 0): string {
@@ -314,9 +323,11 @@ class HtmlStyle extends TextStyle {
         const items = stems.aliases.map(s => `<code>${s}</code>`);
         return `Stems: ${items.join(", ")}`;
     }
-    etymology(steps: EtymologyStep[], _options: FormatOptions): string {
-        if (steps.length === 0) return "<i>(none)</i>";
-        return steps.map(s => `${s.lang} <b>${s.form}</b>`).join(" ← ");
+    etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
+        const steps = Array.isArray(data) ? data : (data?.chain || []).map((s: any) => ({ lang: s.source_lang_name || s.source_lang, form: s.term }));
+        const filtered = (steps || []).filter((s: any) => s?.form);
+        if (filtered.length === 0) return "<i>(none)</i>";
+        return filtered.map((s: any) => `${s.lang} <b>${s.form}</b>`).join(" ← ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
         if (senses.length === 0) return "<div>(none)</div>";
@@ -415,11 +426,13 @@ class AnsiStyle extends TextStyle {
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
             if (data.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
-            return data.map(s => `${this.C.cyan}${s.lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.form}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+            const filtered = data.filter(s => s?.form);
+            if (filtered.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
+            return filtered.map(s => `${this.C.cyan}${s.lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.form}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
         }
         if (!data || (!data.chain && !data.cognates)) return `${this.C.dim}(none)${this.C.reset}`;
-        const chain = (data.chain || []).map((s: any) => `${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
-        const cogs = (data.cognates || []).map((s: any) => `cog. ${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(", ");
+        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+        const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. ${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
@@ -488,11 +501,13 @@ class TerminalHtmlStyle extends HtmlStyle {
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
             if (data.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
-            return data.map(s => `<span style="color: ${this.C.cyan}">${s.lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.form}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+            const filtered = data.filter(s => s?.form);
+            if (filtered.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
+            return filtered.map(s => `<span style="color: ${this.C.cyan}">${s.lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.form}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
         }
         if (!data || (!data.chain && !data.cognates)) return `<span style="color: ${this.C.dim}">(none)</span>`;
-        const chain = (data.chain || []).map((s: any) => `<span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
-        const cogs = (data.cognates || []).map((s: any) => `cog. <span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(", ");
+        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `<span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+        const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. <span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }
     senses(senses: Sense[], _options: FormatOptions): string {
