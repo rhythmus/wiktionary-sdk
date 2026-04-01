@@ -123,9 +123,9 @@ registry.register({
         const pos = t?.params?.positional ?? [];
         // First look for something with /.../ if possible
         let ipa = pos.find((x) => x.startsWith("/") || x.startsWith("[")) ?? null;
-        // Fallback: the first parameter that isn't a language code (el, grc, en)
+        // Fallback: first candidate that resembles IPA, not a language code.
         if (!ipa) {
-            ipa = pos.find((x) => x !== "el" && x !== "grc" && x !== "en") ?? null;
+            ipa = pos.find((x) => x.length > 3 || /[/\[\]ˈˌ]/.test(x)) ?? null;
         }
         if (!ipa) return {};
         return { entry: { pronunciation: { IPA: ipa } } };
@@ -142,7 +142,7 @@ registry.register({
         const tpls = parseTemplates(line);
         const t = tpls.find((x) => x.name === "hyphenation");
         if (!t) return { entry: { hyphenation: { raw: line.trim() } } };
-        const sylls = (t.params.positional || []).filter(Boolean).filter(s => s !== "el" && s !== "grc");
+        const sylls = (t.params.positional || []).slice(1).filter(Boolean);
         if (sylls.length === 0) return { entry: { hyphenation: { raw: line.trim() } } };
         return { entry: { hyphenation: { syllables: sylls, raw: line.trim() } } };
     },
@@ -847,6 +847,17 @@ registry.register({
         }
 
         if (Object.keys(relations).length === 0) return {};
+        for (const key of Object.keys(relations) as Array<keyof import("./types").SemanticRelations>) {
+            const values = relations[key];
+            if (!values || values.length === 0) continue;
+            const seen = new Set<string>();
+            relations[key] = values.filter(v => {
+                const sig = `${v.term}::${v.sense_id || ""}::${v.qualifier || ""}`;
+                if (seen.has(sig)) return false;
+                seen.add(sig);
+                return true;
+            });
+        }
         return { entry: { semantic_relations: relations } };
     },
 });
@@ -913,8 +924,8 @@ registry.register({
             }
         }
 
-        // Populate raw_text from the etymology preamble prose 
-        const raw_text = stripWikiMarkup(ctx.etymology.etymology_raw_text ?? "").trim() || undefined;
+        // Keep the preamble verbatim; stripping template markup can erase terms.
+        const raw_text = (ctx.etymology.etymology_raw_text ?? "").trim() || undefined;
 
         if (chain.length === 0 && cognates.length === 0 && !raw_text) return {};
         return {
@@ -990,9 +1001,13 @@ registry.register({
 registry.register({
     id: "romanization",
     handlesTemplates: [],
-    matches: (ctx) => ctx.templates.some(t => t.params.named?.tr),
+    matches: (ctx) => {
+        const allowed = new Set(["head", "el-verb", "el-noun", "el-adj", "grc-noun", "grc-verb", "fr-verb", "de-noun"]);
+        return ctx.templates.some(t => allowed.has(t.name) && !!t.params.named?.tr);
+    },
     decode: (ctx) => {
-        const t = ctx.templates.find(t => t.params.named?.tr);
+        const allowed = new Set(["head", "el-verb", "el-noun", "el-adj", "grc-noun", "grc-verb", "fr-verb", "de-noun"]);
+        const t = ctx.templates.find(t => allowed.has(t.name) && !!t.params.named?.tr);
         if (!t) return {};
         return { entry: { pronunciation: { romanization: t.params.named.tr } } };
     },
@@ -1127,7 +1142,7 @@ registry.register({
             const lTpl = tpls.find(t => t.name === "l" || t.name === "link" || t.name === "alt");
             if (lTpl) {
                 const pos = lTpl.params.positional ?? [];
-                const term = lTpl.name === "alt" ? (pos[0] ?? "") : (pos[1] ?? "");
+                const term = lTpl.name === "alt" ? (pos[1] ?? "") : (pos[1] ?? "");
                 const qualifier = lTpl.params.named?.["qual"] || lTpl.params.named?.["q"] || undefined;
                 if (term) items.push({ term, qualifier, raw: trimmed });
             } else {
@@ -1300,9 +1315,11 @@ registry.register({
         const stem = t.params.positional?.[0] || "";
         if (!stem) return {};
         
+        const gender = t.name.startsWith("el-nM-") ? "masculine" : (t.name.startsWith("el-nF-") ? "feminine" : (t.name.startsWith("el-nN-") ? "neuter" : undefined));
         return {
             entry: {
                 headword_morphology: {
+                    ...(gender ? { gender } : {}),
                     principal_parts: {
                         "stem": stem
                     }

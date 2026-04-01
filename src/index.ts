@@ -10,6 +10,8 @@ import { SCHEMA_VERSION } from "./types";
 import {
     fetchWikitextEnWiktionary,
     fetchWikidataEntity,
+    fetchWikidataEntityByWiktionaryTitle,
+    fetchWikidataEntityByWikipediaTitle,
 } from "./api";
 import {
     extractLanguageSection,
@@ -22,6 +24,12 @@ import {
 } from "./parser";
 import { registry, FORM_OF_TEMPLATES, VARIANT_TEMPLATES } from "./registry";
 import { deepMerge, commonsThumbUrl } from "./utils";
+
+function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
+    if (!site || !title || !site.endsWith("wiki")) return undefined;
+    const lang = site.slice(0, -4);
+    return `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+}
 
 /**
  * Fetches and normalizes a Wiktionary entry into lexemes.
@@ -300,17 +308,45 @@ export async function wiktionaryRecursive({
     }
 
     if (enrich) {
+        let resolvedEntity: any = null;
+        let resolvedQid: string | undefined;
+        let fallbackAttempted = false;
         for (const lex of lexemes) {
             if (lex.type !== "LEXEME") continue;
-            const qid = qPage.pageprops?.wikibase_item;
+            let qid = qPage.pageprops?.wikibase_item as string | undefined;
+            if (!qid && resolvedQid) qid = resolvedQid;
+            if (!qid && !fallbackAttempted) {
+                fallbackAttempted = true;
+                try {
+                    resolvedEntity = await fetchWikidataEntityByWiktionaryTitle(qPage.title);
+                    if (!resolvedEntity?.id) {
+                        resolvedEntity = await fetchWikidataEntityByWikipediaTitle(qPage.title);
+                    }
+                    resolvedQid = resolvedEntity?.id;
+                    if (resolvedQid) qid = resolvedQid;
+                } catch {
+                    // best-effort fallback only
+                }
+            }
             if (!qid) continue;
             lex.wikidata = { qid };
             try {
-                const wd = await fetchWikidataEntity(qid);
+                const wd = (resolvedEntity && resolvedEntity.id === qid) ? resolvedEntity : await fetchWikidataEntity(qid);
                 if (wd) {
                     lex.wikidata.labels = wd.labels || {};
                     lex.wikidata.descriptions = wd.descriptions || {};
-                    lex.wikidata.sitelinks = wd.sitelinks || {};
+                    if (wd.sitelinks) {
+                        const sitelinks: Record<string, any> = {};
+                        for (const [key, value] of Object.entries(wd.sitelinks as Record<string, any>)) {
+                            sitelinks[key] = {
+                                ...value,
+                                url: value?.url || wikidataSitelinkUrl(value?.site || key, value?.title),
+                            };
+                        }
+                        lex.wikidata.sitelinks = sitelinks;
+                    } else {
+                        lex.wikidata.sitelinks = {};
+                    }
                     const p18 = wd.claims?.P18;
                     if (Array.isArray(p18) && p18[0]?.mainsnak?.datavalue?.value) {
                         const filename = p18[0].mainsnak.datavalue.value;
@@ -401,5 +437,6 @@ function slug(s: string) {
 export * from "./library";
 export * from "./formatter";
 export * from "./stem";
+export * from "./wrapper-invoke";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";
 export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry } from "./types";

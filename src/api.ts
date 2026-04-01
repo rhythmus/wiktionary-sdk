@@ -110,3 +110,32 @@ export async function fetchWikidataEntity(qid: string) {
     if (result) await cache.set(cacheKey, result);
     return result;
 }
+
+async function fetchWikidataEntityBySiteTitle(site: string, title: string) {
+    const cacheKey = `wd:${site}:${title}`;
+    const cache = getCache();
+    const cached = await cache.get<any>(cacheKey);
+    if (cached?.id) return cached;
+
+    const origin = "https://www.wikidata.org/w/api.php";
+    const j = await mwFetchJson(origin, {
+        action: "wbgetentities",
+        format: "json",
+        origin: "*",
+        sites: site,
+        titles: title,
+        props: "labels|descriptions|claims|sitelinks",
+    });
+    const entities = j?.entities ? Object.values(j.entities) : [];
+    const first = (entities.find((e: any) => e && e.id && !e.missing) as any) || null;
+    if (first?.id) await cache.set(cacheKey, first);
+    return first;
+}
+
+export async function fetchWikidataEntityByWiktionaryTitle(title: string) {
+    return fetchWikidataEntityBySiteTitle("enwiktionary", title);
+}
+
+export async function fetchWikidataEntityByWikipediaTitle(title: string) {
+    return fetchWikidataEntityBySiteTitle("enwiki", title);
+}

@@ -249,13 +249,23 @@ export function mapHeadingToPos(heading: string) {
         participle: "participle",
         preposition: "preposition",
         conjunction: "conjunction",
+        interjection: "interjection",
         particle: "particle",
         "proper noun": "proper_noun",
+        symbol: "symbol",
+        abbreviation: "abbreviation",
+        initialism: "initialism",
+        acronym: "acronym",
+        letter: "letter",
+        determiner: "determiner",
+        contraction: "contraction",
+        idiom: "idiom",
+        proverb: "proverb",
+        phrasebook: "phrasebook",
         suffix: "suffix",
         prefix: "prefix",
         interfix: "interfix",
         phrase: "phrase",
-        determiner: "determiner",
     };
     return map[h] || null;
 }
@@ -269,6 +279,12 @@ export function langToLanguageName(lang: WikiLang): string | null {
     if (lang === "fr") return "French";
     if (lang === "da") return "Danish";
     if (lang === "es") return "Spanish";
+    if (lang === "la") return "Latin";
+    if (lang === "ja") return "Japanese";
+    if (lang === "ar") return "Arabic";
+    if (lang === "ru") return "Russian";
+    if (lang === "it") return "Italian";
+    if (lang === "pt") return "Portuguese";
     return null;
 }
 
@@ -282,6 +298,12 @@ export function languageNameToLang(name: string): WikiLang | null {
     if (nameLower === "french") return "fr";
     if (nameLower === "danish") return "da";
     if (nameLower === "spanish") return "es";
+    if (nameLower === "latin") return "la";
+    if (nameLower === "japanese") return "ja";
+    if (nameLower === "arabic") return "ar";
+    if (nameLower === "russian") return "ru";
+    if (nameLower === "italian") return "it";
+    if (nameLower === "portuguese") return "pt";
     return null;
 }
 

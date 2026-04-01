@@ -35,11 +35,12 @@ function cleanCellText(text: string): string[] {
             results.push((m[1] + m[2] + m[3]).trim());
         } else {
             if (p !== "—" && p !== "…") {
-                results.push(p);
+                const cleaned = p.replace(/\s+[A-Za-z][A-Za-z.'-]*$/u, "").trim();
+                results.push(cleaned || p);
             }
         }
     }
-    return results;
+    return Array.from(new Set(results.filter(Boolean)));
 }
 
 export function parseMorphologyTags(tags: string[]): Partial<GrammarTraits> {
@@ -95,14 +96,16 @@ function extractMorphologyFromLexeme(lexeme: Lexeme, query: string): Partial<Gra
         criteria = { ...criteria, ...decoded };
     } else if (lexeme.type === "LEXEME") {
         const pos = (lexeme.part_of_speech || lexeme.part_of_speech_heading || "").toLowerCase();
-        if (pos.includes("verb")) {
+        const posNorm = pos.replace(/[_-]/g, " ").trim();
+        const isGreek = String(lexeme.language) === "el" || String(lexeme.language) === "grc";
+        if ((posNorm === "verb") && isGreek) {
             criteria.mood = "indicative";
             criteria.tense = "present";
             const form = lexeme.form.toLowerCase();
             criteria.voice = form.endsWith("μαι") || form.endsWith("ται") ? "passive" : "active";
             criteria.person = "1";
             criteria.number = "singular";
-        } else if (pos.includes("noun") || pos.includes("adj")) {
+        } else if ((posNorm === "noun" || posNorm === "adjective" || posNorm.startsWith("adj")) && isGreek) {
             criteria.case = "nominative";
             criteria.number = "singular";
         }

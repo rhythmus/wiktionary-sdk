@@ -103,6 +103,8 @@ export function getMainLexeme(result: FetchResult): Lexeme | null {
  */
 export async function lemma(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<string> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
+    const normalizeTerm = (v: string) => v.normalize("NFD").replace(/\p{M}+/gu, "").normalize("NFC");
+    const queryNorm = normalizeTerm(query);
     
     const metaHeadings = ["pronunciation", "etymology", "references", "anagrams", "alternative forms"];
     const highPriorityLexeme = result.lexemes.find(e => 
@@ -113,17 +115,22 @@ export async function lemma(query: string, sourceLang: WikiLang = "Auto", pos: s
     );
     if (highPriorityLexeme) return query;
 
-    const inflected = result.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
-    if (inflected && inflected.form_of?.lemma) {
-        return inflected.form_of.lemma;
-    }
-
     const anyLexeme = result.lexemes.find(e => 
         e.type === "LEXEME" && 
         e.form === query &&
         !metaHeadings.includes((e.part_of_speech_heading || "").toLowerCase())
     );
     if (anyLexeme) return query;
+
+    const diacriticInsensitiveLexeme = result.lexemes.find(e =>
+        e.type === "LEXEME" &&
+        normalizeTerm(e.form) === queryNorm &&
+        !metaHeadings.includes((e.part_of_speech_heading || "").toLowerCase())
+    );
+    if (diacriticInsensitiveLexeme) return query;
+
+    const inflected = result.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
+    if (inflected && inflected.form_of?.lemma) return inflected.form_of.lemma;
 
     return query;
 }
@@ -262,7 +269,7 @@ export async function syllableCount(query: string, sourceLang: WikiLang = "Auto"
 export async function partOfSpeech(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
     return mapLexemes(result, lexeme =>
-        lexeme.part_of_speech || lexeme.part_of_speech_heading || null
+        (lexeme.part_of_speech || lexeme.part_of_speech_heading || null)?.replace(/_/g, " ")
     );
 }
 
@@ -295,21 +302,24 @@ export async function decline(query: string, sourceLang: WikiLang = "Auto", crit
  */
 export async function richEntry(query: string, lang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<RichEntry | null>[]> {
     const originalResult = await wiktionary({ query, lang, pos });
-    const inflectedForm = originalResult.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
     
+    const inflectedSource = originalResult.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
+    const resolvedTriggeredId = inflectedSource
+        ? originalResult.lexemes.find(e => (e as any).lemma_triggered_by_lexeme_id === inflectedSource.id)?.id
+        : undefined;
+
     const lemmaStr = await lemma(query, lang, pos);
     const result = await wiktionary({ query: lemmaStr, lang, pos });
 
     return mapLexemes(result, lexeme => {
         const entryPos = (lexeme.part_of_speech || lexeme.part_of_speech_heading || "unknown").toLowerCase();
 
-        const syns = lexeme.semantic_relations?.synonyms?.map(s => ({ term: s.term })) || [];
-        const ants = lexeme.semantic_relations?.antonyms?.map(a => ({ term: a.term })) || [];
+        const inflectedForLexeme = resolvedTriggeredId && lexeme.id === resolvedTriggeredId ? inflectedSource : undefined;
 
         return {
-            headword: inflectedForm ? query : lexeme.form,
-            type: inflectedForm ? "INFLECTED_FORM" as const : "LEXEME" as const,
-            form_of: inflectedForm?.form_of,
+            headword: inflectedForLexeme ? query : lexeme.form,
+            type: inflectedForLexeme ? "INFLECTED_FORM" as const : (lexeme.type === "FORM_OF" ? "FORM_OF" as const : "LEXEME" as const),
+            form_of: inflectedForLexeme?.form_of,
             pos: entryPos,
             morphology: {
                 aspect: lexeme.headword_morphology?.aspect,
@@ -321,8 +331,10 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
             etymology: lexeme.etymology,
             senses: lexeme.senses,
             relations: {
-                synonyms: syns,
-                antonyms: ants,
+                synonyms: lexeme.semantic_relations?.synonyms?.map(s => ({ term: s.term })) || [],
+                antonyms: lexeme.semantic_relations?.antonyms?.map(a => ({ term: a.term })) || [],
+                hypernyms: lexeme.semantic_relations?.hypernyms?.map(h => ({ term: h.term })),
+                hyponyms: lexeme.semantic_relations?.hyponyms?.map(h => ({ term: h.term })),
                 coordinate_terms: lexeme.semantic_relations?.coordinate_terms?.map(c => ({ term: c.term })),
                 holonyms: lexeme.semantic_relations?.holonyms?.map(h => ({ term: h.term })),
                 meronyms: lexeme.semantic_relations?.meronyms?.map(m => ({ term: m.term })),
@@ -478,6 +490,7 @@ export async function allImages(query: string, sourceLang: WikiLang = "Auto", po
         if (lexeme.wikidata?.media?.thumbnail) images.push(lexeme.wikidata.media.thumbnail);
         if (lexeme.images) {
             for (const img of lexeme.images) {
+                if (!/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(img)) continue;
                 images.push(commonsThumbUrl(img, 420));
             }
         }
