@@ -1030,6 +1030,58 @@ relevant language first regardless of source order.
 priority map is minimal and intentionally limited; a future roadmap item
 (Stage 23) covers configurable priority maps and secondary sort keys.
 
+### 12.29 Cross-interface invocation parity
+
+**Problem:** The same convenience wrapper could be routed with different
+argument order or defaults depending on caller surface (SDK direct call,
+CLI `--extract`, or webapp Live API Playground). These drifts are subtle:
+they often pass type checks but change runtime semantics.
+
+**Design:** Wrapper invocation is centralized in
+`src/wrapper-invoke.ts` via `invokeWrapperMethod()` and reused by:
+- `cli/index.ts` (`invokeExtractWrapper`)
+- `webapp/src/App.tsx` (`handleApiExecute`)
+
+The helper enforces canonical signatures for special families:
+- `translate(query, sourceLang, target, props, preferredPos)`
+- `wikipediaLink(query, sourceLang, target, preferredPos)`
+- `isInstance/isSubclass(query, qid, sourceLang)`
+- `conjugate/decline(query, sourceLang, criteria)`
+- `hyphenate(query, sourceLang, options, preferredPos)`
+- default wrappers `(query, sourceLang, preferredPos)`
+
+**Rationale:** interface parity is now guaranteed by construction instead
+of duplicated conditionals across clients.
+
+### 12.30 Enrichment fallback chain hardening
+
+When `pageprops.wikibase_item` is absent, enrichment now applies a strict
+fallback sequence:
+1. `fetchWikidataEntityByWiktionaryTitle(title)`
+2. `fetchWikidataEntityByWikipediaTitle(title)`
+3. only attach `lexeme.wikidata` if a valid `id` (`Q...`) is resolved
+
+This path is validated by `test/fallback-enrichment-matrix.test.ts` with
+four explicit branches (direct pageprops hit, Wiktionary fallback hit,
+Wikipedia fallback hit, total miss).
+
+**Rationale:** prevents partial/stub enrichment and ensures deterministic,
+traceable QID attachment behavior.
+
+### 12.31 Schema and formatter negative hardening
+
+Beyond happy-path tests, the suite now includes:
+- negative JSON schema assertions (`test/negative-schema-hardening.test.ts`)
+  for malformed nested fields, invalid URI formats, invalid QID patterns,
+  and additional-property violations in strict objects.
+- formatter/adapter regression guards (`test/integration-adapters.test.ts`,
+  `test/integration-hardening.test.ts`) to prevent `[object Object]` output
+  and sparse payload artifacts across CLI/webapp presentation paths.
+
+**Rationale:** reliability failures in integration layers are often caused
+by shape drift, not extraction logic. Negative and adapter-level tests close
+that gap.
+
 ---
 
 **Artifacts:**
@@ -1074,6 +1126,12 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   from `{{l}}`/`{{link}}` in `====Derived terms====`, etc.
 - **Sample mode**: `--sample N` flag on template-introspect samples real Greek entries and
   reports top missing templates by frequency.
+- **Cross-interface invocation parity**: shared wrapper dispatch helper used
+  by SDK/CLI/webapp; parity and routing contracts covered by dedicated suites.
+- **Fallback-enrichment matrix**: explicit tests for pageprops, Wiktionary
+  title fallback, Wikipedia title fallback, and no-QID branches.
+- **Negative schema hardening**: malformed payload cases intentionally
+  rejected by JSON Schema validation suite.
 
 **Completed (v1.1 SDK Evolution):**
 

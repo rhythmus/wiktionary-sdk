@@ -46,6 +46,15 @@ Review the `.snap` diff in the PR.
 
 `test/decoder-coverage.test.ts` requires every registered decoder (by **`id`**) to have evidence in **`test/**/*.ts`**, **`test/**/*.wikitext`**, or **`test/**/*.json`**: either a handled template name appears as `{{template…` in that corpus, or the decoder is listed in **`DECODER_EVIDENCE_ALLOWLIST`** (with a short comment). Add real fixtures instead of allowlisting when possible.
 
+## Interface + contract hardening suites
+
+- **`test/integration-adapters.test.ts`** validates formatter handling of wrapper-row arrays and SDK/Webapp API method parity.
+- **`test/integration-hardening.test.ts`** covers rare PoS heading normalization, formatter sparse-data behavior, and CLI wrapper-route contracts.
+- **`test/cross-interface-parity.test.ts`** enforces shared invocation semantics across SDK direct calls, CLI extract routing, and webapp playground routing.
+- **`test/cli-combinatorics-generator.test.ts`** runs a generated wrapper/argument matrix to catch signature drift as wrappers evolve.
+- **`test/fallback-enrichment-matrix.test.ts`** asserts QID enrichment fallback order (pageprops -> Wiktionary title -> Wikipedia title -> no enrichment).
+- **`test/negative-schema-hardening.test.ts`** asserts malformed payloads are rejected by `schema/normalized-entry.schema.json`.
+
 ## Parser invariants
 
 `test/parser.invariants.test.ts` checks structural properties of **`parseTemplates(..., true)`** (raw slices, non-overlap, nesting). It does not assert linguistic correctness.
