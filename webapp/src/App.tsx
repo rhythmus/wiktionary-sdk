@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { Search, ChevronRight, Image as ImageIcon, Loader2, AlertCircle, Languages, Bug, Columns2, X, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import yaml from 'js-yaml';
@@ -10,16 +10,67 @@ import {
   rhymes, homophones, syllableCount, allImages, audioGallery, audioDetails, exampleDetails,
   externalLinks, internalLinks, isInstance, isSubclass, alternativeForms, seeAlso, anagrams,
   citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
-  categories, langlinks, inflectionTableRef, gender, transitivity, invokeWrapperMethod
+  categories, langlinks, inflectionTableRef, gender, transitivity, invokeWrapperMethod,
+  stripCombiningMarksForPageTitle,
 } from '@engine/index';
 import { ENTRY_CSS } from '@engine/templates/templates';
 import { SHARED_COPY } from './shared-copy.generated';
+import type { Lexeme, WikiLang, DecoderDebugEvent, FetchResult } from '@engine/types';
+import { normalizeWikiLangArg, langToLanguageName, languageNameToLang } from '@engine/parser';
+import { format, formatInflectedFormHeadline } from '@engine/formatter';
+
+/** Full language name for pills / labels (codes + section titles like "Latin"). */
 function langName(lang: string) {
-  const m: Record<string, string> = { el: 'Greek', grc: 'Ancient Greek', en: 'English', nl: 'Dutch', de: 'German', fr: 'French' };
-  return m[lang] || lang;
+  const s = String(lang).trim();
+  if (!s) return '?';
+  const fromCode = langToLanguageName(s as WikiLang);
+  if (fromCode !== null) return fromCode;
+  const code = languageNameToLang(s);
+  if (code) {
+    const full = langToLanguageName(code);
+    if (full !== null) return full;
+  }
+  return s;
 }
-import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/types';
-import { format } from '@engine/formatter';
+
+/** Prefer decoder `part_of_speech` over raw section heading when both exist (headword vs heading mismatch). */
+function posLabelForPill(r: Lexeme): string {
+  const raw =
+    (r.part_of_speech && String(r.part_of_speech).trim()) ||
+    r.part_of_speech_heading ||
+    r.part_of_speech ||
+    '?';
+  return String(raw)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Pick the lemma LEXEME from a second wiktionary() response. Uses only API fields:
+ * page title match (`form` === lemma query from {{… of}}) and optional PoS tie-break
+ * from the inflected lexeme’s decoded part_of_speech (not guessed elsewhere).
+ */
+function pickLemmaLexemeFromSecondFetch(
+  res: FetchResult,
+  lemmaQuery: string,
+  preferredPos: string | undefined,
+): Lexeme | null {
+  const q = lemmaQuery.trim();
+  const qNorm = stripCombiningMarksForPageTitle(q);
+  const candidates = res.lexemes.filter((l) => {
+    if (l.type !== 'LEXEME') return false;
+    const f = (l.form ?? '').trim();
+    if (f === q) return true;
+    return stripCombiningMarksForPageTitle(f) === qNorm;
+  });
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  if (preferredPos && preferredPos !== 'Auto') {
+    const byPos = candidates.find((l) => l.part_of_speech === preferredPos);
+    if (byPos) return byPos;
+  }
+  return candidates[0];
+}
 
 // ── SDK method registry ──────────────────────────────────────────────────────
 const API_METHODS: Record<string, any> = {
@@ -72,23 +123,37 @@ const DEFAULT_PILLS = ['{}'];
 
 // ── Static data ──────────────────────────────────────────────────────────────
 const LANGUAGES = [
-  { value: 'Auto', label: 'Auto', flag: '🌍', narrow: '🌍' },
+  { value: 'Auto', label: 'All languages', flag: '🌍', narrow: '🌍' },
   { value: 'el', label: 'Greek', flag: '🇬🇷', narrow: '🇬🇷' },
   { value: 'grc', label: 'Anc. Greek', flag: '🏛️', narrow: '🏛️' },
   { value: 'en', label: 'English', flag: '🇬🇧', narrow: '🇬🇧' },
+  { value: 'es', label: 'Spanish', flag: '🇪🇸', narrow: '🇪🇸' },
+  { value: 'la', label: 'Latin', flag: 'LA', narrow: 'La' },
+  { value: 'af', label: 'Afrikaans', flag: '🇿🇦', narrow: '🇿🇦' },
+  { value: 'da', label: 'Danish', flag: '🇩🇰', narrow: '🇩🇰' },
+  { value: 'ja', label: 'Japanese', flag: '🇯🇵', narrow: '🇯🇵' },
+  { value: 'ar', label: 'Arabic', flag: '🇸🇦', narrow: '🇸🇦' },
+  { value: 'ru', label: 'Russian', flag: '🇷🇺', narrow: '🇷🇺' },
+  { value: 'it', label: 'Italian', flag: '🇮🇹', narrow: '🇮🇹' },
+  { value: 'pt', label: 'Portuguese', flag: '🇵🇹', narrow: '🇵🇹' },
   { value: 'nl', label: 'Dutch', flag: '🇳🇱', narrow: '🇳🇱' },
   { value: 'de', label: 'German', flag: '🇩🇪', narrow: '🇩🇪' },
   { value: 'fr', label: 'French', flag: '🇫🇷', narrow: '🇫🇷' },
 ] as const;
 
 const POS_OPTIONS = [
-  { value: 'Auto', label: 'Auto', narrow: '·' },
+  { value: 'Auto', label: 'All word classes', narrow: '·' },
   { value: 'verb', label: 'Verb', narrow: 'V' },
   { value: 'noun', label: 'Noun', narrow: 'N' },
   { value: 'adjective', label: 'Adjective', narrow: 'Adj' },
   { value: 'pronoun', label: 'Pronoun', narrow: 'Pr' },
   { value: 'numeral', label: 'Numeral', narrow: '#' },
   { value: 'adverb', label: 'Adverb', narrow: 'Adv' },
+] as const;
+
+const MATCH_OPTIONS = [
+  { value: 'fuzzy', label: 'Fuzzy match', narrow: 'Fz' },
+  { value: 'strict', label: 'Strict match', narrow: 'St' },
 ] as const;
 
 // Removed duplicate langName helper
@@ -194,19 +259,13 @@ const TS_KEYWORDS = new Set([
   'true', 'false', 'null', 'undefined', 'return', 'function', 'class', 'extends',
 ]);
 
-const MAX_PLAYGROUND_COMMENT_LEN = 720;
-
 function serializeValueForPlaygroundComment(value: unknown): string {
   if (value === undefined) return 'undefined';
   if (value === null) return 'null';
   if (typeof value === 'string') return JSON.stringify(value);
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
   try {
-    let s = JSON.stringify(value, null, 2);
-    if (s.length > MAX_PLAYGROUND_COMMENT_LEN) {
-      s = `${s.slice(0, MAX_PLAYGROUND_COMMENT_LEN)}\n// … (truncated)`;
-    }
-    return s;
+    return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
   }
@@ -359,6 +418,11 @@ const App: React.FC = () => {
   const [query, setQuery] = useState(() => getQueryFromUrl() || 'γράφω');
   const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
+  const [matchMode, setMatchMode] = useState<'strict' | 'fuzzy'>('fuzzy');
+  /** Second fetch for non-lemma → lemma resolution (explicit API; no in-result guessing). */
+  const [lemmaResolveEntry, setLemmaResolveEntry] = useState<Lexeme | null>(null);
+  const [lemmaResolveLoading, setLemmaResolveLoading] = useState(false);
+  const [lemmaResolveError, setLemmaResolveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Lexeme[]>([]);
   const [rawBlock, setRawBlock] = useState('');
@@ -383,6 +447,11 @@ const App: React.FC = () => {
   const [apiResult, setApiResult] = useState<any>({ __uninitialized: true });
   const [apiFormatted, setApiFormatted] = useState<string | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
+  const [restoredWindowHeights, setRestoredWindowHeights] = useState<{ ts?: number; cli?: number; rest?: number }>({});
+  const baselineWindowHeightsRef = useRef<{ ts?: number; cli?: number; rest?: number }>({});
+  const tsWindowRef = useRef<HTMLDivElement | null>(null);
+  const cliWindowRef = useRef<HTMLDivElement | null>(null);
+  const restWindowRef = useRef<HTMLDivElement | null>(null);
 
   // Inspector collapse state
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -445,6 +514,7 @@ const App: React.FC = () => {
   }, [apiMethod, apiProps, query, lang, prefPos]);
 
   const handleSearch = useCallback(async (e?: React.FormEvent) => {
+    const triggeredFromFormSubmit = Boolean(e);
     if (e) e.preventDefault();
     if (!query.trim()) return;
     syncUrlQuery(query, e ? 'push' : 'replace');
@@ -452,7 +522,7 @@ const App: React.FC = () => {
     setError(null);
     setSelectedEntryIdx(0);
     try {
-      const res = await wiktionary({ query: query.trim(), lang, pos: prefPos, enrich: true, debugDecoders: debugMode });
+      const res = await wiktionary({ query: query.trim(), lang, pos: prefPos, enrich: true, debugDecoders: debugMode, matchMode });
       setResults(res.lexemes);
       setRawBlock(res.rawLanguageBlock);
       setDebugEvents(res.debug ?? []);
@@ -461,18 +531,24 @@ const App: React.FC = () => {
       if (compareMode) {
         setCompareLoading(true);
         try {
-          const cRes = await wiktionary({ query: query.trim(), lang: compareLang, pos: prefPos, enrich: false });
+          const cRes = await wiktionary({ query: query.trim(), lang: compareLang, pos: prefPos, enrich: false, matchMode });
           setCompareResults(cRes.lexemes);
           setCompareRawBlock(cRes.rawLanguageBlock);
         } catch { setCompareResults([]); setCompareRawBlock(''); }
         finally { setCompareLoading(false); }
+      }
+
+      // Keep hero-search and playground in sync: when the user submits the
+      // search form, auto-run the currently selected wrapper immediately.
+      if (triggeredFromFormSubmit) {
+        await handleApiExecute();
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
-  }, [query, lang, prefPos, compareMode, compareLang, debugMode, syncUrlQuery]);
+  }, [query, lang, prefPos, matchMode, compareMode, compareLang, debugMode, syncUrlQuery, handleApiExecute]);
 
   // Initial fetch on mount
   useEffect(() => { 
@@ -486,6 +562,23 @@ const App: React.FC = () => {
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const captureBaseline = (key: 'ts' | 'cli' | 'rest', ref: React.RefObject<HTMLDivElement | null>) => {
+      if (baselineWindowHeightsRef.current[key]) return;
+      const h = ref.current?.getBoundingClientRect().height ?? 0;
+      if (h > 0) baselineWindowHeightsRef.current[key] = Math.round(h);
+    };
+    captureBaseline('ts', tsWindowRef);
+    captureBaseline('cli', cliWindowRef);
+    captureBaseline('rest', restWindowRef);
+  }, [apiResult, apiLoading, apiMethod, apiProps, query, lang, prefPos]);
+
+  const restoreWindowHeight = useCallback((key: 'ts' | 'cli' | 'rest') => {
+    const baseline = baselineWindowHeightsRef.current[key];
+    if (!baseline) return;
+    setRestoredWindowHeights((prev) => ({ ...prev, [key]: baseline }));
   }, []);
 
   // ── YAML rendering helpers ───────────────────────────────────────────────
@@ -553,41 +646,106 @@ const App: React.FC = () => {
 
   const currentEntry = results[selectedEntryIdx] || results[0];
 
+  const needsLemmaResolution = useMemo(
+    () =>
+      Boolean(
+        currentEntry &&
+          (currentEntry.type === 'INFLECTED_FORM' || currentEntry.type === 'FORM_OF') &&
+          currentEntry.form_of?.lemma?.trim(),
+      ),
+    [currentEntry],
+  );
+
+  useEffect(() => {
+    if (!needsLemmaResolution || !currentEntry?.form_of?.lemma?.trim()) {
+      setLemmaResolveEntry(null);
+      setLemmaResolveLoading(false);
+      setLemmaResolveError(null);
+      return;
+    }
+
+    const lemmaQuery = currentEntry.form_of!.lemma!.trim();
+    const lang = normalizeWikiLangArg(currentEntry.language);
+    const preferredPos =
+      currentEntry.part_of_speech && currentEntry.part_of_speech !== 'Auto'
+        ? currentEntry.part_of_speech
+        : undefined;
+
+    let cancelled = false;
+    setLemmaResolveLoading(true);
+    setLemmaResolveError(null);
+    setLemmaResolveEntry(null);
+
+    wiktionary({
+      query: lemmaQuery,
+      lang,
+      pos: 'Auto',
+      enrich: true,
+      debugDecoders: debugMode,
+      matchMode,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const picked = pickLemmaLexemeFromSecondFetch(res, lemmaQuery, preferredPos);
+        if (!picked) {
+          const noise = /retried without combining marks/i;
+          const meaningful = res.notes.find((n) => !noise.test(n));
+          setLemmaResolveError(
+            meaningful ??
+              (res.lexemes.length === 0
+                ? 'No lexemes for this lemma page (language section or PoS filter).'
+                : 'No lemma lexeme in the API response for this page.'),
+          );
+          setLemmaResolveEntry(null);
+        } else {
+          setLemmaResolveEntry(picked);
+          setLemmaResolveError(null);
+        }
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setLemmaResolveError(e instanceof Error ? e.message : String(e));
+        setLemmaResolveEntry(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLemmaResolveLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    needsLemmaResolution,
+    currentEntry?.id,
+    currentEntry?.form_of?.lemma,
+    currentEntry?.language,
+    currentEntry?.part_of_speech,
+    currentEntry?.type,
+    debugMode,
+    matchMode,
+  ]);
+
+  const inflectedFormHeadlineHtml = useMemo(() => {
+    if (!needsLemmaResolution || !currentEntry) return '';
+    return formatInflectedFormHeadline(currentEntry);
+  }, [needsLemmaResolution, currentEntry]);
+
+  const nestedLemmaEntryHtml = useMemo(() => {
+    if (!lemmaResolveEntry) return '';
+    return format(lemmaResolveEntry, { mode: 'html-fragment' });
+  }, [lemmaResolveEntry]);
+
   // Render high-fidelity HTML for the current entry (Gold Standard v2.4.0)
   const highFidelityHtml = useMemo(() => {
     if (!currentEntry) return '';
+    if (needsLemmaResolution) return '';
     try {
-      // For INFLECTED_FORM, we want to "borrow" the lemma case
-      let renderContext = currentEntry;
-      if (currentEntry.type === 'INFLECTED_FORM' && currentEntry.form_of?.lemma) {
-        // Find the corresponding lemma in the current results
-        const lemmaEntry = results.find(e => 
-          e.form === currentEntry.form_of?.lemma && 
-          e.type === 'LEXEME' &&
-          (e.part_of_speech === currentEntry.part_of_speech || !currentEntry.part_of_speech)
-        );
-        if (lemmaEntry) {
-          // Merge: use lemma's senses/etym but preserve inflected form's analysis
-          renderContext = {
-            ...lemmaEntry,
-            ...currentEntry,
-            headword: currentEntry.form, // The query term
-            // Ensure we use lemma's rich data if inflected form is sparse
-            senses: currentEntry.senses?.length ? currentEntry.senses : lemmaEntry.senses,
-            etymology: currentEntry.etymology?.chain?.length ? currentEntry.etymology : lemmaEntry.etymology,
-            semantic_relations: lemmaEntry.semantic_relations,
-            inflection_table: lemmaEntry.inflection_table_ref ? lemmaEntry.inflection_table_ref : (currentEntry as any).inflection_table,
-          } as any;
-        }
-      }
-
-      // Use 'html-fragment' to avoid the full <html>/<body> wrapper
-      return format(renderContext, { mode: 'html-fragment' });
+      return format(currentEntry, { mode: 'html-fragment' });
     } catch (e) {
       console.error("Format error:", e);
       return '';
     }
-  }, [currentEntry, results]);
+  }, [currentEntry, needsLemmaResolution]);
 
   const pills = SUGGESTED_PROPS[apiMethod] ?? DEFAULT_PILLS;
 
@@ -600,6 +758,20 @@ const App: React.FC = () => {
     () => buildPlaygroundCurlSnippet(apiMethod, query, lang, prefPos, apiProps),
     [apiMethod, query, lang, prefPos, apiProps],
   );
+
+  // Release restored/fixed heights when new content arrives so windows can
+  // auto-grow again up to CSS max-height.
+  useEffect(() => {
+    setRestoredWindowHeights((prev) => (prev.ts ? { ...prev, ts: undefined } : prev));
+  }, [playgroundTsSource]);
+
+  useEffect(() => {
+    setRestoredWindowHeights((prev) => (prev.cli ? { ...prev, cli: undefined } : prev));
+  }, [apiFormatted, apiResult, apiLoading, query, lang, apiMethod]);
+
+  useEffect(() => {
+    setRestoredWindowHeights((prev) => (prev.rest ? { ...prev, rest: undefined } : prev));
+  }, [playgroundCurlSource, apiResult, apiLoading]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -667,10 +839,22 @@ const App: React.FC = () => {
                   </option>
                 ))}
               </select>
+              <select
+                className="bar-select-match"
+                aria-label="Match mode"
+                value={matchMode}
+                onChange={(e) => setMatchMode(e.target.value as 'strict' | 'fuzzy')}
+              >
+                {MATCH_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {narrowSearchBar ? m.narrow : m.label}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
           <button type="submit" className="fetch-btn" disabled={loading}>
-            {loading ? <Loader2 size={13} className="animate-spin" /> : <Search size={14} className="fetch-icon" aria-hidden />}
+            {loading ? <Loader2 size={13} className="fetch-spinner animate-spin" aria-hidden /> : <Search size={14} className="fetch-icon" aria-hidden />}
             <span className="fetch-label">{loading ? 'Loading…' : 'Fetch'}</span>
           </button>
         </form>
@@ -697,6 +881,18 @@ const App: React.FC = () => {
               {POS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="bar-select-match"
+              aria-label="Match mode"
+              value={matchMode}
+              onChange={(e) => setMatchMode(e.target.value as 'strict' | 'fuzzy')}
+            >
+              {MATCH_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
                 </option>
               ))}
             </select>
@@ -743,15 +939,40 @@ const App: React.FC = () => {
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="dict-card app-dict-card"
           >
-            {/* Render handle-bars based high-fidelity output */}
-            <div dangerouslySetInnerHTML={{ __html: highFidelityHtml }} />
+            {/* Inflected/form-of: headline from first query; lemma body from second wiktionary() (decoded lemma + lang + pos). */}
+            {needsLemmaResolution ? (
+              <div className="dict-entry-form-of-wrap">
+                <div dangerouslySetInnerHTML={{ __html: inflectedFormHeadlineHtml }} />
+                <div className="dict-entry-nested-row">
+                  <span className="dict-entry-nested-arrow" aria-hidden="true">→</span>
+                  <div className="dict-entry-nested-body">
+                    {lemmaResolveLoading && (
+                      <div className="dict-entry-lemma-nested dict-entry-lemma-loading">
+                        <Loader2 size={20} className="animate-spin" aria-hidden />
+                        <span> Loading lemma…</span>
+                      </div>
+                    )}
+                    {!lemmaResolveLoading && lemmaResolveError && (
+                      <div className="dict-entry-lemma-nested dict-entry-lemma-error" role="alert">
+                        {lemmaResolveError}
+                      </div>
+                    )}
+                    {!lemmaResolveLoading && lemmaResolveEntry && (
+                      <div className="dict-entry-lemma-nested" dangerouslySetInnerHTML={{ __html: nestedLemmaEntryHtml }} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div dangerouslySetInnerHTML={{ __html: highFidelityHtml }} />
+            )}
 
             {/* Lexeme switcher pills */}
             {results.length > 1 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '2rem', borderTop: '1px solid var(--page-border)', paddingTop: '1.25rem' }}>
                 {results.map((r, i) => (
                   <button key={i} className={`dict-entry-pill${i === selectedEntryIdx ? ' active' : ''}`} onClick={() => setSelectedEntryIdx(i)}>
-                    Lexeme {i + 1}: {langName(r.language)} · {r.part_of_speech_heading || r.part_of_speech || '?'}
+                    Lexeme {i + 1}: {langName(r.language)} · {posLabelForPill(r)}
                   </button>
                 ))}
               </div>
@@ -828,7 +1049,11 @@ const App: React.FC = () => {
           </div>
 
           {/* README-style TypeScript sample for the selected wrapper */}
-          <div className="dk-code-window dk-block-gap-md">
+          <div
+            ref={tsWindowRef}
+            className="dk-code-window dk-block-gap-md"
+            style={restoredWindowHeights.ts ? { height: `${restoredWindowHeights.ts}px` } : undefined}
+          >
             {/* Windows-style title bar */}
             <div className="dk-window-titlebar dk-window-titlebar-win">
               <span className="dk-window-title dk-window-title-win">
@@ -840,33 +1065,41 @@ const App: React.FC = () => {
                     key={i}
                     aria-hidden
                     className={`dk-window-control dk-window-control-win${i === 2 ? ' is-close' : ''}`}
+                    onClick={i === 1 ? () => restoreWindowHeight('ts') : undefined}
                   >
                     {sym}
                   </span>
                 ))}
               </span>
             </div>
-            <pre>
+            <pre style={restoredWindowHeights.ts ? { maxHeight: `${Math.max(120, restoredWindowHeights.ts - 32)}px` } : undefined}>
               <code>{highlightPlaygroundTs(playgroundTsSource)}</code>
             </pre>
           </div>
 
           {/* Terminal output well */}
-          <div className="dk-well dk-block-gap-sm">
+          <div
+            ref={cliWindowRef}
+            className="dk-well dk-block-gap-sm"
+            style={restoredWindowHeights.cli ? { height: `${restoredWindowHeights.cli}px` } : undefined}
+          >
             {/* macOS-style title bar */}
             <div className="dk-window-titlebar dk-window-titlebar-mac">
               {/* Traffic-light dots */}
               <span className="dk-traffic-lights">
                 <span className="dk-dot dk-dot-red" />
                 <span className="dk-dot dk-dot-amber" />
-                <span className="dk-dot dk-dot-green" />
+                <span className="dk-dot dk-dot-green" onClick={() => restoreWindowHeight('cli')} />
               </span>
               <span className="dk-window-title dk-window-title-mac">
                 CLI
               </span>
             </div>
             {/* Output */}
-            <div className="dk-well-output">
+            <div
+              className="dk-well-output"
+              style={restoredWindowHeights.cli ? { maxHeight: `${Math.max(120, restoredWindowHeights.cli - 32)}px` } : undefined}
+            >
               {/* CLI prompt line — always shown */}
               <div className={`dk-cli-prompt${apiResult?.__uninitialized ? '' : ' has-output'}`}>
                 <span className="dk-c-dim">~</span>
@@ -902,7 +1135,11 @@ const App: React.FC = () => {
           </div>
 
           {/* REST API — Linux/Ubuntu-style terminal window */}
-          <div className="dk-well dk-block-gap-sm">
+          <div
+            ref={restWindowRef}
+            className="dk-well dk-block-gap-sm"
+            style={restoredWindowHeights.rest ? { height: `${restoredWindowHeights.rest}px` } : undefined}
+          >
             <div className="dk-window-titlebar dk-window-titlebar-rest">
               <span className="dk-window-title dk-window-title-rest">
                 REST API
@@ -913,13 +1150,17 @@ const App: React.FC = () => {
                     key={i}
                     aria-hidden
                     className="dk-window-control dk-window-control-rest"
+                    onClick={i === 1 ? () => restoreWindowHeight('rest') : undefined}
                   >
                     {sym}
                   </span>
                 ))}
               </span>
             </div>
-            <div className="dk-well-output">
+            <div
+              className="dk-well-output"
+              style={restoredWindowHeights.rest ? { maxHeight: `${Math.max(120, restoredWindowHeights.rest - 32)}px` } : undefined}
+            >
               <div>
                 <span className="dk-c-green">user@sdk</span>
                 <span className="dk-c-dim">:</span>

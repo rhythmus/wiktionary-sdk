@@ -181,6 +181,8 @@ code {
   align-items: center;
   background: rgba(0, 0, 0, 0.22);
   height: 32px;
+  min-height: 32px;
+  flex: 0 0 32px;
 }
 
 .dk-window-titlebar-win { padding: 0 0 0 12px; }
@@ -566,6 +568,10 @@ code {
   max-width: min(5rem, 24vw);
 }
 
+.google-bar select.bar-select-match {
+  max-width: min(5.25rem, 24vw);
+}
+
 @media (max-width: 640px) {
   .google-bar {
     align-items: center;
@@ -598,7 +604,8 @@ code {
     display: none;
   }
 
-  .google-bar .fetch-btn .fetch-icon {
+  .google-bar .fetch-btn .fetch-icon,
+  .google-bar .fetch-btn .fetch-spinner {
     display: inline-flex !important;
     width: 16px;
     height: 16px;
@@ -623,16 +630,19 @@ code {
   }
 
   .bar-filters-outside .bar-select-lang,
-  .bar-filters-outside .bar-select-pos {
+  .bar-filters-outside .bar-select-pos,
+  .bar-filters-outside .bar-select-match {
     flex: 1 1 0;
     min-width: 0;
     width: auto;
     max-width: none;
     height: 32px;
-    padding: 5px 26px 5px 10px;
-    background-position: right 8px center;
+    padding: 5px 16px 5px 10px;
+    background-position: right 4px center;
     background-size: 10px 10px;
     font-size: 0.74rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
     border-radius: 9px;
     border: 1px solid rgba(0, 0, 0, 0.12);
     background-color: #fff;
@@ -663,6 +673,10 @@ code {
   display: none;
 }
 
+.google-bar .fetch-btn .fetch-spinner {
+  display: inline-flex;
+}
+
 .google-bar .fetch-btn:hover  { background: #4338ca; }
 .google-bar .fetch-btn:disabled { background: #9ea5d6; cursor: not-allowed; }
 
@@ -678,6 +692,24 @@ code {
 /* Embedded SDK HTML fragment uses bundled ENTRY_CSS; override serif here for webapp */
 .dict-card .wiktionary-entry {
   font-family: 'Source Serif 4', serif;
+}
+
+.dict-card .dict-entry-nested-arrow {
+  font-family: 'Source Serif 4', serif;
+  font-variant-emoji: text;
+  font-size: 1.5em;
+  line-height: 1.2;
+}
+
+@media (max-width: 640px) {
+  .dict-card .dict-entry-nested-arrow {
+    font-size: 1em;
+  }
+}
+
+.dict-card .redirect-arrow,
+.dict-card .etym-arrow {
+  font-variant-emoji: text;
 }
 
 .dict-lemma {
