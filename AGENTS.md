@@ -16,6 +16,11 @@ We extract what is *explicitly* in the Wikitext. We do not guess stems, complete
 The engine is a decentralized registry of pure functions (`TemplateDecoder`). 
 - **Pattern**: If a template exists in the wild, create a decoder for it.
 - **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in `registry.ts`.
+- **Per-language form-of templates** (en.wiktionary): Treat `{{xx-verb form of|…}}`, `{{xx-noun form of|…}}`, `{{xx-adj form of|…}}` as first-class. The lemma is often **only** in `|1=`; the language is implied by the template name. They must participate in the same `form_of` / `guessLexemeTypeFromTemplates` path as `inflection of` so **lemma resolution** (second `wiktionary()` fetch) runs when the definition line is template-only. **`only used in`** is *not* a lemma pointer; it is decoded on sense lines as structured `only_used_in` (see `types.ts`).
+- **Extended “Category:Form-of templates” family**: `isFormOfTemplateName()` in `registry.ts` recognises the core `FORM_OF_TEMPLATES` set, per-lang templates above, names ending in ` … of`, and a few extras (e.g. `rfform`, `IUPAC-*`). **`isVariantFormOfTemplateName()`** decides `FORM_OF` vs `INFLECTED_FORM` when `guessLexemeTypeFromTemplates` runs. Run `npm run report:form-of` to compare the live Wiktionary category against this logic.
+- **Registration order**: Register decoders that depend on shared constants (`GENDER_MAP`, etc.) **after** those constants are defined in the file (no forward reference).
+- **One registration per `id`**: Do not duplicate `registry.register({ id: "…" })` blocks (e.g. merge conflicts). Order of patches changes behaviour.
+- **Corpus evidence**: New production decoders must appear in a fixture or test string, or be listed in `DECODER_EVIDENCE_ALLOWLIST` in `test/decoder-coverage.test.ts`, so the decoder coverage test stays green.
 
 ### 2. Brace-Aware Parser (`src/parser.ts`)
 A custom parser handles nested `{{...}}` structures. 
@@ -40,6 +45,7 @@ A custom parser handles nested `{{...}}` structures.
 - **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
     - `schema/normalized-entry.schema.json`: Update the JSON Schema to match the new structure.
     - `docs/schemata/*.yaml`: Update the reference YAML models (e.g., `DictionaryEntry.yaml`) to ensure documentation parity.
+- **Sense-only or presentation fields**: If you add structured sense data (e.g. decoded definition templates), also update **Handlebars + CSS** and regenerate **`src/templates/templates.ts`** so HTML output stays in sync with the package API.
 - **Reason**: To maintain the SDK's promise of a deterministic, machine-readable output that external consumers can rely on for validation.
 
 ---
@@ -50,6 +56,8 @@ A custom parser handles nested `{{...}}` structures.
 2.  **No linguistic "Guessing"**: If a stem or gender is missing from a headword template, do not attempt to calculate it. Leave the field undefined.
 3.  **Traceability**: Every field added to a `NormalizedEntry` must be traceable to a source line or template parameter.
 4.  **Verbatim Storage**: All template calls must be stored verbatim in `entry.templates` for forensic verification.
+5.  **Terminology**: In docs and UI, say **wikitext** or **templates** when referring to source `{{…}}` markup. Reserve **Wikidata** for QID / `wikibase_item` enrichment from `api.ts`. Do not conflate the two.
+6.  **User-facing definitions**: Do not show raw `{{…}}` wikitext as the primary definition gloss in HTML or formatted output. Decode into structured fields and a plain `gloss` string; keep verbatim text on `gloss_raw` or structured `raw` fields for traceability (see `only_used_in` and similar patterns).
 
 ---
 
@@ -62,6 +70,7 @@ The SDK uses **Handlebars** for high-fidelity rendering of dictionary entries.
 3.  **Styling**: Edit `src/templates/entry.css`.
 4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`) are defined in `src/formatter.ts`.
 5.  **Bundle**: After editing the `.hbs` / `.css` sources, ensure `src/templates/templates.ts` is updated (run `npm run dev` in `webapp/` and save, or regenerate by the same logic the Vite plugin uses) and commit it.
+6.  **Whitespace**: Handlebars `~` strips whitespace between tokens. When lemma and part-of-speech sit in adjacent inline spans (and there is no romanization buffer), add CSS so they do not visually merge (e.g. `.entry-line-head .lemma ~ .pos { margin-left: … }`).
 
 **Etymology labels in templates:** use `{{langLabel this}}` inside `{{#each etymology.chain}}` / cognate loops. Decoders set `source_lang` on every link; `source_lang_name` is optional. The helper mirrors the `source_lang_name || source_lang` fallback used elsewhere so tags never render empty.
 
@@ -72,7 +81,24 @@ When modifying templates, ensure you maintain the "Gold Standard" typographic de
 1.  **Identify**: Find the template on Wiktionary (e.g., `{{el-noun-m-ος-2}}`).
 2.  **Define**: Update `types.ts` if a new PoS-specific interface is needed.
 3.  **Implement**: Create a new `TemplateDecoder` in `registry.ts`.
-4.  **Verify**: Run the verification script: `npx tsx tools/verify_templates.ts`.
+4.  **Form-of family**: If the template is a language-prefixed inflection line (`xx-verb form of`, etc.), wire it into `FORM_OF_TEMPLATES` / `isPerLangFormOfTemplate` (or equivalent) and ensure `guessLexemeTypeFromTemplates` returns `INFLECTED_FORM` when appropriate so nested lemma UX works.
+5.  **Verify**: Run the verification script: `npx tsx tools/verify_templates.ts`.
+
+---
+
+## 🔧 Practical edge cases (extractors & playground)
+
+These behaviours come up often when extending decoders or the webapp.
+
+### `{{hyphenation|…}}` syllables (`src/registry.ts`)
+- **Do not** assume the first positional is always a language code (`slice(1)` blindly drops the first syllable for `{{hyphenation|γρά|φω}}`).
+- **Order matters**: If the first positional is non-ASCII (e.g. Greek syllable), **all** positionals are syllables. If the first is ASCII-only and the second is non-ASCII, the first is usually a language tag (`el`, …). For all-ASCII runs, use an explicit allowlist of language codes and known compound tags (e.g. `grk-ita`), not a loose regex that mis-reads Latin syllables as codes.
+
+### Stub language sections on en.wiktionary
+- Some sections contain **only** a form-of line (e.g. `{{es-verb form of|lemma}}`) or a restriction template (e.g. `{{only used in|nl|…}}`) with **no** `===Etymology===`. **Empty etymology there is correct**—do not invent prose. **Do** decode templates so the card is not blank and lemma resolution can run where applicable.
+
+### Webapp language filter
+- When adding a first-class lookup language for the playground (e.g. Spanish `es`), add it to the **`LANGUAGES`** (or equivalent) list in `webapp/src/App.tsx` so the bar filter matches `langToLanguageName` / `extractLanguageSection`.
 
 ---
 

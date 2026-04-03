@@ -1,4 +1,4 @@
-# Wiktionary SDK — Formal Specification (v3.1)
+# Wiktionary SDK — Formal Specification (v3.2)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
@@ -20,6 +20,9 @@ Given:
       (`el` > `grc` > `en`; all others at equal rank), then sort
       alphabetically within the same tier. Useful when the caller wants
       Modern Greek results first regardless of source order.
+  - `matchMode?: "strict" | "fuzzy"` (defaults to `"strict"`)
+    - `"strict"`: single fetch for the query string (existing behaviour).
+    - `"fuzzy"`: try normalised query variants (e.g. combining-mark stripping), merge deduplicated lexemes, and append human-readable notes when a variant produced results.
 
 Return:
 
@@ -126,8 +129,8 @@ Each `Lexeme` contains:
 | `part_of_speech` | string? | From headword templates (`el-verb`, etc.) or heading mapping |
 | `pronunciation` | `Pronunciation` | From `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, `{{rhymes}}`, `{{homophones}}` |
 | `hyphenation` | `{syllables?, raw}` | From `{{hyphenation}}` |
-| `senses` | `Sense[]` | From `#` / `##` / `#:` lines; includes `qualifier`, `labels`, `topics` |
-| `semantic_relations` | `SemanticRelations` | From `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}`, `{{cot}}`, `{{hol}}`, `{{mer}}`, `{{tro}}` |
+| `senses` | `Sense[]` | From `#` / `##` / `#:` lines; includes `qualifier`, `labels`, `topics`, optional structured `only_used_in` |
+| `semantic_relations` | `SemanticRelations` | From `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}`, and section headings (Synonyms, Antonyms, …) matched with the same brace-tolerant heading regex as other section decoders |
 | `etymology` | `EtymologyData` | `chain[]` from `{{inh}}`, `{{der}}`, `{{bor}}`; `cognates[]` from `{{cog}}`; `raw_text` from preamble |
 | `usage_notes` | `string[]` | From `===Usage notes===` section text |
 | `references` | `string[]` | From `====References====` section text |
@@ -203,6 +206,8 @@ senses:
 - `qualifier` (optional): parenthetical text extracted from after the main gloss (e.g. "for traffic violations").
 - `labels` (optional): register/style labels from `{{lb|...}}` templates (e.g. `["colloquial", "figurative"]`).
 - `topics` (optional): topic domains from `{{lb|...}}` (e.g. `["law", "art"]`). Wiktionary uses a shared label-tag system; the decoder separates stylistic labels from topic labels heuristically.
+- `only_used_in` (optional): structured decode of `{{only used in|lang|term(s)}}` when that template is the effective definition (restriction to a fixed expression, not a lemma link). Plain `gloss` remains a readable phrase; HTML may render a dedicated line.
+- **Template-only glosses**: When stripping wikitext yields an empty gloss, the sense decoder expands common definition-only templates to a plain English gloss (same parameter rules as the `form-of` decoder for form-of family templates, plus `construed with`, etc.) so user-facing output is not raw `{{…}}`.
 - Stripping is **brace-aware**: `[[link|display]]` → display, `[[link]]` → link; nested `{{...}}` removed correctly; no regex-induced duplication.
 
 ### 3.4 Semantic relations
@@ -626,7 +631,7 @@ Within each PoS block, definition lines are parsed into `Sense` objects (see sec
 
 ### 4.5 Section extraction
 
-Named sections (`===Usage notes===`, `====Translations====`) are identified by heading regex and their content is extracted up to the next same-level or higher heading.
+Named sections (`===Usage notes===`, `====Translations====`) are identified by heading regex and their content is extracted up to the next same-level or higher heading. Headings allow flexible numbers of `=` and surrounding whitespace, consistent across decoders (semantic relations, usage notes, alternative forms, etc.).
 
 ## 5. Decoder Registry Architecture
 
@@ -652,10 +657,10 @@ interface TemplateDecoder {
 2. **Pronunciation** (extended): `ipa`, `el-ipa`, `audio` (now also resolves `audio_url`), `hyphenation`, `rhymes`, `homophones`, `romanization`.
 3. **Headword / POS**: `el-verb-head`, `el-noun-head`, `el-adj-head`, `el-adv-head`, `el-pron-head`, `el-numeral-head`, `el-participle-head`, `el-art-head`, **`nl-noun-head`**, **`nl-verb-head`**, **`nl-adj-head`**, **`de-noun-head`**, **`de-verb-head`**, **`de-adj-head`**.
 4. **Headword morphology** (new): `el-verb-morphology` (extracts `transitivity`, `principal_parts` from `{{el-verb}}` params); `el-noun-gender` (extracts `gender` from `{{el-noun}}`); **`nl-noun-head`** (extracts `gender` from `{{nl-noun}}`); **`de-noun-head`** (extracts `gender` from `{{de-noun}}`).
-5. **Form-of** (extended): detects `inflection of`, `infl of`, `form of`, `alternative form of`, and 7 other form-of templates; now produces a human-readable `label` from the `tags` array via `TAG_LABEL_MAP`. **New:** Distinguishes between `INFLECTED_FORM` and `FORM_OF` based on template semantics (variants/abbreviations vs. grammatical inflections).
+5. **Form-of** (extended): the `form-of` decoder matches **`isFormOfTemplateName()`** — the historical `FORM_OF_TEMPLATES` / `VARIANT_TEMPLATES` sets, per-lang `{{xx-verb form of|…}}`, **and** the large en.wiktionary [Category:Form-of templates](https://en.wiktionary.org/wiki/Category:Form-of_templates) family (names ending in ` … of`, plus `rfform`, `IUPAC-*`, etc.). Produces `form_of.label` from `TAG_LABEL_MAP` / template name. **`isVariantFormOfTemplateName()`** distinguishes `FORM_OF` (spelling/lexical variant) from `INFLECTED_FORM` (grammatical inflection). `only used in` is **not** treated as lemma `form_of`; it is handled on sense lines.
 6. **Translations**: parses `====Translations====` sections for `t`, `t+`, `tt`, `tt+`, `t-simple`.
 7. **Senses**: parses `#` / `##` / `#:` lines; now extracts `qualifier` from parenthetical text and `labels`/`topics` from `{{lb|...}}` templates on definition lines.
-8. **Semantic relations**: `syn`, `ant`, `hyper`, `hypo`, and now also `cot` (coordinate terms), `hol` (holonyms), `mer` (meronyms), `tro` (troponyms).
+8. **Semantic relations**: `syn`, `ant`, `hyper`, `hypo`, and now also `cot` (coordinate terms), `hol` (holonyms), `mer` (meronyms), `tro` (troponyms); section-based extraction uses a heading regex tolerant of variable `=` counts (`====Synonyms====`, etc.), not a brittle `==Title==` substring match.
 9. **Etymology v2**: produces `chain[]` (from `inh`, `der`, `bor`) and `cognates[]` (from `cog`) as separate arrays; now supports compositional templates like **`affix`**, **`compound`**, **`back-formation`**, and **`clipping`**.
 10. **Usage notes**: extracts `===Usage notes===` section text.
 11. **References** (new): extracts `====References====` section text into `entry.references[]`.
@@ -671,7 +676,7 @@ Each decoder may declare `handlesTemplates: string[]` for introspection; `regist
 
 For `INFLECTED_FORM` lexemes:
 
-- Detect form-of templates (e.g. `{{inflection of|...}}`)
+- Detect form-of templates via `isFormOfTemplateName()` (e.g. `{{inflection of|...}}`, `{{comparative of|...}}`, `{{es-verb form of|...}}`)
 - Extract lemma from template parameters (explicit)
 - **Prioritization**: When resolving a lemma, the engine prioritizes lexemes explicitly marked as `INFLECTED_FORM` over metadata-only blocks (like Pronunciation sections) to ensure the correct lexeme is chosen for the query.
 - Fetch lemma page and include lemma LEXEME lexeme
@@ -1342,3 +1347,15 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   semantic classes in `webapp/src/index.css` and removed `webapp/src/App.css`.
   **Rationale:** reduce JSX noise, improve maintainability, and make responsive tuning
   centralized and deterministic.
+
+### v3.1.4 — Extended form-of family, sense restrictions, fuzzy fetch, and tooling
+
+- **Category-aligned form-of detection**: `isFormOfTemplateName()` / `isVariantFormOfTemplateName()` in `registry.ts` align the decoder and `guessLexemeTypeFromTemplates()` with en.wiktionary’s broad “form of” template category (plus explicit exclusions such as `only used in`, which uses a different sense-level contract).
+- **`Sense.only_used_in`**: Structured decode of `{{only used in|lang|term(s)}}` with JSON Schema (`OnlyUsedIn`) and reference YAML note; supports plain + HTML presentation without surfacing raw wikitext as the primary gloss.
+- **Semantic relations headings**: `semantic-relations` decoder matches section titles with the same `=+Title=+` pattern as `extractSectionByLevelHeaders`, fixing missed `====Synonyms====`-style blocks.
+- **Template-only definition glosses**: When a definition line is only templates, sense parsing emits readable `gloss` strings (form-of family, `construed with`, etc.) using the same positional rules as the form-of decoder where applicable.
+- **`wiktionary({ matchMode: "fuzzy" })`**: Optional query variants (diacritic-stripping / compatibility forms) merge deduplicated lexemes with audit notes; strict mode remains the default.
+- **`normalizeWikiLangArg()`**: Maps Wiktionary section titles (e.g. “Afrikaans”) to `WikiLang` codes where listed in `langToLanguageName` / `languageNameToLang`; extended language codes include `af`, `da`, `es`, `la`, `ja`, `ar`, `ru`, `it`, `pt` for playground and normalisation.
+- **Hyphenation**: Leading language tokens on `{{hyphenation|…}}` use an explicit allowlist and script-aware rules so Greek syllables are never dropped as if they were language codes.
+- **Tooling**: `npm run report:form-of` runs `tools/form-of-template-report.ts` against the live API to list category members vs `isFormOfTemplateName()` (with a short section for `only used in` as same-category, different semantics).
+- **Tests**: `test/registry-ids.test.ts` guards against duplicate decoder `id` registrations; registry and integration tests cover new decoders and gloss behaviour.

@@ -11,6 +11,7 @@ This document explains how tests are organized, how to mock Wiktionary/Wikidata 
 | `npm run test:all` | Default suite **then** perf tests. |
 | `npm run test:network` | Runs `test/network-replay.test.ts` with **`WIKT_TEST_LIVE=1`** so the optional live `en.wiktionary.org` check executes (still runs the offline JSON replay first). |
 | `npm run refresh-recording` | Optional: `tsx tools/refresh-api-recording.ts [title]` to refresh `test/fixtures/api-recordings/minimal-query.json` from the API (review diff before commit). |
+| `npm run report:form-of` | Optional (network): `tsx tools/form-of-template-report.ts` — compares en.wiktionary Category:Form-of templates to `isFormOfTemplateName()`; writes `tools/form-of-template-report.md`. |
 
 ## Mocking: prefer stubbing `src/api`
 
@@ -45,6 +46,8 @@ Review the `.snap` diff in the PR.
 ## Decoder coverage
 
 `test/decoder-coverage.test.ts` requires every registered decoder (by **`id`**) to have evidence in **`test/**/*.ts`**, **`test/**/*.wikitext`**, or **`test/**/*.json`**: either a handled template name appears as `{{template…` in that corpus, or the decoder is listed in **`DECODER_EVIDENCE_ALLOWLIST`** (with a short comment). Add real fixtures instead of allowlisting when possible.
+
+**Duplicate `id` values are invalid**: the coverage test deduplicates by `id`, so a second decoder with the same `id` is never checked for evidence and can mask missing fixtures. **`test/registry-ids.test.ts`** fails if any decoder `id` appears more than once in `registry.getDecoders()`.
 
 ## Interface + contract hardening suites
 
