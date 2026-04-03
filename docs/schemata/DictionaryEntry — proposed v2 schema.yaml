@@ -81,6 +81,7 @@ alternative_forms:
     raw: "* {{l|el|γράφΩ}} (colloquial)"
 
 # ── Senses ────────────────────────────────────────────────────────────────
+# Optional only_used_in: decoded {{only used in|lang|term}} (plain gloss + structured HTML)
 senses:
   - id: "S1"
     gloss: "to write, pen"

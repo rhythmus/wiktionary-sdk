@@ -269,6 +269,21 @@
       },
       "additionalProperties": false
     },
+    "OnlyUsedIn": {
+      "type": "object",
+      "required": ["lang", "terms", "raw"],
+      "properties": {
+        "lang": { "type": "string", "description": "Language code of the linked expression(s)" },
+        "terms": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fixed expression(s) from |2= (comma-separated in wikitext)"
+        },
+        "t_gloss": { "type": "string", "description": "Optional gloss from |t= / |4=" },
+        "raw": { "type": "string", "description": "Verbatim {{only used in|…}} template" }
+      },
+      "additionalProperties": false
+    },
     "Sense": {
       "type": "object",
       "required": ["id", "gloss"],
@@ -276,6 +291,7 @@
         "id": { "type": "string", "description": "Unique sense ID, e.g. 'S1', 'S1.1'" },
         "gloss": { "type": "string" },
         "gloss_raw": { "type": "string", "description": "Exact text after #/## before stripping" },
+        "only_used_in": { "$ref": "#/$defs/OnlyUsedIn" },
         "qualifier": {
           "type": "string",
           "description": "Parenthetical qualifier after the main gloss, e.g. 'for traffic violations'."
