@@ -27,3 +27,5 @@ tmp/
 result.json
 result_clean.json
 wikitext.txt
+tools/form-of-template-report.md
+tools/stress-test-report.json
