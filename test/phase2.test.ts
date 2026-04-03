@@ -132,6 +132,21 @@ describe("Phase 2.3: Structured etymology & cognates", () => {
     expect(etym.chain[0].term).toBe("scrībō");
   });
 
+  it("strips wikilinks in etymology term", () => {
+    const ctx = makeCtx("{{der|en|fro|[[sens]], [[sen]], [[san]]}}");
+    const result = registry.decodeAll(ctx);
+    const etym = (result as any).entry.etymology;
+    expect(etym.chain[0].term).toBe("sens, sen, san");
+  });
+
+  it("uses named alt when etymology term slot is empty", () => {
+    const ctx = makeCtx("{{der|en|gem||alt=*sinn}}");
+    const result = registry.decodeAll(ctx);
+    const etym = (result as any).entry.etymology;
+    expect(etym.chain[0].source_lang).toBe("gem");
+    expect(etym.chain[0].term).toBe("*sinn");
+  });
+
   it("parses bor template", () => {
     const ctx = makeCtx("{{bor|el|fr|écrire}}");
     const result = registry.decodeAll(ctx);

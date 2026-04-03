@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { registry, FORM_OF_TEMPLATES } from "../src/registry";
+import {
+  registry,
+  FORM_OF_TEMPLATES,
+  isFormOfTemplateName,
+  isVariantFormOfTemplateName,
+} from "../src/registry";
 import { parseTemplates } from "../src/parser";
 import type { DecodeContext } from "../src/types";
 
@@ -52,6 +57,58 @@ describe("DecoderRegistry", () => {
     const ctx = makeCtx("{{el-adj}}");
     const result = registry.decodeAll(ctx);
     expect((result as any).entry.part_of_speech).toBe("adjective");
+  });
+
+  it("detects la-noun headword gender from g= or subtype", () => {
+    const g = makeCtx("{{la-noun|sēnsus<3.N>|g=n}}", { lang: "la" });
+    expect((registry.decodeAll(g) as any).entry.headword_morphology?.gender).toBe("neuter");
+    const subtype = makeCtx("{{la-noun|lemma<3.M>}}", { lang: "la" });
+    expect((registry.decodeAll(subtype) as any).entry.headword_morphology?.gender).toBe("masculine");
+  });
+
+  it("detects es-verb form of (lemma in first positional, lang from template name)", () => {
+    const ctx = makeCtx("{{head|es|verb form}}\n# {{es-verb form of|sensar}}", { lang: "es" });
+    const entry = (registry.decodeAll(ctx) as any).entry;
+    expect(entry.type).toBe("INFLECTED_FORM");
+    expect(entry.form_of?.lemma).toBe("sensar");
+    expect(entry.form_of?.lang).toBe("es");
+    expect(entry.form_of?.label).toBe("Verb form");
+    expect(entry.senses?.[0]?.gloss).toBe("Verb form of sensar");
+  });
+
+  it("expands template-only definition lines to plain glosses (combining form of)", () => {
+    const ctx = makeCtx("{{head|en|prefix}}\n# {{combining form of|en|bio}}", { lang: "en" });
+    const entry = (registry.decodeAll(ctx) as any).entry;
+    expect(entry.senses?.[0]?.gloss).toBe("Combining form of bio");
+  });
+
+  it("expands construed with on template-only definition lines", () => {
+    const ctx = makeCtx("{{head|en|noun}}\n# {{construed with|en|foo}}", { lang: "en" });
+    const entry = (registry.decodeAll(ctx) as any).entry;
+    expect(entry.senses?.[0]?.gloss).toBe("construed with foo");
+  });
+
+  it("matches semantic-relations when synonym heading uses variable equals (====)", () => {
+    const wikitext = `{{el-verb}}
+====Synonyms====
+* {{l|el|δοκιμή}}`;
+    const ctx = makeCtx(wikitext);
+    const dec = registry.getDecoders().find((d) => d.id === "semantic-relations");
+    expect(dec?.matches?.(ctx)).toBe(true);
+    const result = registry.decodeAll(ctx);
+    const rel = (result as any).entry.semantic_relations;
+    expect(rel?.synonyms?.length).toBeGreaterThan(0);
+  });
+
+  it("decodes only used in to plain gloss and structured only_used_in", () => {
+    const ctx = makeCtx("{{head|nl|noun}}\n# {{only used in|nl|sense maken}}", { lang: "nl" });
+    const entry = (registry.decodeAll(ctx) as any).entry;
+    expect(entry.senses?.[0]?.gloss).toBe("only used in sense maken");
+    expect(entry.senses?.[0]?.only_used_in).toMatchObject({
+      lang: "nl",
+      terms: ["sense maken"],
+    });
+    expect(entry.senses?.[0]?.only_used_in?.raw).toContain("only used in");
   });
 
   it("parses form-of template as INFLECTED_FORM", () => {
@@ -122,5 +179,37 @@ describe("FORM_OF_TEMPLATES", () => {
 
   it("does not include headword templates", () => {
     expect(FORM_OF_TEMPLATES.has("el-verb")).toBe(false);
+  });
+});
+
+describe("isFormOfTemplateName / isVariantFormOfTemplateName", () => {
+  it("treats Category-style … of templates as form-of", () => {
+    expect(isFormOfTemplateName("comparative of")).toBe(true);
+    expect(isFormOfTemplateName("combining form of")).toBe(true);
+    expect(isFormOfTemplateName("rfform")).toBe(true);
+    expect(isFormOfTemplateName("iupac-1")).toBe(true);
+  });
+
+  it("does not treat only used in as form-of lemma pointer", () => {
+    expect(isFormOfTemplateName("only used in")).toBe(false);
+  });
+
+  it("classifies comparatives as inflected vs archaic spelling as variant", () => {
+    expect(isVariantFormOfTemplateName("comparative of")).toBe(false);
+    expect(isVariantFormOfTemplateName("archaic spelling of")).toBe(true);
+  });
+
+  it("decodes comparative of as INFLECTED_FORM", () => {
+    const ctx = makeCtx("{{comparative of|en|large}}", { lang: "en" });
+    const entry = (registry.decodeAll(ctx) as any).entry;
+    expect(entry.type).toBe("INFLECTED_FORM");
+    expect(entry.form_of?.lemma).toBe("large");
+  });
+
+  it("decodes archaic spelling of as FORM_OF", () => {
+    const ctx = makeCtx("{{archaic spelling of|en|foo}}", { lang: "en" });
+    const entry = (registry.decodeAll(ctx) as any).entry;
+    expect(entry.type).toBe("FORM_OF");
+    expect(entry.form_of?.lemma).toBe("foo");
   });
 });
