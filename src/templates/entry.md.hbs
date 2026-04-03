@@ -3,7 +3,7 @@
 
 ## → {{form_of.lemma}}
 {{/if}}
-{{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}**
+{{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{posLine this}}**
 {{#if pronunciation.IPA}}*Pronunciation:* [{{pronunciation.IPA}}]{{/if}}
 
 {{#if headword_morphology.principal_parts}}
@@ -14,7 +14,7 @@
 
 {{#if etymology.chain}}
 ### I. Etymology & Origins
-{{#each etymology.chain}}**{{langLabel this}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
+← {{#each etymology.chain}}**{{langLabel this}}**{{#if term}} {{term}}{{/if}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
 
 {{#if etymology.cognates}}
 > **Cognates:** {{#each etymology.cognates}}{{langLabel this}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}

@@ -10,7 +10,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
   <div class="entry-body">
     <span class="entry-line entry-line-head">
       {{~#if form_of~}}
-      <span class="lemma {{form_of.subclass}}">{{headword}}</span>
+      <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span>
       <span class="inflection-label">{{form_of.label}}</span>
       <span class="inline-sep">of:</span>
       <span class="redirect-arrow">→</span>
@@ -23,7 +23,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
       <span class="romanization">/{{pronunciation.romanization}}/</span>
       {{~/if~}}
 
-      <span class="pos">{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}</span>
+      <span class="pos">{{posLine this}}</span>
 
       {{~#if headword_morphology.principal_parts~}}
       <span class="principal-parts">
@@ -34,25 +34,20 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
       {{~/if~}}
     </span>
 
-    {{~#if etymology.chain~}}
-    <span class="entry-line">
-      {{!-- <span class="line-label">ETYM.</span> --}}
-      (<span class="etym-inline">
-        {{~#each etymology.chain~}}
-        <span class="lang-tag">{{langLabel this}}</span> {{term}}{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}} <span class="etym-arrow">{{etymSymbol relation}}</span> {{/unless}}
-        {{~/each~}}
-    )</span>
-    </span>
-    {{~/if~}}
+    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(<span class="etym-arrow etym-arrow-from-lemma">←</span></span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} {{term}}{{/if}}{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}} <span class="etym-arrow">{{etymSymbol relation}}</span> {{/unless}}{{~/each~}})</span></span>{{~/if~}}
 
     {{~#if senses~}}
     <span class="entry-line">
       <span class="sense-inline">
         {{#each senses}}
         <span class="sense-item">
-          <span class="sense-num">{{addOne @index}}</span>
+          {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}</span>{{/ifCond}}
           {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
+          {{#if only_used_in}}
+          <span class="def-only-used-in"><span class="def-oui-lead">only used in</span> <span class="def-oui-terms">{{#each only_used_in.terms}}<span class="def-oui-term">{{this}}</span>{{#unless @last}}<span class="def-oui-sep">, </span>{{/unless}}{{/each}}</span>{{#if only_used_in.t_gloss}} <span class="def-oui-gloss">({{only_used_in.t_gloss}})</span>{{/if}}</span>
+          {{else}}
           {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
+          {{/if}}
           {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
         </span>
         {{/each}}
@@ -92,12 +87,16 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
     {{~/if~}}
 
     {{~#if usage_notes~}}
-    <span class="entry-line">
-      <span class="line-label">NOTE.</span>
+    <span class="entry-line entry-line-note">
+      <span class="line-label line-label-note">{{#ifCond usage_notes.length ">" 1}}NOTES{{else}}NOTE{{/ifCond}}</span><span class="note-gap" aria-hidden="true">&emsp;</span>
       <span class="usage-inline">
-        {{#each usage_notes}}
-        <span>{{this}}</span>{{#unless @last}}<span class="inline-sep">;</span>{{/unless}}
-        {{/each}}
+        {{#ifCond usage_notes.length ">" 1}}
+          {{#each usage_notes}}
+          <span class="usage-note-item"><strong>{{addOne @index}}</strong> {{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
+          {{/each}}
+        {{else}}
+          <span class="usage-note-item">{{usage_notes.[0]}}</span>
+        {{/ifCond}}
       </span>
     </span>
     {{~/if~}}
@@ -122,7 +121,7 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 
 ## → {{form_of.lemma}}
 {{/if}}
-{{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{#if pos}}{{pos}}{{else}}{{part_of_speech}}{{/if}}**
+{{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{posLine this}}**
 {{#if pronunciation.IPA}}*Pronunciation:* [{{pronunciation.IPA}}]{{/if}}
 
 {{#if headword_morphology.principal_parts}}
@@ -133,7 +132,7 @@ export const MD_ENTRY_TEMPLATE = `# {{headword}}
 
 {{#if etymology.chain}}
 ### I. Etymology & Origins
-{{#each etymology.chain}}**{{langLabel this}}** {{term}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
+← {{#each etymology.chain}}**{{langLabel this}}**{{#if term}} {{term}}{{/if}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
 
 {{#if etymology.cognates}}
 > **Cognates:** {{#each etymology.cognates}}{{langLabel this}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}
@@ -264,6 +263,14 @@ export const ENTRY_CSS = `:root {
     /* vertical-align: baseline; */
 }
 
+/* Non-lemma surface form: regular weight, tight spacing before label (mockup). */
+.form-of-surface {
+    display: inline;
+    font-weight: 400;
+    font-size: 1.5em;
+    margin-right: 0.35em;
+}
+
 .lemma.abbreviation {
     text-transform: lowercase;
     font-variant: small-caps;
@@ -294,6 +301,7 @@ export const ENTRY_CSS = `:root {
 .redirect-arrow {
     font-size: inherit;
     margin: 0 0.2rem;
+    font-variant-emoji: text;
 }
 
 .inflection-label {
@@ -313,6 +321,11 @@ export const ENTRY_CSS = `:root {
     display: inline-block;
     font-variant: small-caps;
     margin-right: 0.4rem;
+}
+
+/* Space lemma from PoS when inline spans touch (Handlebars ~ strips whitespace; no romanization). */
+.entry-line-head .lemma ~ .pos {
+    margin-left: 0.35rem;
 }
 
 .principal-parts {
@@ -340,9 +353,38 @@ export const ENTRY_CSS = `:root {
 }
 
 .etym-inline,
-.usage-inline,
 .relation-group {
     display: inline-block;
+}
+
+/* Keep "(" glued to the lemma connector arrow (no wrap, no orphan paren before inline-block). */
+.etym-paren-lead {
+    white-space: nowrap;
+}
+
+.usage-inline {
+    display: inline;
+    margin-top: 0;
+}
+
+.usage-note-item {
+    display: inline;
+    text-indent: 0;
+    margin-top: 0;
+}
+
+.line-label-note {
+    text-transform: lowercase;
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+}
+
+.note-gap {
+    display: inline;
+}
+
+.entry-line-note {
+    font-size: 0.8em;
 }
 
 .sense-item {
@@ -361,6 +403,36 @@ export const ENTRY_CSS = `:root {
     font-size: inherit;
 }
 
+/* {{only used in|lang|term}} — definitional phrase + lemma phrase (not raw wikitext) */
+.def-only-used-in {
+    font-size: inherit;
+}
+
+.def-oui-lead {
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    color: var(--label-color, #64748b);
+}
+
+.def-oui-terms {
+    font-weight: 500;
+}
+
+.def-oui-term {
+    font-style: italic;
+}
+
+.def-oui-sep {
+    font-weight: 400;
+    font-style: normal;
+}
+
+.def-oui-gloss {
+    font-style: italic;
+    color: var(--label-color, #64748b);
+    font-weight: 400;
+}
+
 .definition {
     /* display: block; */
 }
@@ -368,6 +440,7 @@ export const ENTRY_CSS = `:root {
 .etym-arrow {
     font-weight: bold;
     margin: 0 0.2rem;
+    font-variant-emoji: text;
 }
 
 .metadata-pill {
@@ -381,14 +454,100 @@ export const ENTRY_CSS = `:root {
 }
 
 .tag {
-    text-transform: lowercase;
-    font-variant: small-caps;
-    letter-spacing: 0.1ex;
+    text-transform: none;
+    font-variant: normal;
+    font-style: italic;
+    letter-spacing: 0;
     margin-right: 0.35em;
 }
 
 .inline-sep {
     display: inline;
     margin: 0 0.15rem;
+}
+
+/* Webapp: inflected/form-of headline, then → + lemma on one line, hanging body (mockup). */
+.dict-entry-form-of-wrap {
+    display: block;
+}
+
+.dict-entry-nested-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.35em;
+    align-items: baseline;
+    margin-top: 0.35rem;
+}
+
+.dict-entry-nested-arrow {
+    grid-column: 1;
+    grid-row: 1;
+    font-weight: 700;
+    font-size: 1.5em;
+    line-height: 1.2;
+    /* Outside .wiktionary-entry: match entry serif so U+2192 is not a UI/symbol glyph */
+    font-family: 'Alegreya', serif;
+    font-variant-emoji: text;
+}
+
+.dict-entry-nested-body {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+}
+
+.dict-entry-lemma-nested {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
+.dict-entry-lemma-nested .wiktionary-entry {
+    padding-left: 1em;
+    text-indent: -1em;
+}
+
+.wiktionary-entry.is-form-headline {
+    padding-left: 0;
+    text-indent: 0;
+}
+
+.wiktionary-entry.is-form-headline .inflection-label {
+    font-weight: 700;
+    font-variant: normal;
+    letter-spacing: normal;
+    margin-right: 0.2em;
+    text-transform: lowercase;
+}
+
+.wiktionary-entry.is-form-headline .inline-sep {
+    font-weight: 400;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.wiktionary-entry.is-form-headline .entry-line-head {
+    margin-right: 0;
+}
+
+.dict-entry-lemma-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text-color, #444);
+}
+
+.dict-entry-lemma-error {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    color: var(--error-color, #b45309);
+}
+
+@media (max-width: 640px) {
+    .dict-entry-nested-arrow {
+        font-size: 1em;
+    }
 }
 `;

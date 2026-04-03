@@ -2,7 +2,7 @@ import type { EtymologyStep } from "./library";
 import type { GrammarTraits } from "./morphology";
 import type { WordStems } from "./stem";
 import { SCHEMA_VERSION } from "./types";
-import type { Sense, RichEntry, InflectionTable, EtymologyData } from "./types";
+import type { Sense, RichEntry, InflectionTable, EtymologyData, Lexeme } from "./types";
 import Handlebars from "handlebars";
 import { HTML_ENTRY_TEMPLATE, MD_ENTRY_TEMPLATE, ENTRY_CSS } from "./templates/templates";
 
@@ -231,13 +231,15 @@ Handlebars.registerHelper("ifCond", function (this: any, v1: any, operator: stri
     }
 });
 
+/** Connector between etymology chain steps (lemma→first step uses a separate leading ← in the template). */
 Handlebars.registerHelper("etymSymbol", (relation: string) => {
     switch (relation) {
         case "alternative": return "~";
-        case "inherited": return "←";
         case "borrowed": return "bor.";
         case "cognate": return "cog.";
-        default: return "<";
+        /* inherited, derived, back-formation, affix, compound, … — same back-arrow; avoid "<" (reads as "from" elsewhere) */
+        default:
+            return "←";
     }
 });
 
@@ -249,9 +251,83 @@ Handlebars.registerHelper("langLabel", (link: { source_lang_name?: string; sourc
     return name || code || "";
 });
 
+/** PoS line: nouns (and proper nouns) append headword gender when present (dictionary convention). */
+Handlebars.registerHelper("posLine", (entry: Record<string, unknown>) => {
+    const raw = String((entry?.pos ?? entry?.part_of_speech) ?? "").trim();
+    if (!raw) return "";
+    const normalized = raw.toLowerCase().replace(/_/g, " ");
+    const isNounLike = normalized === "noun" || normalized === "proper noun";
+    const gender = (entry?.headword_morphology as { gender?: string } | undefined)?.gender;
+    const display = raw.replace(/_/g, " ");
+    if (isNounLike && gender) {
+        return `${display} · ${gender}`;
+    }
+    return display;
+});
+
 const htmlEntryTemplate = Handlebars.compile(HTML_ENTRY_TEMPLATE);
 const mdEntryTemplate = Handlebars.compile(MD_ENTRY_TEMPLATE);
 const entryCss = ENTRY_CSS;
+
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function applyInlineEmphasis(htmlEscapedText: string): string {
+    return htmlEscapedText
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function renderUsageNoteWithRefLinks(note: string): Handlebars.SafeString {
+    const m = note.match(/^(.*)\(\s*((?:\[\d+\]\s+.+?)*)\s*\)\s*$/);
+    if (!m) return new Handlebars.SafeString(applyInlineEmphasis(escapeHtml(note)));
+
+    const body = m[1].trim();
+    const refsChunk = m[2] || "";
+    const refMap = new Map<number, string>();
+    const refRe = /\[(\d+)\]\s+(.+?)(?=(?:\s+\[\d+\]\s+)|$)/g;
+    let r: RegExpExecArray | null;
+    while ((r = refRe.exec(refsChunk)) !== null) {
+        const idx = Number(r[1]);
+        const val = r[2].trim();
+        if (!Number.isFinite(idx) || !val) continue;
+        const urlMatch = val.match(/https?:\/\/\S+/i);
+        if (urlMatch) {
+            const cleanUrl = urlMatch[0].replace(/[),.;]+$/g, "");
+            refMap.set(idx, cleanUrl);
+        }
+    }
+
+    const htmlWithRefs = escapeHtml(body).replace(/\[(\d+)\]/g, (_full, nRaw: string) => {
+        const n = Number(nRaw);
+        const href = refMap.get(n);
+        if (!href) return `<sup class="usage-ref">ref</sup>`;
+        const safeHref = escapeHtml(href);
+        return `<sup class="usage-ref"><a href="${safeHref}" target="_blank" rel="noopener noreferrer">ref</a></sup>`;
+    });
+
+    return new Handlebars.SafeString(applyInlineEmphasis(htmlWithRefs));
+}
+
+/**
+ * Minimal HTML for the inflected-form headline (surface form + kind/label + "of:"),
+ * matching classes in entry.html.hbs. Pair with a nested full lemma fragment (mockup:
+ * headline row, then →, then complete lemma entry).
+ */
+export function formatInflectedFormHeadline(entry: Lexeme): string {
+    if (!entry.form_of) return "";
+    const surface = (entry as Lexeme & { headword?: string }).headword ?? entry.form;
+    const headword = escapeHtml(String(surface || "").trim());
+    const label = escapeHtml(String(entry.form_of.label || "").trim());
+    const sub = entry.form_of.subclass ? escapeHtml(entry.form_of.subclass) : "";
+    return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><span class="entry-line entry-line-head"><span class="form-of-surface${sub ? ` ${sub}` : ""}">${headword}</span><span class="inflection-label">${label}</span><span class="inline-sep">of:</span></span></div></div>`;
+}
 
 /**
  * Markdown Style
@@ -269,10 +345,12 @@ class MarkdownStyle extends TextStyle {
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
             if (data.length === 0) return "*(none)*";
-            return data.filter(s => s?.form).map(s => `${s.lang} **${s.form}**`).join(" ← ") || "*(none)*";
+            const inner = data.filter(s => s?.form).map(s => `${s.lang} **${s.form}**`).join(" ← ");
+            return inner ? `← ${inner}` : "*(none)*";
         }
         if (!data || (!data.chain && !data.cognates)) return "*(none)*";
-        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${s.source_lang_name || s.source_lang} **${s.term}**`).join(" ← ");
+        const inner = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${s.source_lang_name || s.source_lang} **${s.term}**`).join(" ← ");
+        const chain = inner ? `← ${inner}` : "";
         const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. ${s.source_lang_name || s.source_lang} **${s.term}**`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }
@@ -327,7 +405,7 @@ class HtmlStyle extends TextStyle {
         const steps = Array.isArray(data) ? data : (data?.chain || []).map((s: any) => ({ lang: s.source_lang_name || s.source_lang, form: s.term }));
         const filtered = (steps || []).filter((s: any) => s?.form);
         if (filtered.length === 0) return "<i>(none)</i>";
-        return filtered.map((s: any) => `${s.lang} <b>${s.form}</b>`).join(" ← ");
+        return `← ${filtered.map((s: any) => `${s.lang} <b>${s.form}</b>`).join(" ← ")}`;
     }
     senses(senses: Sense[], _options: FormatOptions): string {
         if (senses.length === 0) return "<div>(none)</div>";
@@ -345,6 +423,11 @@ class HtmlStyle extends TextStyle {
     }
     rich(entry: any, options: FormatOptions): string {
         const standalone = options.mode === "html";
+        const usageNotes = Array.isArray(entry.usage_notes)
+            ? entry.usage_notes.map((n: unknown) =>
+                typeof n === "string" ? renderUsageNoteWithRefLinks(n) : new Handlebars.SafeString(escapeHtml(String(n)))
+              )
+            : entry.usage_notes;
         const context = {
             ...entry,
             headword: entry.headword || entry.form,
@@ -352,6 +435,7 @@ class HtmlStyle extends TextStyle {
             schema_version: SCHEMA_VERSION,
             standalone,
             relations: entry.relations ?? entry.semantic_relations,
+            usage_notes: usageNotes,
         };
 
         let html = htmlEntryTemplate(context);
@@ -428,10 +512,12 @@ class AnsiStyle extends TextStyle {
             if (data.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
             const filtered = data.filter(s => s?.form);
             if (filtered.length === 0) return `${this.C.dim}(none)${this.C.reset}`;
-            return filtered.map(s => `${this.C.cyan}${s.lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.form}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+            const inner = filtered.map(s => `${this.C.cyan}${s.lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.form}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+            return `${this.C.dim}←${this.C.reset} ${inner}`;
         }
         if (!data || (!data.chain && !data.cognates)) return `${this.C.dim}(none)${this.C.reset}`;
-        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+        const inner = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(` ${this.C.dim}←${this.C.reset} `);
+        const chain = inner ? `${this.C.dim}←${this.C.reset} ${inner}` : "";
         const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. ${this.C.cyan}${s.source_lang_name || s.source_lang}${this.C.reset} ${this.C.bold}${this.C.green}${s.term}${this.C.reset}`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }
@@ -503,10 +589,12 @@ class TerminalHtmlStyle extends HtmlStyle {
             if (data.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
             const filtered = data.filter(s => s?.form);
             if (filtered.length === 0) return `<span style="color: ${this.C.dim}">(none)</span>`;
-            return filtered.map(s => `<span style="color: ${this.C.cyan}">${s.lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.form}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+            const inner = filtered.map(s => `<span style="color: ${this.C.cyan}">${s.lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.form}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+            return `<span style="color: ${this.C.dim}">←</span> ${inner}`;
         }
         if (!data || (!data.chain && !data.cognates)) return `<span style="color: ${this.C.dim}">(none)</span>`;
-        const chain = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `<span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+        const inner = (data.chain || []).filter((s: any) => s?.term).map((s: any) => `<span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(` <span style="color: ${this.C.dim}">←</span> `);
+        const chain = inner ? `<span style="color: ${this.C.dim}">←</span> ${inner}` : "";
         const cogs = (data.cognates || []).filter((s: any) => s?.term).map((s: any) => `cog. <span style="color: ${this.C.cyan}">${s.source_lang_name || s.source_lang}</span> <span class="${this.C.fontBold}" style="color: ${this.C.green}">${s.term}</span>`).join(", ");
         return [chain, cogs].filter(Boolean).join("; ");
     }

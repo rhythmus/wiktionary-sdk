@@ -60,6 +60,14 @@
     /* vertical-align: baseline; */
 }
 
+/* Non-lemma surface form: regular weight, tight spacing before label (mockup). */
+.form-of-surface {
+    display: inline;
+    font-weight: 400;
+    font-size: 1.5em;
+    margin-right: 0.35em;
+}
+
 .lemma.abbreviation {
     text-transform: lowercase;
     font-variant: small-caps;
@@ -90,6 +98,7 @@
 .redirect-arrow {
     font-size: inherit;
     margin: 0 0.2rem;
+    font-variant-emoji: text;
 }
 
 .inflection-label {
@@ -109,6 +118,11 @@
     display: inline-block;
     font-variant: small-caps;
     margin-right: 0.4rem;
+}
+
+/* Space lemma from PoS when inline spans touch (Handlebars ~ strips whitespace; no romanization). */
+.entry-line-head .lemma ~ .pos {
+    margin-left: 0.35rem;
 }
 
 .principal-parts {
@@ -136,9 +150,38 @@
 }
 
 .etym-inline,
-.usage-inline,
 .relation-group {
     display: inline-block;
+}
+
+/* Keep "(" glued to the lemma connector arrow (no wrap, no orphan paren before inline-block). */
+.etym-paren-lead {
+    white-space: nowrap;
+}
+
+.usage-inline {
+    display: inline;
+    margin-top: 0;
+}
+
+.usage-note-item {
+    display: inline;
+    text-indent: 0;
+    margin-top: 0;
+}
+
+.line-label-note {
+    text-transform: lowercase;
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+}
+
+.note-gap {
+    display: inline;
+}
+
+.entry-line-note {
+    font-size: 0.8em;
 }
 
 .sense-item {
@@ -157,6 +200,36 @@
     font-size: inherit;
 }
 
+/* {{only used in|lang|term}} — definitional phrase + lemma phrase (not raw wikitext) */
+.def-only-used-in {
+    font-size: inherit;
+}
+
+.def-oui-lead {
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    color: var(--label-color, #64748b);
+}
+
+.def-oui-terms {
+    font-weight: 500;
+}
+
+.def-oui-term {
+    font-style: italic;
+}
+
+.def-oui-sep {
+    font-weight: 400;
+    font-style: normal;
+}
+
+.def-oui-gloss {
+    font-style: italic;
+    color: var(--label-color, #64748b);
+    font-weight: 400;
+}
+
 .definition {
     /* display: block; */
 }
@@ -164,6 +237,7 @@
 .etym-arrow {
     font-weight: bold;
     margin: 0 0.2rem;
+    font-variant-emoji: text;
 }
 
 .metadata-pill {
@@ -177,13 +251,99 @@
 }
 
 .tag {
-    text-transform: lowercase;
-    font-variant: small-caps;
-    letter-spacing: 0.1ex;
+    text-transform: none;
+    font-variant: normal;
+    font-style: italic;
+    letter-spacing: 0;
     margin-right: 0.35em;
 }
 
 .inline-sep {
     display: inline;
     margin: 0 0.15rem;
+}
+
+/* Webapp: inflected/form-of headline, then → + lemma on one line, hanging body (mockup). */
+.dict-entry-form-of-wrap {
+    display: block;
+}
+
+.dict-entry-nested-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.35em;
+    align-items: baseline;
+    margin-top: 0.35rem;
+}
+
+.dict-entry-nested-arrow {
+    grid-column: 1;
+    grid-row: 1;
+    font-weight: 700;
+    font-size: 1.5em;
+    line-height: 1.2;
+    /* Outside .wiktionary-entry: match entry serif so U+2192 is not a UI/symbol glyph */
+    font-family: 'Alegreya', serif;
+    font-variant-emoji: text;
+}
+
+.dict-entry-nested-body {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+}
+
+.dict-entry-lemma-nested {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
+.dict-entry-lemma-nested .wiktionary-entry {
+    padding-left: 1em;
+    text-indent: -1em;
+}
+
+.wiktionary-entry.is-form-headline {
+    padding-left: 0;
+    text-indent: 0;
+}
+
+.wiktionary-entry.is-form-headline .inflection-label {
+    font-weight: 700;
+    font-variant: normal;
+    letter-spacing: normal;
+    margin-right: 0.2em;
+    text-transform: lowercase;
+}
+
+.wiktionary-entry.is-form-headline .inline-sep {
+    font-weight: 400;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.wiktionary-entry.is-form-headline .entry-line-head {
+    margin-right: 0;
+}
+
+.dict-entry-lemma-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text-color, #444);
+}
+
+.dict-entry-lemma-error {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    color: var(--error-color, #b45309);
+}
+
+@media (max-width: 640px) {
+    .dict-entry-nested-arrow {
+        font-size: 1em;
+    }
 }
