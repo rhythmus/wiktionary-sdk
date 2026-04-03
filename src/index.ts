@@ -22,7 +22,11 @@ import {
     langToLanguageName,
     languageNameToLang,
 } from "./parser";
-import { registry, FORM_OF_TEMPLATES, VARIANT_TEMPLATES } from "./registry";
+import {
+    registry,
+    isFormOfTemplateName,
+    isVariantFormOfTemplateName,
+} from "./registry";
 import { deepMerge, commonsThumbUrl } from "./utils";
 
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
@@ -56,16 +60,92 @@ export async function wiktionary(
         enrich?: boolean;
         debugDecoders?: boolean;
         sort?: "source" | "priority";
+        matchMode?: "strict" | "fuzzy";
     }
 ): Promise<FetchResult> {
-    const visited = new Set<string>();
-    return wiktionaryRecursive({ 
-        ...opts, 
-        lang: opts.lang || "Auto", 
+    const normalizedOpts = {
+        ...opts,
+        lang: opts.lang || "Auto",
         pos: opts.pos || "Auto",
         sort: opts.sort || "source",
-        _visited: visited 
-    });
+        matchMode: opts.matchMode || "strict",
+    };
+
+    const runSingle = async (query: string): Promise<FetchResult> => {
+        const visited = new Set<string>();
+        return wiktionaryRecursive({
+            ...normalizedOpts,
+            query,
+            _visited: visited,
+        });
+    };
+
+    if (normalizedOpts.matchMode === "strict") {
+        return runSingle(normalizedOpts.query);
+    }
+
+    const variants = buildFuzzyQueryVariants(normalizedOpts.query);
+    const results: Array<{ query: string; result: FetchResult }> = [];
+    for (const q of variants) {
+        results.push({ query: q, result: await runSingle(q) });
+    }
+
+    const mergedLexemes: Lexeme[] = [];
+    const mergedDebug: DecoderDebugEvent[][] = [];
+    const seenLexemeIds = new Set<string>();
+    const notes: string[] = [];
+    let rawLanguageBlock = "";
+    let metadata: FetchResult["metadata"] | undefined;
+    const includeDebug = Boolean(normalizedOpts.debugDecoders);
+
+    for (const { query, result } of results) {
+        if (!rawLanguageBlock && result.rawLanguageBlock) rawLanguageBlock = result.rawLanguageBlock;
+        if (!metadata && result.metadata) metadata = result.metadata;
+        if (result.notes.length) notes.push(...result.notes);
+
+        const debugRows = result.debug ?? [];
+        result.lexemes.forEach((lex, idx) => {
+            if (seenLexemeIds.has(lex.id)) return;
+            seenLexemeIds.add(lex.id);
+            mergedLexemes.push(lex);
+            if (includeDebug) mergedDebug.push(debugRows[idx] ?? []);
+        });
+
+        if (query !== normalizedOpts.query && result.lexemes.length > 0) {
+            notes.push(`Fuzzy match: included ${result.lexemes.length} lexeme(s) from variant query "${query}".`);
+        }
+    }
+
+    if (mergedLexemes.length === 0) {
+        notes.push(`No strict or fuzzy variants matched for "${normalizedOpts.query}".`);
+    }
+
+    const out: FetchResult = {
+        schema_version: SCHEMA_VERSION,
+        rawLanguageBlock,
+        lexemes: mergedLexemes,
+        notes,
+        metadata,
+    };
+    if (includeDebug) out.debug = mergedDebug;
+    return out;
+}
+
+/** NFD + strip Unicode marks (macrons, etc.); NFC. Matches common en.wiktionary title normalization. */
+export function stripCombiningMarksForPageTitle(s: string): string {
+    return s.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
+}
+
+function buildFuzzyQueryVariants(query: string): string[] {
+    const nfc = query.normalize("NFC");
+    const stripDiacritics = stripCombiningMarksForPageTitle;
+    const variants = [
+        nfc,
+        nfc.toLocaleLowerCase(),
+        stripDiacritics(nfc),
+        stripDiacritics(nfc).toLocaleLowerCase(),
+    ].filter((v) => v.trim().length > 0);
+    return [...new Set(variants)];
 }
 
 function lemmaKey(lang: WikiLang, lemma: string) {
@@ -107,7 +187,24 @@ export async function wiktionaryRecursive({
     }
     _visited.add(key);
 
-    const qPage = await fetchWikitextEnWiktionary(query);
+    let qPage = await fetchWikitextEnWiktionary(query);
+    let resolvedPageTitleNote: string | undefined;
+
+    if (!qPage.exists) {
+        const alt = stripCombiningMarksForPageTitle(query);
+        if (alt !== query && alt.length > 0) {
+            const altKey = lemmaKey(lang, alt);
+            if (!_visited.has(altKey)) {
+                const altPage = await fetchWikitextEnWiktionary(alt);
+                if (altPage.exists) {
+                    qPage = altPage;
+                    _visited.add(altKey);
+                    resolvedPageTitleNote = `Page title "${alt}" (retried without combining marks; no page for "${query}").`;
+                }
+            }
+        }
+    }
+
     if (!qPage.exists) {
         return {
             schema_version: SCHEMA_VERSION,
@@ -400,7 +497,7 @@ export async function wiktionaryRecursive({
         schema_version: SCHEMA_VERSION, 
         rawLanguageBlock: lang === "Auto" ? qPage.wikitext : (searchSections[0]?.block || ""), 
         lexemes: merged, 
-        notes: [],
+        notes: resolvedPageTitleNote && debugDecoders ? [resolvedPageTitleNote] : [],
         metadata: {
             categories: (qPage as any).categories || [],
             langlinks: (qPage as any).langlinks || [],
@@ -415,8 +512,9 @@ export async function wiktionaryRecursive({
 
 function guessLexemeTypeFromTemplates(templates: any[]) {
     for (const t of templates) {
-        if (VARIANT_TEMPLATES.has(t.name)) return "FORM_OF";
-        if (FORM_OF_TEMPLATES.has(t.name)) return "INFLECTED_FORM";
+        if (!isFormOfTemplateName(t.name)) continue;
+        if (isVariantFormOfTemplateName(t.name)) return "FORM_OF";
+        return "INFLECTED_FORM";
     }
     return "LEXEME";
 }
@@ -439,4 +537,5 @@ export * from "./formatter";
 export * from "./stem";
 export * from "./wrapper-invoke";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";
-export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry } from "./types";
+export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry, OnlyUsedIn } from "./types";
+export { isFormOfTemplateName, isVariantFormOfTemplateName } from "./registry";

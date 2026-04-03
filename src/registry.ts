@@ -1,4 +1,14 @@
-import type { DecodeContext, TemplateDecoder, Sense, EtymologyLink, DecoderDebugEvent, SectionLinkItem, SectionWithLinks } from "./types";
+import type {
+    DecodeContext,
+    TemplateDecoder,
+    Sense,
+    OnlyUsedIn,
+    EtymologyLink,
+    DecoderDebugEvent,
+    SectionLinkItem,
+    SectionWithLinks,
+    TemplateCall,
+} from "./types";
 import { deepMerge } from "./utils";
 import { parseTemplates } from "./parser";
 
@@ -96,6 +106,142 @@ export const VARIANT_TEMPLATES = new Set([
 
 export const FORM_OF_TEMPLATES = new Set([...INFLECTION_TEMPLATES, ...VARIANT_TEMPLATES]);
 
+/**
+ * e.g. {{es-verb form of|sensar}} — lemma is |1= only; language is implied by the template name.
+ * Matches en.wiktionary {{ll-verb form of}}, {{ll-noun form of}}, {{ll-adj form of}}.
+ */
+export function isPerLangFormOfTemplate(name: string): boolean {
+    return /^[a-z]{2,3}-(?:verb|noun|adj)\s+form\s+of$/i.test(name.trim());
+}
+
+/** Category:Form-of templates that do not end with " … of" (normalized, lowercased). */
+const FORM_OF_EXTRA_NAMES = new Set<string>(["rfform", "iupac-1", "iupac-2", "iupac-3"]);
+
+/**
+ * True for en.wiktionary lemma-pointer "form of" templates: {@link FORM_OF_TEMPLATES},
+ * {@link isPerLangFormOfTemplate}, names ending with ` … of` (see Category:Form-of templates on en.wiktionary),
+ * and {@link FORM_OF_EXTRA_NAMES}. Excludes `only used in` (different semantics; decoded separately).
+ */
+export function isFormOfTemplateName(name: string): boolean {
+    const raw = name.trim();
+    if (!raw) return false;
+    if (isPerLangFormOfTemplate(raw)) return true;
+    const n = raw.replace(/_/g, " ").trim().toLowerCase();
+    if (FORM_OF_TEMPLATES.has(n)) return true;
+    if (n === "only used in") return false;
+    if (FORM_OF_EXTRA_NAMES.has(n)) return true;
+    return /\s+of$/i.test(n);
+}
+
+/**
+ * Substrings (longest match wins) — if the normalized template name includes one, lexeme type is
+ * `FORM_OF` (spelling/lexical variant) rather than `INFLECTED_FORM`. Keep participle/tense templates out of this list.
+ */
+const VARIANT_FORM_OF_SUBSTRINGS: string[] = [
+    "assimilated harmonic variant",
+    "honorific alternative case form",
+    "mixed mutation after",
+    "pronunciation spelling",
+    "pronunciation variant",
+    "syllabic abbreviation",
+    "filter-avoidance spelling",
+    "scribal abbreviation",
+    "word-final anusvara",
+    "hiatus-filler form",
+    "pseudo-acronym",
+    "nomen sacrum",
+    "mixed mutation",
+    "aspirate mutation",
+    "soft mutation",
+    "hard mutation",
+    "nasal mutation",
+    "eye dialect",
+    "clipped compound",
+    "minced oath",
+    "spoonerism",
+    "romanization",
+    "arabicization",
+    "sumerogram",
+    "akkadogram",
+    "deliberate misspelling",
+    "obsolete typography",
+    "alternative typography",
+    "alternative spelling",
+    "alternative case form",
+    "alternative reconstruction",
+    "archaic spelling",
+    "dated spelling",
+    "medieval spelling",
+    "runic spelling",
+    "nonstandard spelling",
+    "informal spelling",
+    "rare spelling",
+    "uncommon spelling",
+    "superseded spelling",
+    "obsolete spelling",
+    "censored spelling",
+    "standard spelling",
+    "nuqtale",
+    "unhamzated",
+    "obsolete",
+    "archaic",
+    "nonstandard",
+    "informal",
+    "superseded",
+    "uncommon",
+    "abbreviation",
+    "acronym",
+    "initialism",
+    "misspelling",
+    "typography",
+    "spelling",
+    "synonym",
+    "eggcorn",
+    "ellipsis",
+    "syncopic",
+    "apocopic",
+    "elongated",
+    "geminated",
+    "haplological",
+    "apheretic",
+    "paragogic",
+    "prothetic",
+    "t-prothesis",
+    "h-prothesis",
+    "eclipsis",
+    "lenition",
+    "mutation",
+    "broad form",
+    "slender form",
+    "harmonic variant",
+    "topicalized",
+    "misconstruction",
+    "contraction",
+    "endearing",
+    "literary form",
+    "standard form",
+    "dated",
+    "rare",
+    "censored",
+    "deliberate",
+    "euphemistic",
+    "medieval",
+    "runic",
+    "scribal",
+    "pronunciation",
+    "alternative",
+    "men's speech",
+].sort((a, b) => b.length - a.length);
+
+/** True if this form-of template should yield lexeme type FORM_OF (variant) vs INFLECTED_FORM. */
+export function isVariantFormOfTemplateName(name: string): boolean {
+    const n = name.replace(/_/g, " ").trim().toLowerCase();
+    if (VARIANT_TEMPLATES.has(n)) return true;
+    if (/\b(female|male|neuter) equivalent\b/i.test(n)) return true;
+    if (VARIANT_FORM_OF_SUBSTRINGS.some((frag) => n.includes(frag))) return true;
+    return false;
+}
+
 export const registry = new DecoderRegistry();
 
 /** --- Core: store raw template calls (always) --- **/
@@ -132,6 +278,46 @@ registry.register({
     },
 });
 
+/** First positional is often a language code (|el|, |grk-ita|); otherwise all positionals are syllables. */
+function hyphenationSyllablesFromPositionals(positional: string[] | undefined): string[] {
+    const pos = (positional || []).map((p) => p.trim()).filter(Boolean);
+    if (pos.length === 0) return [];
+    // First token already in target script → no leading lang (e.g. {{hyphenation|γρά|φω}}). Must run before the
+    // "second is non-ASCII" branch, or Greek|Greek would be misread as lang|syllables.
+    if (/[^\x00-\x7F]/.test(pos[0])) {
+        return pos;
+    }
+    // Second token in non-Latin script while first is ASCII → first is a lang code (e.g. {{hyphenation|el|γρά|φω}}).
+    if (pos.length >= 2 && /[^\x00-\x7F]/.test(pos[1])) {
+        return pos.slice(1);
+    }
+    // All ASCII: leading token may be a language code (|el|bank|, |el|foo|bar|) or a syllable (|foo|bar|).
+    const first = pos[0].toLowerCase();
+    const shortLang = /^[a-z]{2,3}$/i.test(first);
+    const skipFirst =
+        pos.length >= 2 &&
+        (HYPHENATION_COMPOUND_LANG_PREFIXES.has(first) ||
+            (shortLang && HYPHENATION_LEADING_LANG_CODES.has(first)));
+    return skipFirst ? pos.slice(1) : pos;
+}
+
+/** Wiktionary-specific hyphenation language tags (not ISO 639-1 single tokens). */
+const HYPHENATION_COMPOUND_LANG_PREFIXES = new Set(["grk-ita", "grk-bgr"]);
+
+/** ISO 639-1-style codes commonly used as first param on en.wiktionary {{hyphenation|…}} (closed list; excludes ba to reduce syllable false positives). */
+const HYPHENATION_LEADING_LANG_CODES = new Set(
+    (
+        "aa ab ae af ak am an ar as av ay az be bg bh bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee " +
+        "el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu " +
+        "ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my " +
+        "na nb nd ne ng nl nn no nr nv ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw " +
+        "ta te tg th ti tk tl tn to tr ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu " +
+        "grc grk mul und got tr nl pl fi sv no da cs hu ro bg sr hr sk sl uk be he ar fa zh ja ko hi vi id ms tl sw wo ha yo zu xh st tn ne ng bm bi so om si my km lo th jv su ceb haw mi sm to fy af co br oc an sc rm wa li vo eo io ie ia jbo tok pih dz ch ay qu gn ht lv lt et ast nah rap ab cv"
+    )
+        .split(/\s+/)
+        .filter(Boolean)
+);
+
 registry.register({
     id: "hyphenation",
     handlesTemplates: ["hyphenation"],
@@ -142,7 +328,7 @@ registry.register({
         const tpls = parseTemplates(line);
         const t = tpls.find((x) => x.name === "hyphenation");
         if (!t) return { entry: { hyphenation: { raw: line.trim() } } };
-        const sylls = (t.params.positional || []).slice(1).filter(Boolean);
+        const sylls = hyphenationSyllablesFromPositionals(t.params.positional);
         if (sylls.length === 0) return { entry: { hyphenation: { raw: line.trim() } } };
         return { entry: { hyphenation: { syllables: sylls, raw: line.trim() } } };
     },
@@ -361,28 +547,76 @@ function tagsToLabel(tags: string[]): string {
         .join(" ");
 }
 
+/** Human-readable kind from the form-of template name when tags alone are empty. */
+function defaultFormOfKindLabel(templateName: string): string {
+    const key = templateName.trim().toLowerCase();
+    const FORM_OF_KIND_LABELS: Record<string, string> = {
+        "inflection of": "Inflection",
+        "infl of": "Inflection",
+        "plural of": "Plural",
+        "noun form of": "Noun form",
+        "verb form of": "Verb form",
+        "adj form of": "Adjective form",
+        "participle of": "Participle",
+        "past tense of": "Past tense",
+        "past participle of": "Past participle",
+        "present participle of": "Present participle",
+        "gerund of": "Gerund",
+        "command of": "Command",
+        "imperative of": "Imperative",
+        "alternative form of": "Alternative form",
+        "alt form": "Alternative form",
+        "alt form of": "Alternative form",
+        "form of": "Alternative form",
+        "misspelling of": "Misspelling",
+        "abbreviation of": "Abbreviation",
+        "short for": "Short for",
+        "clipping of": "Clipping",
+        "diminutive of": "Diminutive",
+        "augmentative of": "Augmentative",
+    };
+    if (FORM_OF_KIND_LABELS[key]) return FORM_OF_KIND_LABELS[key];
+    if (/^[a-z]{2,3}-verb\s+form\s+of$/i.test(key)) return "Verb form";
+    if (/^[a-z]{2,3}-noun\s+form\s+of$/i.test(key)) return "Noun form";
+    if (/^[a-z]{2,3}-adj\s+form\s+of$/i.test(key)) return "Adjective form";
+    const stripped = key.replace(/\s+of$/i, "").trim();
+    if (!stripped) return "Form";
+    return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+}
+
+/** Display label: template kind + optional morphological tag phrase from positional args. */
+function buildFormOfDisplayLabel(templateName: string, tags: string[]): string {
+    const morph = tagsToLabel(tags);
+    const kind = defaultFormOfKindLabel(templateName);
+    if (morph) return `${kind} (${morph})`;
+    return kind;
+}
+
 registry.register({
     id: "form-of",
-    handlesTemplates: [...FORM_OF_TEMPLATES],
-    matches: (ctx) => ctx.templates.some((t) => FORM_OF_TEMPLATES.has(t.name)),
+    /** Dynamic: any template matching isFormOfTemplateName (Category:Form-of templates + core set). */
+    handlesTemplates: [],
+    matches: (ctx) => ctx.templates.some((t) => isFormOfTemplateName(t.name)),
     decode: (ctx) => {
-        const t = ctx.templates.find((t) => FORM_OF_TEMPLATES.has(t.name));
+        const t = ctx.templates.find((t) => isFormOfTemplateName(t.name));
         if (!t) return {};
         const pos = t.params.positional ?? [];
-        const lang = pos[0] ?? ctx.lang;
-        const lemma = pos[1] ?? null;
-        const tags = pos.slice(2).filter(Boolean);
+        const perLang = isPerLangFormOfTemplate(t.name);
+        const langPrefix = perLang ? t.name.match(/^([a-z]{2,3})-/i)?.[1]?.toLowerCase() : undefined;
+        const lang = perLang ? (langPrefix ?? ctx.lang) : (pos[0] ?? ctx.lang);
+        const lemma = perLang ? (pos[0] ?? null) : (pos[1] ?? null);
+        const tags = perLang ? pos.slice(1).filter(Boolean) : pos.slice(2).filter(Boolean);
         const named = t.params.named ?? {};
-        const label = tagsToLabel(tags);
-        const isVariant = VARIANT_TEMPLATES.has(t.name);
-        
-        // Compute subclass from template name (e.g. "misspelling of" -> "misspelling")
-        const subclass = t.name.replace(" of", "").replace(" form", "").trim().toLowerCase();
+        const label = buildFormOfDisplayLabel(t.name, tags);
+        const isVariant = isVariantFormOfTemplateName(t.name);
+
+        // Subclass: strip trailing " of" (e.g. "misspelling of" -> "misspelling")
+        const subclass = t.name.replace(/\s+of$/i, "").replace(/\s+form$/i, "").trim().toLowerCase();
 
         return {
             entry: {
                 type: isVariant ? "FORM_OF" : "INFLECTED_FORM",
-                form_of: { template: t.name, lemma, lang, tags, named, subclass, ...(label ? { label } : {}) },
+                form_of: { template: t.name, lemma, lang, tags, named, subclass, label },
             },
         };
     },
@@ -517,14 +751,100 @@ function extractQualifier(gloss: string): { clean: string; qualifier?: string } 
     return { clean: gloss };
 }
 
-function parseSenses(lines: string[]): Sense[] {
+function normalizeTemplateNameForMatch(name: string): string {
+    return name.replace(/_/g, " ").trim().toLowerCase();
+}
+
+/** Parse {{only used in|lang|term}} from a definition line (after {{lb}} stripped). */
+function decodeOnlyUsedInFromRaw(text: string): OnlyUsedIn | null {
+    const tpls = parseTemplates(text);
+    const t = tpls.find((x) => normalizeTemplateNameForMatch(x.name) === "only used in");
+    if (!t) return null;
+    const pos = t.params.positional ?? [];
+    const named = t.params.named ?? {};
+    const lang = (pos[0] ?? named.lang ?? "").trim();
+    const termField = (pos[1] ?? "").trim();
+    if (!lang || !termField) return null;
+    const terms = termField
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (terms.length === 0) return null;
+    const t_glossRaw = named.t ?? named.gloss ?? pos[3] ?? "";
+    const t_gloss = String(t_glossRaw).trim() || undefined;
+    return {
+        lang,
+        terms,
+        ...(t_gloss && { t_gloss }),
+        raw: t.raw,
+    };
+}
+
+/** Plain gloss for Markdown/CLI (matches Wiktionary non-English phrase style). */
+function formatOnlyUsedInPlain(oui: OnlyUsedIn): string {
+    const joined = oui.terms.length > 1 ? oui.terms.join(" and ") : oui.terms[0];
+    let s = `only used in ${joined}`;
+    if (oui.t_gloss) s += ` (${oui.t_gloss})`;
+    return s;
+}
+
+/** Plain-English gloss for a form-of template on a definition line (same param rules as form-of decoder). */
+function glossFromFormOfTemplateCall(t: TemplateCall): string | null {
+    const name = t.name;
+    if (!isFormOfTemplateName(name)) return null;
+    const pos = t.params.positional ?? [];
+    const perLang = isPerLangFormOfTemplate(name);
+    const lemma = perLang ? (pos[0] ?? null) : (pos[1] ?? null);
+    const tags = perLang ? pos.slice(1).filter(Boolean) : pos.slice(2).filter(Boolean);
+    if (!lemma) return null;
+    const label = buildFormOfDisplayLabel(t.name, tags);
+    return `${label} of ${lemma}`;
+}
+
+/** Other common definition-only templates (not full form_of lexeme typing). */
+function glossFromAuxDefinitionTemplate(t: TemplateCall): string | null {
+    const n = normalizeTemplateNameForMatch(t.name);
+    const pos = t.params.positional ?? [];
+    if (n === "construed with") {
+        const term = (pos[1] ?? "").trim();
+        if (term) return `construed with ${stripWikiMarkup(term).trim() || term}`;
+    }
+    return null;
+}
+
+function glossFromDefinitionLine(
+    rawClean: string,
+    gloss: string,
+    ctxLang: string,
+): {
+    displayGloss: string;
+    only_used_in?: OnlyUsedIn;
+} {
+    const trimmed = gloss.trim();
+    if (trimmed) return { displayGloss: trimmed };
+    const oui = decodeOnlyUsedInFromRaw(rawClean);
+    if (oui) {
+        return { displayGloss: formatOnlyUsedInPlain(oui), only_used_in: oui };
+    }
+    const tpls = parseTemplates(rawClean);
+    for (const t of tpls) {
+        const fog = glossFromFormOfTemplateCall(t);
+        if (fog) return { displayGloss: fog };
+        const aux = glossFromAuxDefinitionTemplate(t);
+        if (aux) return { displayGloss: aux };
+    }
+    return { displayGloss: rawClean.trim() };
+}
+
+function parseSenses(lines: string[], ctxLang: string): Sense[] {
     const senses: Sense[] = [];
     let counter = 0;
+    let pendingLabels: string[] = [];
+    let pendingTopics: string[] = [];
 
     for (const line of lines) {
         const defMatch = line.match(/^#\s+(.+)$/);
         if (defMatch) {
-            counter++;
             const raw = defMatch[1];
 
             // 1. Extract {{lb|...}} labels/topics and strip from raw
@@ -536,15 +856,32 @@ function parseSenses(lines: string[]): Sense[] {
 
             // 3. Extract trailing parenthetical qualifier
             const { clean: gloss, qualifier } = extractQualifier(glossFull);
+            const fromDef = glossFromDefinitionLine(rawClean, gloss, ctxLang);
+            const displayGloss = fromDef.displayGloss;
+
+            // Some entries use a label-only line before the actual definition.
+            // Keep those labels/topics and apply them to the next non-empty gloss.
+            if (!displayGloss) {
+                if (labels.length > 0) pendingLabels = [...new Set([...pendingLabels, ...labels])];
+                if (topics.length > 0) pendingTopics = [...new Set([...pendingTopics, ...topics])];
+                continue;
+            }
+
+            counter++;
 
             const sense: Sense = {
                 id: `S${counter}`,
-                gloss,
+                gloss: displayGloss,
                 gloss_raw: raw,
             };
+            if (fromDef.only_used_in) sense.only_used_in = fromDef.only_used_in;
             if (qualifier) sense.qualifier = qualifier;
-            if (labels.length > 0) sense.labels = labels;
-            if (topics.length > 0) sense.topics = topics;
+            const allLabels = [...new Set([...pendingLabels, ...labels])];
+            const allTopics = [...new Set([...pendingTopics, ...topics])];
+            if (allLabels.length > 0) sense.labels = allLabels;
+            if (allTopics.length > 0) sense.topics = allTopics;
+            pendingLabels = [];
+            pendingTopics = [];
 
             senses.push(sense);
             continue;
@@ -561,8 +898,12 @@ function parseSenses(lines: string[]): Sense[] {
             const rawClean = stripLbTemplates(raw);
             const glossFull = stripWikiMarkup(rawClean);
             const { clean: gloss, qualifier } = extractQualifier(glossFull);
+            const fromDef = glossFromDefinitionLine(rawClean, gloss, ctxLang);
+            const displayGloss = fromDef.displayGloss;
+            if (!displayGloss.trim()) continue;
             
-            const sub: Sense = { id: subId, gloss, gloss_raw: raw };
+            const sub: Sense = { id: subId, gloss: displayGloss, gloss_raw: raw };
+            if (fromDef.only_used_in) sub.only_used_in = fromDef.only_used_in;
             if (qualifier) sub.qualifier = qualifier;
             if (labels.length > 0) sub.labels = labels;
             if (topics.length > 0) sub.topics = topics;
@@ -625,7 +966,13 @@ function parseSenses(lines: string[]): Sense[] {
  * '''bold''', ''italic'' without regex-induced duplication or mis-parsing.
  * [[link|display]] → display; [[link]] → link; {{...}} → removed.
  */
-export function stripWikiMarkup(text: string): string {
+export function stripWikiMarkup(text: string, options: { preserveEmphasis?: boolean } = {}): string {
+    const { preserveEmphasis = false } = options;
+    // Strip inline refs first so they never leak into notes/senses.
+    text = text
+        .replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/gi, "")
+        .replace(/<ref\b[^>]*\/>/gi, "");
+
     const out: string[] = [];
     let i = 0;
     while (i < text.length) {
@@ -635,7 +982,7 @@ export function stripWikiMarkup(text: string): string {
                 const inner = text.slice(i + 2, end);
                 const pipeIdx = inner.indexOf("|");
                 const display = pipeIdx >= 0 ? inner.slice(pipeIdx + 1) : inner;
-                out.push(stripWikiMarkup(display));
+                out.push(stripWikiMarkup(display, options));
                 i = end + 2;
                 continue;
             }
@@ -643,11 +990,13 @@ export function stripWikiMarkup(text: string): string {
         if (text.startsWith("{{", i)) {
             const end = findMatching(text, i + 2, "{{", "}}");
             if (end !== -1) {
-                // Special case for {{l}} or {{link}} inside senses, try to extract term
-                if (text.startsWith("{{l|", i) || text.startsWith("{{link|", i)) {
-                    const inner = text.slice(i + 2, end);
-                    const parts = inner.split("|");
-                    if (parts.length >= 3) out.push(parts[2]); // term
+                // Keep visible term for link-like templates; drop others.
+                const inner = text.slice(i + 2, end);
+                const parts = inner.split("|");
+                const rawName = (parts[0] || "").trim().toLowerCase();
+                if (["l", "link", "m", "mention", "alt", "alter"].includes(rawName)) {
+                    const term = parts[2]?.trim();
+                    if (term) out.push(term);
                 }
                 i = end + 2;
                 continue;
@@ -656,7 +1005,8 @@ export function stripWikiMarkup(text: string): string {
         if (text.startsWith("'''", i)) {
             const end = text.indexOf("'''", i + 3);
             if (end !== -1) {
-                out.push(text.slice(i + 3, end));
+                const inner = stripWikiMarkup(text.slice(i + 3, end), options);
+                out.push(preserveEmphasis ? `**${inner}**` : inner);
                 i = end + 3;
                 continue;
             }
@@ -664,7 +1014,8 @@ export function stripWikiMarkup(text: string): string {
         if (text.startsWith("''", i) && !text.startsWith("'''", i)) {
             const end = text.indexOf("''", i + 2);
             if (end !== -1) {
-                out.push(text.slice(i + 2, end));
+                const inner = stripWikiMarkup(text.slice(i + 2, end), options);
+                out.push(preserveEmphasis ? `*${inner}*` : inner);
                 i = end + 2;
                 continue;
             }
@@ -672,7 +1023,34 @@ export function stripWikiMarkup(text: string): string {
         out.push(text[i]);
         i++;
     }
-    return out.join("").trim();
+    return out
+        .join("")
+        // Drop any leftover HTML tags that are not semantic output.
+        .replace(/<\/?[^>]+>/g, "")
+        // Normalize whitespace and punctuation spacing after tag/template removal.
+        .replace(/\s+/g, " ")
+        .replace(/\s+([,;:.!?])/g, "$1")
+        .replace(/([,;:.!?])\s*([,;:.!?])+/g, "$1")
+        .trim();
+}
+
+function formatUsageNoteLine(rawLine: string): string {
+    const refs: string[] = [];
+    const withMarkers = rawLine
+        .replace(/<ref\b[^>]*>([\s\S]*?)<\/ref>/gi, (_m, inner: string) => {
+            const cleaned = stripWikiMarkup(inner, { preserveEmphasis: true }).trim();
+            if (!cleaned) return "";
+            refs.push(cleaned);
+            return ` [${refs.length}]`;
+        })
+        .replace(/<ref\b[^>]*\/>/gi, "");
+
+    const base = stripWikiMarkup(withMarkers, { preserveEmphasis: true }).trim();
+    if (!base) return "";
+    if (refs.length === 0) return base;
+
+    const footnotes = refs.map((r, idx) => `[${idx + 1}] ${r}`).join(" ");
+    return `${base} (${footnotes})`;
 }
 
 function findMatching(text: string, start: number, open: string, close: string): number {
@@ -698,7 +1076,8 @@ registry.register({
     handlesTemplates: [],
     matches: (ctx) => ctx.lines.some((l) => /^#\s+/.test(l)),
     decode: (ctx) => {
-        const senses = parseSenses(ctx.lines);
+        const lang = String(ctx.lang ?? "en");
+        const senses = parseSenses(ctx.lines, lang);
         if (senses.length === 0) return {};
         return { entry: { senses } };
     },
@@ -783,7 +1162,55 @@ registry.register({
     },
 });
 
+/** Latin {{la-noun}} / {{la-proper noun}}: |g= / |g2= or .M/.F/.N in |1= subtype (see Template:la-noun). */
+function decodeLaNounGenderFromTemplate(t: TemplateCall): "masculine" | "feminine" | "neuter" | null {
+    const named = t.params.named ?? {};
+    const pos = t.params.positional ?? [];
+    const rawNamed = (named["g"] || named["g2"] || "").toString().trim();
+    if (rawNamed) {
+        const first = rawNamed.split(/[,|]/)[0].trim().charAt(0).toLowerCase();
+        const g = GENDER_MAP[first];
+        if (g && g !== "common") return g;
+    }
+    const p1 = pos[0] || "";
+    const m = p1.match(/\.([MFN])(?:>|$|\s)/i);
+    if (m) {
+        const L = m[1].toUpperCase();
+        if (L === "M") return "masculine";
+        if (L === "F") return "feminine";
+        if (L === "N") return "neuter";
+    }
+    return null;
+}
+
+registry.register({
+    id: "la-noun-head",
+    handlesTemplates: ["la-noun", "la-proper noun"],
+    matches: (ctx) =>
+        ctx.templates.some((t) => t.name === "la-noun" || t.name === "la-proper noun"),
+    decode: (ctx) => {
+        const t = ctx.templates.find((t) => t.name === "la-noun" || t.name === "la-proper noun");
+        if (!t) return {};
+        const gender = decodeLaNounGenderFromTemplate(t);
+        return {
+            entry: {
+                part_of_speech: "noun",
+                ...(gender !== null && { headword_morphology: { gender } }),
+            },
+        };
+    },
+});
+
 /** --- Phase 2.2: Semantic relations --- **/
+
+/** True if `wikitext` contains a section heading for `headerName` (any `=` run, spacing-tolerant). */
+function matchesSectionHeading(wikitext: string, headerName: string): boolean {
+    const re = new RegExp(
+        `^=+\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=+.*$`,
+        "im",
+    );
+    return re.test(wikitext);
+}
 
 const RELATION_TEMPLATES: Record<string, keyof import("./types").SemanticRelations> = {
     syn: "synonyms",
@@ -808,7 +1235,7 @@ registry.register({
     handlesTemplates: ["syn", "ant", "hyper", "hypo"],
     matches: (ctx) =>
         ctx.templates.some((t) => Object.keys(RELATION_TEMPLATES).includes(t.name)) ||
-        Object.keys(RELATION_HEADERS).some(h => ctx.posBlockWikitext.includes(`==${h}==`)),
+        Object.keys(RELATION_HEADERS).some((h) => matchesSectionHeading(ctx.posBlockWikitext, h)),
     decode: (ctx) => {
         const relations: import("./types").SemanticRelations = {};
         
@@ -893,6 +1320,25 @@ const TEMPLATE_RELATION_MAP: Record<string, string> = {
     "alt form of": "alternative",
 };
 
+/** Strip [[links]], {{templates}}, etc. from etymology fields; resolve |alt= when term slot is empty (Template:derived). */
+function normalizeEtymologyFields(
+    t: TemplateCall,
+    isCog: boolean
+): { source_lang: string; term?: string; gloss?: string } {
+    const pos = t.params.positional ?? [];
+    const named = t.params.named ?? {};
+    const sourceRaw = isCog ? (pos[0] ?? "") : (pos[1] ?? "");
+    let termRaw = isCog ? (pos[1] || undefined) : (pos[2] || undefined);
+    let glossRaw = named["t"] || named["gloss"] || (isCog ? pos[2] : pos[3]) || undefined;
+    if (!termRaw?.trim() && !isCog) {
+        termRaw = named["alt"] || undefined;
+    }
+    const source_lang = stripWikiMarkup(sourceRaw.trim()).trim() || sourceRaw.trim();
+    const term = termRaw ? stripWikiMarkup(termRaw).trim() || undefined : undefined;
+    const gloss = glossRaw ? stripWikiMarkup(glossRaw).trim() || undefined : undefined;
+    return { source_lang, term, gloss };
+}
+
 registry.register({
     id: "etymology",
     handlesTemplates: [...ALL_ETYMOLOGY_TEMPLATES],
@@ -903,16 +1349,13 @@ registry.register({
 
         for (const t of ctx.templates) {
             if (!ALL_ETYMOLOGY_TEMPLATES.has(t.name)) continue;
-            const pos = t.params.positional ?? [];
             const isCog = ETYMOLOGY_COGNATE_TEMPLATES.has(t.name);
-            const sourceLang = isCog ? (pos[0] ?? "") : (pos[1] ?? "");
-            const term = isCog ? (pos[1] || undefined) : (pos[2] || undefined);
-            const gloss = t.params.named?.["t"] || t.params.named?.["gloss"] || (isCog ? pos[2] : pos[3]) || undefined;
+            const { source_lang, term, gloss } = normalizeEtymologyFields(t, isCog);
             const relation = TEMPLATE_RELATION_MAP[t.name] ?? "derived";
             const link: EtymologyLink = {
                 template: t.name,
                 relation,
-                source_lang: sourceLang,
+                source_lang,
                 term,
                 gloss,
                 raw: t.raw,
@@ -1100,32 +1543,6 @@ registry.register({
     },
 });
 
-/** --- Phase 2.5: Usage notes --- **/
-
-registry.register({
-    id: "usage-notes",
-    handlesTemplates: [],
-    matches: (ctx) => ctx.posBlockWikitext.includes("===Usage notes==="),
-    decode: (ctx) => {
-        const parts = ctx.posBlockWikitext.split("\n");
-        let inNotes = false;
-        const notes: string[] = [];
-        for (const line of parts) {
-            if (/^===+\s*Usage notes\s*===+\s*$/.test(line)) {
-                inNotes = true;
-                continue;
-            }
-            if (inNotes && /^===/.test(line)) break;
-            if (inNotes) {
-                const trimmed = line.replace(/^\*\s*/, "").trim();
-                if (trimmed) notes.push(trimmed);
-            }
-        }
-        if (notes.length === 0) return {};
-        return { entry: { usage_notes: notes } };
-    },
-});
-
 /** --- Alternative forms section --- **/
 registry.register({
     id: "alternative-forms",
@@ -1228,7 +1645,7 @@ registry.register({
     },
 });
 
-/** --- Usage notes section --- **/
+/** --- Usage notes (===Usage notes=== or ===Notes===); single decoder — formatUsageNoteLine handles refs/templates --- **/
 registry.register({
     id: "usage-notes",
     handlesTemplates: [],
@@ -1237,7 +1654,7 @@ registry.register({
         let section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Usage notes");
         if (!section) section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Notes");
         if (!section) return {};
-        const notes = section.raw.split("\n").map(l => stripWikiMarkup(l).trim()).filter(Boolean);
+        const notes = section.raw.split("\n").map(formatUsageNoteLine).filter(Boolean);
         if (notes.length === 0) return {};
         return { entry: { usage_notes: notes } };
     },

@@ -277,6 +277,7 @@ export function langToLanguageName(lang: WikiLang): string | null {
     if (lang === "nl") return "Dutch";
     if (lang === "de") return "German";
     if (lang === "fr") return "French";
+    if (lang === "af") return "Afrikaans";
     if (lang === "da") return "Danish";
     if (lang === "es") return "Spanish";
     if (lang === "la") return "Latin";
@@ -296,6 +297,7 @@ export function languageNameToLang(name: string): WikiLang | null {
     if (nameLower === "dutch") return "nl";
     if (nameLower === "german") return "de";
     if (nameLower === "french") return "fr";
+    if (nameLower === "afrikaans") return "af";
     if (nameLower === "danish") return "da";
     if (nameLower === "spanish") return "es";
     if (nameLower === "latin") return "la";
@@ -305,6 +307,20 @@ export function languageNameToLang(name: string): WikiLang | null {
     if (nameLower === "italian") return "it";
     if (nameLower === "portuguese") return "pt";
     return null;
+}
+
+/**
+ * Lexeme.language may be a WikiLang code or a Wiktionary section title (e.g. "Afrikaans")
+ * when no code mapping existed at parse time. Normalize for {@link wiktionary} `lang`
+ * (must be a known code or `"Auto"`).
+ */
+export function normalizeWikiLangArg(input: string | WikiLang): WikiLang {
+    const s = String(input).trim();
+    if (!s || s === "Auto") return "Auto";
+    const fromName = languageNameToLang(s);
+    if (fromName) return fromName;
+    if (langToLanguageName(s as WikiLang) !== null) return s as WikiLang;
+    return "Auto";
 }
 
 export function extractAllLanguageSections(wikitext: string): Array<{ langName: string; block: string }> {
