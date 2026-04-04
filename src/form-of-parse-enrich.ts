@@ -6,7 +6,7 @@ import {
     expandDualPersonInflectionLine,
     formOfMorphLinesAreAbbrevTokensOnly,
     inflectionMorphDisplayLines,
-} from "./formatter";
+} from "./form-of-display";
 import { parallelMap } from "./utils";
 
 /**

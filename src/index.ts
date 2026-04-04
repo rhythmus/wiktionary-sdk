@@ -12,5 +12,5 @@ export * from "./lexeme-display-groups";
 export * from "./stem";
 export * from "./wrapper-invoke";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";
-export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry, OnlyUsedIn } from "./types";
+export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry, OnlyUsedIn, EtymologyStep } from "./types";
 export { isFormOfTemplateName, isVariantFormOfTemplateName } from "./registry";

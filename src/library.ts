@@ -3,7 +3,7 @@ import { mwFetchJson } from "./api";
 import { stripWikiMarkup } from "./registry";
 import { morphology as getMorphology, conjugate as runConjugate, decline as runDecline } from "./morphology";
 import { commonsThumbUrl } from "./utils";
-import type { WikiLang, FetchResult, Lexeme, LexemeResult, RichEntry } from "./types";
+import type { WikiLang, FetchResult, Lexeme, LexemeResult, RichEntry, EtymologyStep } from "./types";
 import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
 
 export interface GroupedLexemeResults<T> extends Array<LexemeResult<T>> {
@@ -356,11 +356,6 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
             source: lexeme.source.wiktionary
         };
     });
-}
-
-export interface EtymologyStep {
-    lang: string;
-    form: string;
 }
 
 const WIKTIONARY_LANG_MACROS: Record<string, string> = {

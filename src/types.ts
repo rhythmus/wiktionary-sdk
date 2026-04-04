@@ -143,6 +143,12 @@ export interface EtymologyData {
   raw_text?: string;
 }
 
+/** One step in the `etymology()` convenience API lineage: resolved language code + attested form. */
+export interface EtymologyStep {
+  lang: string;
+  form: string;
+}
+
 /** @deprecated Use EtymologyData.chain instead. */
 export type LegacyEtymologyLinks = EtymologyLink[];
 
