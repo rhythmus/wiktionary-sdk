@@ -1,0 +1,28 @@
+# Example: INFLECTED_FORM where morph detail exists only after Lua (MediaWiki parse).
+# Live page: en.wiktionary "sense" → Spanish → Verb → single line {{es-verb form of|sensar}}.
+# With enrich=true, display_morph_lines is filled from action=parse (see docs/form-of-display-and-mediawiki-parse.md).
+
+id: "es:sense#E0#verb#INFLECTED_FORM"
+language: "es"
+query: "sense"
+type: "INFLECTED_FORM"
+form: "sense"
+part_of_speech: "verb"
+
+senses:
+  - id: "S1"
+    gloss: "verb form of sensar"   # template-only gloss expansion (illustrative)
+    gloss_raw: "{{es-verb form of|sensar}}"
+
+form_of:
+  template: "es-verb form of"
+  lemma: "sensar"
+  lang: "es"
+  tags: []
+  label: "Verb form"
+  named: {}
+  display_morph_lines:
+    - "first-person singular present subjunctive"
+    - "third-person singular present subjunctive"
+    - "third-person singular imperative"
+  display_morph_lines_source: mediawiki_parse
