@@ -174,7 +174,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 | **4.5.7** | **`register-senses.ts`.** | **Done** — `senses` + sense helpers in **`register-senses.ts`**; **`formatUsageNoteLine`** in **`format-usage-note-line.ts`** for usage-notes / section decoders. | Largest file reduction; order test + golden/sense-heavy tests. |
 | **4.5.8** | **`register-morphology-la.ts`.** | **Done** — `el-verb-morphology`, `el-noun-gender`, `la-noun-head` + helpers in **`register-morphology-la.ts`**. | Order test. |
 | **4.5.9** | **`register-semantic-relations.ts`.** | **Done** — `semantic-relations` + relation maps in **`register-semantic-relations.ts`**; **`matchesSectionHeading`** from **`section-extract.ts`**. | Order test. |
-| **4.5.10** | **`register-etymology.ts`.** | Move `etymology` block + etymology template sets + `normalizeEtymologyFields`. | Order test. |
+| **4.5.10** | **`register-etymology.ts`.** | **Done** — `etymology` + template sets + **`normalizeEtymologyFields`** in **`register-etymology.ts`**. | Order test. |
 | **4.5.11** | **`register-pronunciation-extra.ts`.** | Move `el-ipa`, `audio`, `romanization`, `rhymes`, `homophones`. | Order test. |
 | **4.5.12** | **`register-sections.ts`.** | Move `section-links`, `alternative-forms`, `see-also`, `anagrams`, `usage-notes`, `references`; depend on **`section-extract`**. | Order test. |
 | **4.5.13** | **`register-inflection-stems.ts`.** | Move `inflection-table-ref`, `el-verb-stems`, `el-noun-stems`. | Order test; **`register-all-decoders.ts`** should now be orchestrator-only (+ imports). |
