@@ -8,7 +8,7 @@
     "schemaVersion": {
       "type": "string",
       "description": "Semantic version of this output schema. Bump MAJOR for breaking shape changes, MINOR for additive fields, PATCH for documentation-only corrections.",
-      "examples": ["2.0.0"]
+      "examples": ["3.0.0", "2.0.0"]
     },
     "WikiLang": {
       "type": "string",

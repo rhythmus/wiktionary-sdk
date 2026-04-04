@@ -294,7 +294,7 @@ form_of:
   named: { 1: "γράφω", 2: "el" }
 
 resolved_for_query: "έγραψα"
-lemma_triggered_by_entry_id: "el:γράφω#E1#verb#LEXEME"
+lemma_triggered_by_lexeme_id: "el:έγραψα#E1#verb#INFLECTED_FORM"
 
 pronunciation:
   IPA: "/ˈe.ɣra.psa/"
