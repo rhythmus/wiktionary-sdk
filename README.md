@@ -565,7 +565,7 @@ See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps fo
 - **Packaging**: CLI and server run from built JS; cache key normalization for redirects.
 - **Decoder debug mode**: `debugDecoders: true` returns per-entry decoder match info; webapp shows Decoder column.
 - **Template location metadata**: `templates_all` preserves document order and optional `start`/`end`/`line`.
-- **Cycle protection**: lemma resolution tracks visited `(lang, lemma)`; `lemma_triggered_by_entry_id` on resolved entries.
+- **Cycle protection**: lemma resolution tracks visited `(lang, lemma)`; `lemma_triggered_by_lexeme_id` on resolved lemma lexemes.
 - **Declared decoder coverage**: `handlesTemplates` on decoders; introspection uses declared coverage.
 - **Sense gloss_raw**: exact text before stripping for forensic verification.
 - **Section links**: `derived_terms`, `related_terms`, `descendants` from `{{l}}`/`{{link}}`.

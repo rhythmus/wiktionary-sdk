@@ -124,7 +124,7 @@ for its output schema (see `VERSIONING.md`).
 - Registry of template decoders: headword (el-verb, el-noun, etc.), pronunciation (IPA, el-IPA, audio, hyphenation), form-of, translations, senses, semantic relations (syn/ant/hyper/hypo), etymology (inh/der/bor/cog), usage notes
 - Sense-level structuring: `#` / `##` / `#:` lines → `Sense` objects with IDs, subsenses, examples; brace-aware `stripWikiMarkup` for glosses
 - Section decoders for `{{l}}`/`{{link}}` in Derived terms, Related terms, Descendants; stores `raw_text` and structured `items`
-- Lemma resolution for inflected forms with cycle protection and `lemma_triggered_by_entry_id` linkage metadata
+- Lemma resolution for inflected forms with cycle protection and `lemma_triggered_by_lexeme_id` linkage metadata
 
 **Infrastructure**
 - Multi-tier cache (L1 memory, pluggable L2/L3); rate limiter (10 req/s); template introspection tool
