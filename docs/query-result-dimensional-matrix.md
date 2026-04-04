@@ -115,7 +115,7 @@ Important distinction:
 | **I3. Lemma page missing** | Resolved list lacks that lemma; nested UX may show error (webapp). |
 | **I4. Cycle** | `_visited` set prevents infinite recursion; note returned. |
 
-Resolved lemma lexemes are **appended** to `lexemes` with `resolved_for_query` (see types) for traceability.
+Resolved lemma lexemes are **appended** to `lexemes` with **`resolved_for_query`** (original query string) and **`lemma_triggered_by_lexeme_id`** (the `Lexeme.id` of the `INFLECTED_FORM` row that triggered the recursive fetch) for traceability. See `src/index.ts` / `docs/wiktionary-sdk-spec.md` §3.2.
 
 ---
 
