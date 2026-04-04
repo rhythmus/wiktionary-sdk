@@ -39,7 +39,7 @@ A custom parser handles nested `{{...}}` structures.
 ### 5. Environment-Agnostic Assets (Cross-Platform Parity)
 - **Strict Rule**: Templates and static assets MUST be bundled as imported TypeScript strings (see `src/templates/templates.ts`) rather than loaded via Node-specific filesystem APIs (`fs`, `path`).
 - **Reason**: To ensure the SDK remains fully functional in both Node.js (CLI/Server) and Browser (Webapp) environments without a runtime filesystem.
-- **Authoring workflow**: Edit the source files `src/templates/entry.html.hbs`, `entry.md.hbs`, and `entry.css`. The webapp Vite dev server watches them and regenerates `templates.ts` on save; commit the regenerated `templates.ts` so CLI and package consumers stay in sync without running Vite.
+- **Authoring workflow**: Edit the source files `src/templates/entry.html.hbs`, `lexeme-homonym-group.html.hbs`, `entry.md.hbs`, and `entry.css`. The webapp Vite dev server watches them and regenerates `templates.ts` on save; commit the regenerated `templates.ts` so CLI and package consumers stay in sync without running Vite.
 
 ### 6. Schema Synchronization (High-Fidelity Parity)
 - **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
@@ -52,7 +52,7 @@ A custom parser handles nested `{{...}}` structures.
 
 ## ⚖️ Rigid Constraints & "No Heuristics" Policy
 
-1.  **No Scraping**: Never attempt to scrape the rendered Wiktionary HTML. Always use the MediaWiki API provided in `api.ts`.
+1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/morphology.ts`, and per-lang form-of nested inflection lines in `src/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals).
 2.  **No linguistic "Guessing"**: If a stem or gender is missing from a headword template, do not attempt to calculate it. Leave the field undefined.
 3.  **Traceability**: Every field added to a `NormalizedEntry` must be traceable to a source line or template parameter.
 4.  **Verbatim Storage**: All template calls must be stored verbatim in `entry.templates` for forensic verification.
@@ -65,7 +65,7 @@ A custom parser handles nested `{{...}}` structures.
 
 The SDK uses **Handlebars** for high-fidelity rendering of dictionary entries. 
 
-1.  **HTML Design**: Edit `src/templates/entry.html.hbs`.
+1.  **HTML Design**: Edit `src/templates/entry.html.hbs` (per-lexeme) and `src/templates/lexeme-homonym-group.html.hbs` (homonym merge via `formatFetchResult`).
 2.  **Markdown Design**: Edit `src/templates/entry.md.hbs`.
 3.  **Styling**: Edit `src/templates/entry.css`.
 4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`) are defined in `src/formatter.ts`.
@@ -96,6 +96,12 @@ These behaviours come up often when extending decoders or the webapp.
 
 ### Stub language sections on en.wiktionary
 - Some sections contain **only** a form-of line (e.g. `{{es-verb form of|lemma}}`) or a restriction template (e.g. `{{only used in|nl|…}}`) with **no** `===Etymology===`. **Empty etymology there is correct**—do not invent prose. **Do** decode templates so the card is not blank and lemma resolution can run where applicable.
+- **Lua vs wikitext for morph lines:** A single `# {{xx-verb form of|lemma}}` line has **no** `##` subsenses; detailed inflection glosses may exist **only** after Lua runs. With `enrich` on, the SDK may fill `form_of.display_morph_lines` from `action=parse` (see **`docs/form-of-display-and-mediawiki-parse.md`**). This is not a substitute for `##` lines when editors add them — subsenses still win.
+
+### Form-of headline display (`src/formatter.ts`, templates)
+- **Abbrev positionals** (`voc`, `m`, `s`, …): inline phrase + gender beside PoS, not three bullets.
+- **Multiple morph lines** (from `##`, `display_morph_lines`, or expanded tags): bullet list + `of:` + lemma row.
+- **Single** morph gloss: inline with headword; **label-only** (e.g. plural): compact `headword` + lowercased label + `of:`.
 
 ### Webapp language filter
 - When adding a first-class lookup language for the playground (e.g. Spanish `es`), add it to the **`LANGUAGES`** (or equivalent) list in `webapp/src/App.tsx` so the bar filter matches `langToLanguageName` / `extractLanguageSection`.
@@ -179,4 +185,6 @@ detailed Delivered sections.
 ## 📚 Essential Reading
 - [Test suite guide](test/README.md) (mocking, tiers, goldens, coverage)
 - [Wiktionary SDK spec](docs/wiktionary-sdk-spec.md) (ground truth)
+- [Form-of display & MediaWiki parse enrichment](docs/form-of-display-and-mediawiki-parse.md) (Lua vs wikitext, Spanish case, parse API rationale, what not to do)
+- [Query result dimensional matrix](docs/query-result-dimensional-matrix.md) (combinatorics: languages, PoS, etymologies, lexeme types, morph richness, fuzzy merge)
 - [Roadmap](docs/ROADMAP.md) (context for later phases)

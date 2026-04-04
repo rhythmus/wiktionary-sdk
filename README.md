@@ -412,8 +412,10 @@ wiktionary-sdk/
 ├── Dockerfile                # Container build
 ├── VERSIONING.md             # Output schema versioning policy
 └── docs/
-    ├── wiktionary-sdk-spec.md   # Formal technical specification
-    └── ROADMAP.md                 # Post-v1.0 staged implementation roadmap
+    ├── wiktionary-sdk-spec.md              # Formal technical specification
+    ├── form-of-display-and-mediawiki-parse.md  # Form-of Lua vs wikitext; parse enrichment (e.g. Spanish sense)
+    ├── query-result-dimensional-matrix.md      # All dimensions of wiktionary() results (languages, PoS, etymology, …)
+    └── ROADMAP.md                          # Post-v1.0 staged implementation roadmap
 ```
 
 ## 🚀 Getting Started

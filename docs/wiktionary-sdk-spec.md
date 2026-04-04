@@ -3,6 +3,10 @@
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
 
+## Related: query result combinatorics
+
+For an axis-by-axis matrix of how **page title**, **match mode**, **language**, **etymology**, **PoS**, **lexeme type**, **morph richness** (including the Spanish multi-line case), **lemma resolution**, and **enrichment** combine, see **`docs/query-result-dimensional-matrix.md`**.
+
 ## 1. Goals
 
 Given:
@@ -332,6 +336,25 @@ form_of:
 ```
 
 The `label` is composed from a `TAG_LABEL_MAP` dictionary. The `subclass` is extracted directly from the template name (e.g., `misspelling of` → `misspelling`).
+
+**Lua-expanded inflection glosses (per-lang form-of):** Some definition lines contain only `{{xx-verb form of|lemma}}` (or `xx-noun` / `xx-adj` form of) with **no** `##` subsenses and **no** extra template positionals. The fine-grained lines readers see on Wiktionary are then produced by **Lua** at parse time, not as separate wikitext bullets. When `enrich` is enabled, the engine may call MediaWiki `action=parse` on the sense’s `gloss_raw` with the **page title** as context, extract nested list item text (`ol ol > li`), and store:
+
+```yaml
+form_of:
+  template: es-verb form of
+  lemma: sensar
+  lang: es
+  tags: []
+  label: Verb form
+  named: {}
+  display_morph_lines:
+    - first-person singular present subjunctive
+    - third-person singular present subjunctive
+    - third-person singular imperative
+  display_morph_lines_source: mediawiki_parse
+```
+
+`display_morph_lines_source` is always `mediawiki_parse` when present. This is **API expansion of known wikitext**, not scraping of public article HTML. Full rationale, anti-patterns, formatter rules, and code map: **`docs/form-of-display-and-mediawiki-parse.md`**.
 
 ### 3.6 Section link lists (Derived / Related / Descendants)
 
@@ -803,10 +826,25 @@ HTML and Markdown outputs are designed as **fragments/snippets**, not standalone
 The runtime imports **compiled template strings** from `src/templates/templates.ts` (`HTML_ENTRY_TEMPLATE`, `MD_ENTRY_TEMPLATE`, `ENTRY_CSS`). This keeps Node, CLI, and browser bundles free of `fs`/`path` at render time (see architectural constraint in `AGENTS.md`). The human-editable sources live beside it as `entry.html.hbs`, `entry.md.hbs`, and `entry.css`; they must be **re-bundled** into `templates.ts` when those files change (see §12.10.4).
 
 #### 12.10.4 Webapp: live sync from template sources
-The Vite dev server (`webapp/`) registers a small plugin that watches `src/templates/entry.html.hbs`, `entry.md.hbs`, and `entry.css`, regenerates `src/templates/templates.ts` on save, and triggers a reload. **Rationale:** authors edit the real `.hbs` / `.css` files while the demo hot-updates, without manually copying strings into `templates.ts`. Production builds of the SDK should still commit an up-to-date `templates.ts` so consumers who do not run Vite receive the same output.
+The Vite dev server (`webapp/`) registers a small plugin that watches `src/templates/entry.html.hbs`, `lexeme-homonym-group.html.hbs`, `entry.md.hbs`, and `entry.css`, regenerates `src/templates/templates.ts` on save, and triggers a reload. **Rationale:** authors edit the real `.hbs` / `.css` files while the demo hot-updates, without manually copying strings into `templates.ts`. Production builds of the SDK should still commit an up-to-date `templates.ts` so consumers who do not run Vite receive the same output.
 
 #### 12.10.5 Etymology language labels in Handlebars (`langLabel`)
 Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang slot) for every chain/cognate row. The optional `source_lang_name` field is not always present. Handlebars templates therefore use a **`langLabel`** helper (registered in `src/formatter.ts`) that prints `source_lang_name` when set, otherwise **`source_lang`**, matching the fallback behaviour already used in plain-text formatters. **Rationale:** avoids empty language tags in HTML/Markdown when only the code is extracted from template parameters.
+
+#### 12.10.6 `FetchResult` rendering and homonym merge (presentation layer)
+
+`format(data, { mode: "html" | "html-fragment" | … })` detects a **`FetchResult`** (object with `schema_version` and `lexemes: Lexeme[]`) and delegates to **`formatFetchResult()`** in `src/formatter.ts`.
+
+- **Query notes:** `FetchResult.notes` are emitted as a `wiktionary-fetch-notes` block (redirect, fuzzy variant, errors). **Rationale:** surfaces META-axis cases from `docs/query-result-dimensional-matrix.md` without requiring consumers to wrap JSON manually.
+- **Empty results:** `lexemes.length === 0` yields a visible empty-state fragment. **Rationale:** L-15 / META-A2 in template coverage mocks.
+- **Homonym merge:** `groupLexemesForIntegratedHomonyms()` groups **consecutive** lexemes that share `language`, `form`, and normalized PoS (`part_of_speech` or `part_of_speech_heading`) and have **distinct** `etymology_index`, all with `type === "LEXEME"`. Each group is rendered with **`HTML_LEXEME_HOMONYM_GROUP_TEMPLATE`** (one shared headline, then one block per etymology). **Rationale:** the API still returns one lexeme per etymology slice (source-faithful); merge is **display-only**, documented in `docs/query-result-dimensional-matrix.md` §11 and `docs/mockups/template-coverage-mock-entries.md` (L-02).
+- **Non-HTML modes:** Markdown joins per-lexeme markdown without homonym merge (same data, simpler text pipeline). Text/ANSI modes concatenate per-lexeme `format(lexeme)`.
+
+**Single-lexeme `HTML_ENTRY_TEMPLATE` choices (see `docs/mockups/template-coverage-mock-entries.md`):**
+
+- **Ultra-compact form-of:** When `form_of` is present, type is not `FORM_OF`, there is exactly one sense with a gloss, no abbrev-only morph phrase, no single-tag morph line, and no multi-morph need, render one line: surface + normalized label + lemma + gloss (L-05). **Rationale:** avoids a redundant `→` row for trivial plurals.
+- **Merged morph phrase:** Two or more morph lines from `##` subsenses, `display_morph_lines`, or expanded tags are collapsed into one phrase when possible (e.g. first/third person with shared tail; hyphen `first-person` uses “and”, spaced `first person` uses “or”), then `of:` and the lemma row (L-06/L-07). If merge is not applicable, lines are joined with ` · `. **Rationale:** dictionary-style density; bullets remain a fallback when merged text is empty.
+- **Lemma without etymology chain:** If there is no `form_of` and no `etymology.chain` but senses exist, show an explicit “(etymology not given on Wiktionary)” placeholder (L-04). **Rationale:** avoids a blank gap; inflected-only stubs still omit this on the inflected row where empty etym is normal.
 
 ### 12.11 Playground: Multi-Interface Triple-Window Architecture
 The webapp's API Playground presents the SDK's three consumption interfaces —
@@ -1347,6 +1385,23 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   semantic classes in `webapp/src/index.css` and removed `webapp/src/App.css`.
   **Rationale:** reduce JSX noise, improve maintainability, and make responsive tuning
   centralized and deterministic.
+
+### v3.1.7 — FetchResult formatting, homonym-merged cards, and template coverage
+
+- **`format(FetchResult)` / `formatFetchResult()`:** When `format()` receives a `FetchResult` (`schema_version` + `lexemes[]`), HTML modes render **query `notes`** (redirect/fuzzy/miss messages), an **empty lexeme** banner when appropriate, and **homonym-merged** cards: consecutive `LEXEME` rows with the same language, surface form, and PoS but different `etymology_index` are combined into one headline plus stacked etymology+sense blocks (`src/lexeme-display-groups.ts`, `lexeme-homonym-group.html.hbs`). **Rationale:** matches dictionary UX in `docs/mockups/template-coverage-mock-entries.md` (L-02) without changing the normalized `lexemes[]` API.
+- **Single-lexeme templates:** Ultra-compact inflected line (L-05), merged multi-line morph phrase instead of bullets when lines share a person pattern (L-06/L-07), lemma **subsenses** in HTML, etymology **placeholder** when a lemma has senses but no chain, **`posLine`** fallback to heading and `(unknown)`.
+- **Prose mocks:** `docs/mockups/template-coverage-mock-entries.md` enumerates presentation targets for template authors.
+
+### v3.1.6 — Query result dimensional matrix
+
+- **Documentation:** `docs/query-result-dimensional-matrix.md` enumerates the cross-product of page fetch, strict/fuzzy match, language scope, etymology slices, PoS blocks, lexeme type, morph display richness (including Spanish-style multi-line within one lexeme), lemma resolution, and enrichment — with code pointers and explicit “what the matrix does not guarantee.”
+
+### v3.1.5 — Form-of morph display, abbrev tokens, and MediaWiki parse enrichment
+
+- **Problem:** Per-lang form-of templates (e.g. `{{es-verb form of|sensar}}`) often leave **no** `##` subsenses and **no** morph tags in wikitext; Lua emits nested lists only in **parsed HTML**. Plain wikitext extraction therefore had only `form_of.label` (“Verb form”) for display.
+- **`form_of.display_morph_lines` / `display_morph_lines_source`:** Optional enrichment via `action=parse` on `gloss_raw` + page title; extraction of `ol ol > li` text; gated by `isPerLangFormOfTemplate()` and empty wikitext-derived morph lines; runs when `enrich` is true (`src/form-of-parse-enrich.ts`, wired from `src/index.ts`).
+- **Formatter:** Morph bullets vs inline headline (`plural of`, single `ing-form`, abbrev `voc|m|s`, multi-line Spanish); `first/third-person …` split; lemma–PoS spacing CSS. See bundled templates and `src/formatter.ts`.
+- **Documentation:** Normative design note `docs/form-of-display-and-mediawiki-parse.md` (quirks, rationales, what not to do, Spanish exemplar).
 
 ### v3.1.4 — Extended form-of family, sense restrictions, fuzzy fetch, and tooling
 
