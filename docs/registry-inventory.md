@@ -2,6 +2,8 @@
 
 Ordered list of **`registry.register({ id })`** calls as they appear in source (**registration order is normative**; do not reorder casually). See `STAGED_IMPLEMENTATION_PLAN.md` Phase 4 and `test/registry-ids.test.ts`.
 
+Pure helpers live under **`src/registry/`** (`form-of-predicates.ts`, `strip-wiki-markup.ts`, `merge-patches.ts`) and are re-exported from `registry.ts` for a stable public import path.
+
 | # | `id` | Family (informal) |
 |---|------|---------------------|
 | 1 | `store-raw-templates` | bootstrap / verbatim |

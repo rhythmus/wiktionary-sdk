@@ -119,7 +119,7 @@
 | # | Todo | Notes |
 |---|------|--------|
 | 4.1 | Inventory decoders by family; map to spec §5 / §14.1. | **Done** — `docs/registry-inventory.md` (registration order, informal families). |
-| 4.2 | Extract pure helpers into **`src/registry/`**; transitional re-exports from `registry.ts`. | |
+| 4.2 | Extract pure helpers into **`src/registry/`**; transitional re-exports from `registry.ts`. | **Done** — `merge-patches.ts`, `form-of-predicates.ts`, `strip-wiki-markup.ts`; `registry.ts` re-exports predicates + `stripWikiMarkup`. |
 | 4.3 | Per-family `register` blocks + **`registerAllDecoders()`** preserving historical order. | `registry-ids.test.ts`, decoder coverage, goldens |
 | 4.4 | Shrink **`DECODER_EVIDENCE_ALLOWLIST`** via `decoder-smoke.wikitext` / fixtures (ties to Phase 7.2). | Small PRs |
 
