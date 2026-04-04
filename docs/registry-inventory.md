@@ -2,7 +2,9 @@
 
 Ordered list of **`registry.register({ id })`** calls as they appear in source (**registration order is normative**; do not reorder casually). See `STAGED_IMPLEMENTATION_PLAN.md` Phase 4 and `test/registry-ids.test.ts`.
 
-Pure helpers live under **`src/registry/`** (`form-of-predicates.ts`, `strip-wiki-markup.ts`, `merge-patches.ts`) and are re-exported from `registry.ts` for a stable public import path.
+**`DecoderRegistry`** and decode orchestration live in **`src/registry/decoder-registry.ts`**. All **`reg.register({ id })`** calls run inside **`registerAllDecoders(reg)`** in **`register-all-decoders.ts`** (historical order; do not reorder). The package entry **`src/registry.ts`** constructs the singleton and calls `registerAllDecoders(registry)`.
+
+Pure helpers: **`form-of-predicates.ts`**, **`strip-wiki-markup.ts`**, **`merge-patches.ts`** (re-exported from `registry.ts`).
 
 | # | `id` | Family (informal) |
 |---|------|---------------------|

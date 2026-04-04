@@ -51,6 +51,8 @@ Review the `.snap` diff in the PR.
 
 **Duplicate `id` values are invalid**: the coverage test deduplicates by `id`, so a second decoder with the same `id` is never checked for evidence and can mask missing fixtures. **`test/registry-ids.test.ts`** fails if any decoder `id` appears more than once in `registry.getDecoders()`.
 
+**Registration order** is locked by **`test/registry-decoder-order.test.ts`** (canonical `id` sequence; update when adding a decoder — see **`docs/registry-inventory.md`**).
+
 ## Audit regression suites (`*-audit.test.ts`)
 
 Targeted tests that lock in expectations from **`audit.md`** (architecture,

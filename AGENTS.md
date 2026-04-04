@@ -12,14 +12,14 @@ We extract what is *explicitly* in the Wikitext. We do not guess stems, complete
 
 ## 🏗️ Architectural Anchors
 
-### 1. Registry-Based Decoders (`src/registry.ts`)
-The engine is a decentralized registry of pure functions (`TemplateDecoder`). 
+### 1. Registry-Based Decoders (`src/registry.ts` + `src/registry/register-all-decoders.ts`)
+The engine is a decentralized registry of pure functions (`TemplateDecoder`). Implementations live in **`registerAllDecoders(reg)`** (`register-all-decoders.ts`); the package entry **`registry.ts`** builds the singleton and re-exports predicates / **`stripWikiMarkup`**.
 - **Pattern**: If a template exists in the wild, create a decoder for it.
-- **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in `registry.ts`.
+- **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in the registry layer (`register-all-decoders.ts` and `src/registry/*.ts` helpers).
 - **Per-language form-of templates** (en.wiktionary): Treat `{{xx-verb form of|…}}`, `{{xx-noun form of|…}}`, `{{xx-adj form of|…}}` as first-class. The lemma is often **only** in `|1=`; the language is implied by the template name. They must participate in the same `form_of` / `guessLexemeTypeFromTemplates` path as `inflection of` so **lemma resolution** (second `wiktionary()` fetch) runs when the definition line is template-only. **`only used in`** is *not* a lemma pointer; it is decoded on sense lines as structured `only_used_in` (see `types.ts`).
-- **Extended “Category:Form-of templates” family**: `isFormOfTemplateName()` in `registry.ts` recognises the core `FORM_OF_TEMPLATES` set, per-lang templates above, names ending in ` … of`, and a few extras (e.g. `rfform`, `IUPAC-*`). **`isVariantFormOfTemplateName()`** decides `FORM_OF` vs `INFLECTED_FORM` when `guessLexemeTypeFromTemplates` runs. Run `npm run report:form-of` to compare the live Wiktionary category against this logic.
-- **Registration order**: Register decoders that depend on shared constants (`GENDER_MAP`, etc.) **after** those constants are defined in the file (no forward reference).
-- **One registration per `id`**: Do not duplicate `registry.register({ id: "…" })` blocks (e.g. merge conflicts). Order of patches changes behaviour.
+- **Extended “Category:Form-of templates” family**: `isFormOfTemplateName()` (re-exported from `registry.ts`, defined in `form-of-predicates.ts`) recognises the core `FORM_OF_TEMPLATES` set, per-lang templates above, names ending in ` … of`, and a few extras (e.g. `rfform`, `IUPAC-*`). **`isVariantFormOfTemplateName()`** decides `FORM_OF` vs `INFLECTED_FORM` when `guessLexemeTypeFromTemplates` runs. Run `npm run report:form-of` to compare the live Wiktionary category against this logic.
+- **Registration order**: Register decoders that depend on shared constants (`GENDER_MAP`, etc.) **after** those constants are defined in `register-all-decoders.ts` (no forward reference). **`test/registry-decoder-order.test.ts`** locks the canonical `id` sequence; update it when appending a decoder.
+- **One registration per `id`**: Do not duplicate `reg.register({ id: "…" })` blocks (e.g. merge conflicts). Order of patches changes behaviour.
 - **Corpus evidence**: New production decoders must appear in a fixture or test string, or be listed in `DECODER_EVIDENCE_ALLOWLIST` in `test/decoder-coverage.test.ts`, so the decoder coverage test stays green.
 
 ### 2. Brace-Aware Parser (`src/parser.ts`)
@@ -80,7 +80,7 @@ When modifying templates, ensure you maintain the "Gold Standard" typographic de
 
 1.  **Identify**: Find the template on Wiktionary (e.g., `{{el-noun-m-ος-2}}`).
 2.  **Define**: Update `types.ts` if a new PoS-specific interface is needed.
-3.  **Implement**: Create a new `TemplateDecoder` in `registry.ts`.
+3.  **Implement**: Add a new `reg.register({ … })` block in `register-all-decoders.ts` (preserve order; extend `registry-decoder-order.test.ts`).
 4.  **Form-of family**: If the template is a language-prefixed inflection line (`xx-verb form of`, etc.), wire it into `FORM_OF_TEMPLATES` / `isPerLangFormOfTemplate` (or equivalent) and ensure `guessLexemeTypeFromTemplates` returns `INFLECTED_FORM` when appropriate so nested lemma UX works.
 5.  **Verify**: Run the verification script: `npx tsx tools/verify_templates.ts`.
 
@@ -90,7 +90,7 @@ When modifying templates, ensure you maintain the "Gold Standard" typographic de
 
 These behaviours come up often when extending decoders or the webapp.
 
-### `{{hyphenation|…}}` syllables (`src/registry.ts`)
+### `{{hyphenation|…}}` syllables (`register-all-decoders.ts`)
 - **Do not** assume the first positional is always a language code (`slice(1)` blindly drops the first syllable for `{{hyphenation|γρά|φω}}`).
 - **Order matters**: If the first positional is non-ASCII (e.g. Greek syllable), **all** positionals are syllables. If the first is ASCII-only and the second is non-ASCII, the first is usually a language tag (`el`, …). For all-ASCII runs, use an explicit allowlist of language codes and known compound tags (e.g. `grk-ita`), not a loose regex that mis-reads Latin syllables as codes.
 
