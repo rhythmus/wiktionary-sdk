@@ -2,7 +2,6 @@ import type {
     Sense,
     OnlyUsedIn,
     EtymologyLink,
-    SectionLinkItem,
     SectionWithLinks,
     TemplateCall,
 } from "../types";
@@ -14,6 +13,13 @@ import {
 } from "./form-of-predicates";
 import { stripWikiMarkup } from "./strip-wiki-markup";
 import type { DecoderRegistry } from "./decoder-registry";
+import { buildFormOfDisplayLabel } from "./form-of-display-label";
+import { GENDER_MAP } from "./gender-map";
+import {
+    extractSectionByLevelHeaders,
+    matchesSectionHeading,
+    parseSectionLinkTemplates,
+} from "./section-extract";
 
 /**
  * Register all template/section decoders in **historical source order**.
@@ -300,73 +306,6 @@ reg.register({
 });
 
 /** --- Form-of / lemma resolution triggers --- **/
-
-/** Maps morph tag shortcodes → English words for human-readable labels. */
-const TAG_LABEL_MAP: Record<string, string> = {
-    "1": "1st pers.", "2": "2nd pers.", "3": "3rd pers.",
-    "s": "singular", "sg": "singular", "p": "plural", "pl": "plural",
-    "perf": "perfective", "impf": "imperfective", "pres": "present",
-    "past": "past", "fut": "future", "aor": "aorist",
-    "actv": "active", "pasv": "passive", "mp": "mediopassive", "mid": "middle",
-    "indc": "indicative", "subj": "subjunctive", "impr": "imperative", "opt": "optative", "cond": "conditional",
-    "inf": "infinitive", "ptcp": "participle", "ger": "gerund",
-    "m": "masculine", "f": "feminine", "n": "neuter", "c": "common",
-    "nom": "nominative", "gen": "genitive", "acc": "accusative", "voc": "vocative", "dat": "dative", "inst": "instrumental", "loc": "locative",
-    "def": "definite", "indef": "indefinite",
-    "pos": "positive", "comp": "comparative", "sup": "superlative",
-};
-
-function tagsToLabel(tags: string[]): string {
-    return tags
-        .map(t => TAG_LABEL_MAP[t] || t)
-        .filter(t => t && t.length > 1) // skip single char tags that didn't map
-        .join(" ");
-}
-
-/** Human-readable kind from the form-of template name when tags alone are empty. */
-function defaultFormOfKindLabel(templateName: string): string {
-    const key = templateName.trim().toLowerCase();
-    const FORM_OF_KIND_LABELS: Record<string, string> = {
-        "inflection of": "Inflection",
-        "infl of": "Inflection",
-        "plural of": "Plural",
-        "noun form of": "Noun form",
-        "verb form of": "Verb form",
-        "adj form of": "Adjective form",
-        "participle of": "Participle",
-        "past tense of": "Past tense",
-        "past participle of": "Past participle",
-        "present participle of": "Present participle",
-        "gerund of": "Gerund",
-        "command of": "Command",
-        "imperative of": "Imperative",
-        "alternative form of": "Alternative form",
-        "alt form": "Alternative form",
-        "alt form of": "Alternative form",
-        "form of": "Alternative form",
-        "misspelling of": "Misspelling",
-        "abbreviation of": "Abbreviation",
-        "short for": "Short for",
-        "clipping of": "Clipping",
-        "diminutive of": "Diminutive",
-        "augmentative of": "Augmentative",
-    };
-    if (FORM_OF_KIND_LABELS[key]) return FORM_OF_KIND_LABELS[key];
-    if (/^[a-z]{2,3}-verb\s+form\s+of$/i.test(key)) return "Verb form";
-    if (/^[a-z]{2,3}-noun\s+form\s+of$/i.test(key)) return "Noun form";
-    if (/^[a-z]{2,3}-adj\s+form\s+of$/i.test(key)) return "Adjective form";
-    const stripped = key.replace(/\s+of$/i, "").trim();
-    if (!stripped) return "Form";
-    return stripped.charAt(0).toUpperCase() + stripped.slice(1);
-}
-
-/** Display label: template kind + optional morphological tag phrase from positional args. */
-function buildFormOfDisplayLabel(templateName: string, tags: string[]): string {
-    const morph = tagsToLabel(tags);
-    const kind = defaultFormOfKindLabel(templateName);
-    if (morph) return `${kind} (${morph})`;
-    return kind;
-}
 
 reg.register({
     id: "form-of",
@@ -819,13 +758,6 @@ reg.register({
     },
 });
 
-const GENDER_MAP: Record<string, "masculine" | "feminine" | "neuter" | "common"> = {
-    m: "masculine", masc: "masculine", masculine: "masculine",
-    f: "feminine", fem: "feminine", feminine: "feminine",
-    n: "neuter", neut: "neuter", neuter: "neuter",
-    c: "common", common: "common",
-};
-
 reg.register({
     id: "el-noun-gender",
     handlesTemplates: ["el-noun"],
@@ -887,15 +819,6 @@ reg.register({
 });
 
 /** --- Phase 2.2: Semantic relations --- **/
-
-/** True if `wikitext` contains a section heading for `headerName` (any `=` run, spacing-tolerant). */
-function matchesSectionHeading(wikitext: string, headerName: string): boolean {
-    const re = new RegExp(
-        `^=+\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=+.*$`,
-        "im",
-    );
-    return re.test(wikitext);
-}
 
 const RELATION_TEMPLATES: Record<string, keyof import("../types").SemanticRelations> = {
     syn: "synonyms",
@@ -1176,34 +1099,6 @@ reg.register({
 
 const SECTION_LINK_HEADERS = ["Derived terms", "Related terms", "Descendants"] as const;
 const SECTION_LINK_FIELDS = ["derived_terms", "related_terms", "descendants"] as const;
-
-function extractSectionByLevelHeaders(wikitext: string, headerName: string): { raw: string } | null {
-    const re = new RegExp(`^=+\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=+.*$`, "im");
-    const m = re.exec(wikitext);
-    if (!m) return null;
-    const start = m.index + m[0].length;
-    const after = wikitext.slice(start);
-    const next = after.search(/^=+/m);
-    const raw = next === -1 ? after : after.slice(0, next);
-    return { raw: raw.trim() };
-}
-
-function parseSectionLinkTemplates(wikitext: string): SectionLinkItem[] {
-    const items: SectionLinkItem[] = [];
-    const tpls = parseTemplates(wikitext);
-    for (const t of tpls) {
-        if (t.name !== "l" && t.name !== "link") continue;
-        const pos = t.params.positional ?? [];
-        const lang = pos[0];
-        const term = pos[1];
-        if (!lang || !term) continue;
-        const named = t.params.named ?? {};
-        const gloss = named.gloss ?? named.t ?? pos[3] ?? undefined;
-        const alt = named.alt ?? pos[2] ?? undefined;
-        items.push({ term, lang, gloss, alt, template: t.name, raw: t.raw });
-    }
-    return items;
-}
 
 reg.register({
     id: "section-links",

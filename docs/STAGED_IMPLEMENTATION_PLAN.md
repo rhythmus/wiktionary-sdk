@@ -165,7 +165,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 
 | # | Todo | Scope | Verification |
 |---|------|--------|----------------|
-| **4.5.1** | **Extract pure helpers (no `reg.register` moves).** | (a) Add **`section-extract.ts`**; move `extractSectionByLevelHeaders`, `parseSectionLinkTemplates` from `register-all-decoders.ts`; update call sites to import them. (b) Add **`gender-map.ts`** with **`GENDER_MAP`**; replace in-file duplicate if any. (c) Add **`form-of-display-label.ts`**; move tag/kind/label helpers used by form-of decoder and sense gloss path. | Same decoder order; full test suite; diff should be mostly moves. |
+| **4.5.1** | **Extract pure helpers (no `reg.register` moves).** | **Done** — `section-extract.ts` (`extractSectionByLevelHeaders`, `parseSectionLinkTemplates`, `matchesSectionHeading`), `gender-map.ts`, `form-of-display-label.ts` (`buildFormOfDisplayLabel`); `register-all-decoders.ts` imports them. | Order test + full suite. |
 | **4.5.2** | **Introduce orchestrator pattern.** | Replace inline tail of `register-all-decoders.ts` with **one** `registerSectionsAndMisc(reg)` (or similar) that **still lives in the same file** but proves the call-chain pattern; **or** go straight to **`registerCoreAndPronunciation(reg)`** in a new file re-exported/called from `registerAllDecoders`. | Order test; no behaviour change. |
 | **4.5.3** | **`register-core-pronunciation.ts`.** | Move first four decoders + hyphenation constants/helpers into **`registerCoreAndPronunciation(reg)`**; `registerAllDecoders` calls it **first**. | Order test. |
 | **4.5.4** | **`register-headwords-el-nl-de.ts`.** | Move eight `el-*-head`, three `nl-*-head`, three `de-*-head` blocks; import **`GENDER_MAP`** from **`gender-map.ts`** if not already. | Order test. |
@@ -173,7 +173,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 | **4.5.6** | **`register-translations.ts`.** | Move `translations` + `parseTranslationsFromBlock`. | Order test. |
 | **4.5.7** | **`register-senses.ts`.** | Move `senses` and **all** sense-only helpers (`parseSenses`, `parseLbTemplate`, `stripLbTemplates`, `extractQualifier`, `decodeOnlyUsedInFromRaw`, `formatOnlyUsedInPlain`, `glossFromFormOfTemplateCall`, `glossFromAuxDefinitionTemplate`, `glossFromDefinitionLine`, `formatUsageNoteLine`, related constants). | Largest file reduction; order test + golden/sense-heavy tests. |
 | **4.5.8** | **`register-morphology-la.ts`.** | Move `el-verb-morphology`, `el-noun-gender`, `la-noun-head` + `decodeTransitivity`, `VERB_PART_PARAMS`, `decodeLaNounGenderFromTemplate`. | Order test. |
-| **4.5.9** | **`register-semantic-relations.ts`.** | Move `semantic-relations` + `RELATION_TEMPLATES`, `RELATION_HEADERS`, `matchesSectionHeading`; use **`section-extract`** where applicable. | Order test. |
+| **4.5.9** | **`register-semantic-relations.ts`.** | Move `semantic-relations` + `RELATION_TEMPLATES`, `RELATION_HEADERS`; import **`matchesSectionHeading`** from **`section-extract.ts`** (already extracted in 4.5.1). | Order test. |
 | **4.5.10** | **`register-etymology.ts`.** | Move `etymology` block + etymology template sets + `normalizeEtymologyFields`. | Order test. |
 | **4.5.11** | **`register-pronunciation-extra.ts`.** | Move `el-ipa`, `audio`, `romanization`, `rhymes`, `homophones`. | Order test. |
 | **4.5.12** | **`register-sections.ts`.** | Move `section-links`, `alternative-forms`, `see-also`, `anagrams`, `usage-notes`, `references`; depend on **`section-extract`**. | Order test. |

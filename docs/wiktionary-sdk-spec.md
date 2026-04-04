@@ -1558,7 +1558,7 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 | **`registry.ts`** | Public entry: singleton **`registry`**, **`registerAllDecoders(registry)`**, re-exports **`DecoderRegistry`**, **`stripWikiMarkup`**, form-of predicates. Ordered decoder list: **`docs/registry-inventory.md`**. |
 | **`registry/decoder-registry.ts`** | **`DecoderRegistry`** class, **`decodeAll()`**, patch merge via **`merge-patches.ts`**. |
 | **`registry/register-all-decoders.ts`** | **`registerAllDecoders(reg)`** — all **`reg.register`** blocks in normative order (sense parsing helpers, section extractors, and decoders). |
-| **`registry/`** (helpers) | **`merge-patches.ts`**, **`form-of-predicates.ts`**, **`strip-wiki-markup.ts`**. |
+| **`registry/`** (helpers) | **`merge-patches.ts`**, **`form-of-predicates.ts`**, **`strip-wiki-markup.ts`**, **`section-extract.ts`** (section bodies + `l`/`link` lists + heading match), **`gender-map.ts`**, **`form-of-display-label.ts`** (form-of human labels). |
 | **`library.ts`** | Convenience wrappers (**`mapLexemes`**, **`GroupedLexemeResults`**, **`lemma()`**, **`translate()`**, relations, formatting helpers, **`getNativeSenses()`** for `translate(..., { mode: "senses" })` on foreign wikis). |
 | **`morphology.ts`** | **`morphology()`**, **`conjugate()`**, **`decline()`**, **`parseMorphologyTags()`**, Greek template discovery via `templates_all`, **`action=parse`** on raw conjugation/declension template wikitext, HTML table scraping via `node-html-parser`. |
 | **`form-of-display.ts`** | Pure morph-line helpers for form-of cards (`expandDualPersonInflectionLine`, abbrev-tag detection, **`inflectionMorphDisplayLines`**) — shared by **`formatter.ts`** and **`form-of-parse-enrich.ts`**. |

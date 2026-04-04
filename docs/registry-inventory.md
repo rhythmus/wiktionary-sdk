@@ -4,7 +4,7 @@ Ordered list of **`registry.register({ id })`** calls as they appear in source (
 
 **`DecoderRegistry`** and decode orchestration live in **`src/registry/decoder-registry.ts`**. All **`reg.register({ id })`** calls run inside **`registerAllDecoders(reg)`** in **`register-all-decoders.ts`** (historical order; do not reorder). The package entry **`src/registry.ts`** constructs the singleton and calls `registerAllDecoders(registry)`.
 
-Pure helpers: **`form-of-predicates.ts`**, **`strip-wiki-markup.ts`**, **`merge-patches.ts`** (re-exported from `registry.ts`).
+Pure helpers under **`src/registry/`**: **`merge-patches.ts`**, **`form-of-predicates.ts`**, **`strip-wiki-markup.ts`**, **`section-extract.ts`**, **`gender-map.ts`**, **`form-of-display-label.ts`**. The public barrel **`registry.ts`** re-exports form-of predicates and **`stripWikiMarkup`**; other helpers are imported by **`register-all-decoders.ts`** only.
 
 | # | `id` | Family (informal) |
 |---|------|---------------------|
