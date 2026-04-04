@@ -1,6 +1,6 @@
 # Decoder registration inventory (`src/registry.ts`)
 
-Ordered list of **`registry.register({ id })`** calls as they appear in source (**registration order is normative**; do not reorder casually). See `STAGED_IMPLEMENTATION_PLAN.md` Phase 4 and `test/registry-ids.test.ts`.
+Ordered list of **`registry.register({ id })`** calls as they appear in source (**registration order is normative**; do not reorder casually). Canonical sequence: **`src/registry/decoder-ids.ts`** (`EXPECTED_DECODER_IDS`) — update it when appending a decoder. See `STAGED_IMPLEMENTATION_PLAN.md` Phase 4 and `test/registry-ids.test.ts`.
 
 **`DecoderRegistry`** and decode orchestration live in **`src/registry/decoder-registry.ts`**. **`registerAllDecoders(reg)`** in **`register-all-decoders.ts`** is a thin orchestrator: it calls **`registerCoreAndPronunciation`**, **`registerHeadwordsElNlDe`**, **`registerFormOfWikidata`**, **`registerTranslations`**, **`registerSenses`**, **`registerMorphologyLa`**, **`registerSemanticRelations`**, **`registerEtymology`**, **`registerPronunciationExtra`**, **`registerSections`**, **`registerInflectionStems`** (family modules under **`src/registry/register-*.ts`**). The package entry **`src/registry.ts`** constructs the singleton and calls `registerAllDecoders(registry)`.
 
