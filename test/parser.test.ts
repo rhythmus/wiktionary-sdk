@@ -7,6 +7,7 @@ import {
   splitEtymologiesAndPOS,
   mapHeadingToPos,
   langToLanguageName,
+  etymSourceLangDisplayName,
   splitPipesPreservingLinks,
 } from "../src/parser";
 
@@ -289,6 +290,32 @@ describe("langToLanguageName", () => {
 
   it("returns null for unknown codes", () => {
     expect(langToLanguageName("xx")).toBeNull();
+  });
+});
+
+describe("etymSourceLangDisplayName", () => {
+  it("uses langToLanguageName for core wiki codes", () => {
+    expect(etymSourceLangDisplayName("la")).toBe("Latin");
+    expect(etymSourceLangDisplayName("es")).toBe("Spanish");
+    expect(etymSourceLangDisplayName("EL")).toBe("Greek");
+  });
+
+  it("maps historical and proto-language etymology codes", () => {
+    expect(etymSourceLangDisplayName("enm")).toBe("Middle English");
+    expect(etymSourceLangDisplayName("fro")).toBe("Old French");
+    expect(etymSourceLangDisplayName("grm")).toBe("Medieval Greek");
+    expect(etymSourceLangDisplayName("ine-pro")).toBe("Proto-Indo-European");
+    expect(etymSourceLangDisplayName("la-vul")).toBe("Vulgar Latin");
+    expect(etymSourceLangDisplayName("frk")).toBe("Frankish");
+    expect(etymSourceLangDisplayName("gem")).toBe("Proto-Germanic");
+  });
+
+  it("resolves section-style names via languageNameToLang", () => {
+    expect(etymSourceLangDisplayName("Latin")).toBe("Latin");
+  });
+
+  it("returns the trimmed code when unknown", () => {
+    expect(etymSourceLangDisplayName("zz-unknown")).toBe("zz-unknown");
   });
 });
 

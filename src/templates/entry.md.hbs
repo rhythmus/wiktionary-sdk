@@ -1,7 +1,29 @@
 # {{headword}}
-{{#if form_of}}**{{form_of.label}} of:**
+{{#if form_of}}
+{{#if (formOfUltraCompactEligible this)}}
+**{{headword}}** {{formOfUltraCompactLabel this}} **{{form_of.lemma}}**{{#if senses.[0].gloss}} {{senses.[0].gloss}}{{/if}}
+
+{{else}}
+{{#if (formOfMorphInlinePhrase this)}}
+**{{headword}}** **{{formOfMorphInlinePhrase this}}** of:
+
+{{else if (formOfMorphMergedProseLine this)}}
+**{{headword}}** **{{formOfMorphMergedProseLine this}}** of:
+
+{{else if (hasFormOfMorphBullets this)}}
+{{#each (formOfMorphBulletItems this)}}
+- {{this}}
+{{/each}}
+
+of:
+{{else if (formOfMorphSingleLinePhrase this)}}
+**{{headword}}** **{{formOfMorphSingleLinePhrase this}}** of:
+{{else}}
+**{{headword}}** {{formOfLabelLower this}} of:
+{{/if}}
 
 ## → {{form_of.lemma}}
+{{/if}}
 {{/if}}
 {{#if pronunciation.romanization}}*({{pronunciation.romanization}})* {{/if}}**{{posLine this}}**
 {{#if pronunciation.IPA}}*Pronunciation:* [{{pronunciation.IPA}}]{{/if}}
@@ -14,13 +36,22 @@
 
 {{#if etymology.chain}}
 ### I. Etymology & Origins
-← {{#each etymology.chain}}**{{langLabel this}}**{{#if term}} {{term}}{{/if}}{{#if gloss}} (*{{gloss}}*){{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
+< {{#each etymology.chain}}**{{langLabel this}}**{{#if term}} {{term}}{{/if}}{{#if gloss}} *{{gloss}}*{{/if}} {{#unless @last}}{{etymSymbol relation}} {{/unless}}{{/each}}
 
 {{#if etymology.cognates}}
-> **Cognates:** {{#each etymology.cognates}}{{langLabel this}} **{{term}}**{{#if gloss}} (*{{gloss}}*){{/if}}{{#unless @last}}, {{/unless}}{{/each}}
+> **Cognates:** {{#each etymology.cognates}}{{langLabel this}} **{{term}}**{{#if gloss}} *{{gloss}}*{{/if}}{{#unless @last}}, {{/unless}}{{/each}}
 {{/if}}
 
 ---
+{{else}}
+{{#if senses}}
+{{#unless form_of}}
+### I. Etymology & Origins
+*(etymology not given on Wiktionary)*
+
+---
+{{/unless}}
+{{/if}}
 {{/if}}
 
 {{#if senses}}

@@ -1,10 +1,13 @@
 import type { EtymologyStep } from "./library";
 import type { GrammarTraits } from "./morphology";
+import { parseMorphologyTags } from "./morphology";
 import type { WordStems } from "./stem";
 import { SCHEMA_VERSION } from "./types";
-import type { Sense, RichEntry, InflectionTable, EtymologyData, Lexeme } from "./types";
+import type { Sense, RichEntry, InflectionTable, EtymologyData, Lexeme, FetchResult } from "./types";
 import Handlebars from "handlebars";
-import { HTML_ENTRY_TEMPLATE, MD_ENTRY_TEMPLATE, ENTRY_CSS } from "./templates/templates";
+import { etymSourceLangDisplayName } from "./parser";
+import { groupLexemesForIntegratedHomonyms } from "./lexeme-display-groups";
+import { HTML_ENTRY_TEMPLATE, MD_ENTRY_TEMPLATE, ENTRY_CSS, HTML_LEXEME_HOMONYM_GROUP_TEMPLATE } from "./templates/templates";
 
 /**
  * Supported output formats for the generic formatter.
@@ -72,6 +75,15 @@ export function format(data: any, options: FormatOptions = {}): string {
 
     if (data === null || data === undefined) {
         return style.nullValue();
+    }
+
+    if (
+        typeof data === "object" &&
+        data !== null &&
+        typeof (data as FetchResult).schema_version === "string" &&
+        Array.isArray((data as FetchResult).lexemes)
+    ) {
+        return formatFetchResult(data as FetchResult, options);
     }
 
     // 1. Handle Rich Entries (RichEntry) or normalized Lexeme objects from wiktionary()
@@ -231,43 +243,50 @@ Handlebars.registerHelper("ifCond", function (this: any, v1: any, operator: stri
     }
 });
 
-/** Connector between etymology chain steps (lemma→first step uses a separate leading ← in the template). */
+/** Connector between etymology chain steps (default lineage edge; lemma→first step uses the same "<" in the template). */
 Handlebars.registerHelper("etymSymbol", (relation: string) => {
     switch (relation) {
         case "alternative": return "~";
         case "borrowed": return "bor.";
         case "cognate": return "cog.";
-        /* inherited, derived, back-formation, affix, compound, … — same back-arrow; avoid "<" (reads as "from" elsewhere) */
         default:
-            return "←";
+            return "<";
     }
 });
 
-/** EtymologyLink: decoders set `source_lang`; display name is optional. */
+/** EtymologyLink: decoders set `source_lang`; optional `source_lang_name` wins, else code → human label. */
 Handlebars.registerHelper("langLabel", (link: { source_lang_name?: string; source_lang?: string } | undefined) => {
     if (!link || typeof link !== "object") return "";
     const name = link.source_lang_name?.trim();
+    if (name) return name;
     const code = link.source_lang?.trim();
-    return name || code || "";
+    if (!code) return "";
+    return etymSourceLangDisplayName(code);
 });
+
+/** Dictionary-style gender next to noun PoS (masc. / fem. / neut.). */
+function formatGenderForPosLine(gender: string): string {
+    const g = gender.toLowerCase().trim();
+    if (g === "masculine" || g === "m") return "masc.";
+    if (g === "feminine" || g === "f") return "fem.";
+    if (g === "neuter" || g === "n") return "neut.";
+    return gender;
+}
 
 /** PoS line: nouns (and proper nouns) append headword gender when present (dictionary convention). */
 Handlebars.registerHelper("posLine", (entry: Record<string, unknown>) => {
-    const raw = String((entry?.pos ?? entry?.part_of_speech) ?? "").trim();
-    if (!raw) return "";
+    let raw = String((entry?.pos ?? entry?.part_of_speech) ?? "").trim();
+    if (!raw) raw = String(entry?.part_of_speech_heading ?? "").trim();
+    if (!raw) return "(unknown)";
     const normalized = raw.toLowerCase().replace(/_/g, " ");
     const isNounLike = normalized === "noun" || normalized === "proper noun";
     const gender = (entry?.headword_morphology as { gender?: string } | undefined)?.gender;
     const display = raw.replace(/_/g, " ");
     if (isNounLike && gender) {
-        return `${display} · ${gender}`;
+        return `${display}  ${formatGenderForPosLine(gender)}`;
     }
     return display;
 });
-
-const htmlEntryTemplate = Handlebars.compile(HTML_ENTRY_TEMPLATE);
-const mdEntryTemplate = Handlebars.compile(MD_ENTRY_TEMPLATE);
-const entryCss = ENTRY_CSS;
 
 function escapeHtml(text: string): string {
     return text
@@ -316,17 +335,428 @@ function renderUsageNoteWithRefLinks(note: string): Handlebars.SafeString {
 }
 
 /**
- * Minimal HTML for the inflected-form headline (surface form + kind/label + "of:"),
- * matching classes in entry.html.hbs. Pair with a nested full lemma fragment (mockup:
- * headline row, then →, then complete lemma entry).
+ * Expand en.wiktionary "first/third-person singular …" style lines into two explicit lines.
+ */
+export function expandDualPersonInflectionLine(line: string): string[] {
+    const t = line.trim();
+    if (!t) return [];
+    const m = t.match(/^(first|second|third)\/(first|second|third)-person(\s+.+\s*)$/i);
+    if (m) {
+        const rest = m[3].trim();
+        const a = m[1].toLowerCase();
+        const b = m[2].toLowerCase();
+        return [`${a}-person ${rest}`, `${b}-person ${rest}`];
+    }
+    return [t];
+}
+
+/** Known short codes in form-of template positionals (en.wiktionary); excludes gender (shown with PoS). */
+const MORPH_ABBREV_TOKEN = new Set([
+    "1", "2", "3", "s", "sg", "p", "pl", "nom", "gen", "acc", "voc",
+    "pres", "impf", "ipf", "spast", "aor", "fut", "perf", "plup",
+    "ind", "indc", "sub", "subj", "imp", "impr",
+    "act", "actv", "pass", "psv", "mid", "m-p", "mpsv",
+    "1s", "2s", "3s", "1p", "2p", "3p", "1sg", "2sg", "3sg", "1pl", "2pl", "3pl",
+]);
+
+function isMorphAbbrevToken(s: string): boolean {
+    const t = s.trim().toLowerCase();
+    if (!t) return false;
+    if (t === "m" || t === "f" || t === "n") return true;
+    if (MORPH_ABBREV_TOKEN.has(t)) return true;
+    if (/^[1-3](?:s|sg|p|pl)$/i.test(t)) return true;
+    return false;
+}
+
+function formOfMorphCandidateLines(entry: Lexeme): string[] {
+    const sense0 = entry.senses?.[0];
+    const fromSubs = sense0?.subsenses?.map((s) => String(s.gloss ?? "").trim()).filter(Boolean) ?? [];
+    if (fromSubs.length > 0) return fromSubs;
+    return (entry.form_of?.tags ?? []).map((x) => String(x).trim()).filter(Boolean);
+}
+
+/** Human phrase from abbrev tags (gender omitted; shown via posLine / headword_morphology). */
+export function inflectionPhraseFromMorphTags(tags: string[]): string {
+    const tr = parseMorphologyTags(tags);
+    const parts: string[] = [];
+
+    if (tr.case) {
+        parts.push(tr.case);
+        if (tr.number) parts.push(tr.number === "singular" ? "singular" : "plural");
+        return parts.join(" ");
+    }
+
+    if (tr.person) {
+        const ord = tr.person === "1" ? "first" : tr.person === "2" ? "second" : "third";
+        parts.push(`${ord}-person`);
+    }
+    if (tr.number) parts.push(tr.number === "singular" ? "singular" : "plural");
+    if (tr.tense) parts.push(tr.tense);
+    if (tr.mood && (tr.mood !== "indicative" || tr.tense || tr.person)) parts.push(tr.mood);
+    if (tr.voice && tr.voice !== "active") parts.push(tr.voice);
+
+    return parts.join(" ");
+}
+
+/**
+ * True when every gloss/tag line is a short inflection code (e.g. la-participle `voc|m|s`),
+ * not a prose definition sub-bullet — those stay as a bullet list.
+ */
+export function formOfMorphLinesAreAbbrevTokensOnly(entry: Lexeme): boolean {
+    const lines = formOfMorphCandidateLines(entry);
+    if (lines.length === 0) return false;
+    if (!lines.every(isMorphAbbrevToken)) return false;
+    return inflectionPhraseFromMorphTags(lines).length > 0;
+}
+
+/** Inline qualifiers before "of:" when tags are abbrev-only (e.g. "vocative singular"). */
+export function formOfMorphInlinePhrase(entry: Lexeme): string {
+    if (!formOfMorphLinesAreAbbrevTokensOnly(entry)) return "";
+    const lines = formOfMorphCandidateLines(entry);
+    return inflectionPhraseFromMorphTags(lines);
+}
+
+/**
+ * Morphology lines for an inflected/form-of lexeme: prefer ===Definition=== subbullets (##),
+ * else positional tags from the form-of template (each tag may expand for first/third-person).
+ * Abbrev-only tag runs (e.g. voc|m|s) do not produce bullets — use {@link formOfMorphInlinePhrase}.
+ */
+export function inflectionMorphDisplayLines(entry: Lexeme): string[] {
+    if (formOfMorphLinesAreAbbrevTokensOnly(entry)) return [];
+
+    const sense0 = entry.senses?.[0];
+    const fromSubs = sense0?.subsenses?.map((s) => String(s.gloss ?? "").trim()).filter(Boolean) ?? [];
+    if (fromSubs.length > 0) {
+        return fromSubs.flatMap((s) => expandDualPersonInflectionLine(s));
+    }
+    const fromParse = entry.form_of?.display_morph_lines;
+    if (fromParse && fromParse.length > 0) {
+        return fromParse.flatMap((s) => expandDualPersonInflectionLine(s));
+    }
+    const tags = entry.form_of?.tags ?? [];
+    const out: string[] = [];
+    for (const tag of tags) {
+        const tt = String(tag).trim();
+        if (!tt) continue;
+        out.push(...expandDualPersonInflectionLine(tt));
+    }
+    return out;
+}
+
+function tryMergePersonMorphLines(lines: string[]): string | null {
+    const tryHyphen = (): { person: string; rest: string }[] | null => {
+        const re = /^(first|second|third)-person(\s.+)$/i;
+        const parsed = lines.map((l) => {
+            const m = l.trim().match(re);
+            return m ? { person: m[1].toLowerCase(), rest: m[2].trim() } : null;
+        });
+        return parsed.every((p): p is NonNullable<typeof p> => p !== null) ? parsed : null;
+    };
+    /** English-style "first person …" (space, not first-person). */
+    const trySpaced = (): { person: string; rest: string }[] | null => {
+        const re = /^(first|second|third)\s+person(\s.+)$/i;
+        const parsed = lines.map((l) => {
+            const m = l.trim().match(re);
+            return m ? { person: m[1].toLowerCase(), rest: m[2].trim() } : null;
+        });
+        return parsed.every((p): p is NonNullable<typeof p> => p !== null) ? parsed : null;
+    };
+    const hyphen = tryHyphen();
+    const spaced = hyphen ? null : trySpaced();
+    const parsed = hyphen ?? spaced;
+    const joinWord = hyphen ? "and" : "or";
+    if (!parsed) return null;
+    const rest0 = parsed[0]!.rest;
+    if (!parsed.every((p) => p.rest === rest0)) return null;
+    const persons = parsed.map((p) => p.person);
+    if (persons.length === 2) {
+        const [p1, p2] = persons;
+        if ((p1 === "first" && p2 === "third") || (p1 === "third" && p2 === "first")) {
+            return `first ${joinWord} third person ${rest0}`;
+        }
+        return `${p1} or ${p2} person ${rest0}`;
+    }
+    if (persons.length > 2) return `${persons.join(", ")} person ${rest0}`;
+    return null;
+}
+
+/**
+ * Collapse multiple morph lines into one phrase (template mocks L-06, L-07).
+ * Prefers person-merged wording; otherwise joins with " · ".
+ */
+export function formOfMorphMergedProseLine(entry: Lexeme): string {
+    const lines = inflectionMorphDisplayLines(entry);
+    if (lines.length < 2) return "";
+    const norm = lines.map((l) => l.trim().replace(/\s+/g, " "));
+    if (norm.length >= 3) {
+        const head = tryMergePersonMorphLines(norm.slice(0, 2));
+        if (head) return `${head} · ${norm.slice(2).join(" · ")}`;
+    }
+    const merged = tryMergePersonMorphLines(norm);
+    if (merged) return merged;
+    if (norm.length === 2 && /person/i.test(norm[0]) && /person/i.test(norm[1])) {
+        return `${norm[0]} or ${norm[1]}`;
+    }
+    return norm.join(" · ");
+}
+
+/** Two or more morph lines → bullet list (fallback when merged phrase is empty — should not occur for 2+ prose lines). */
+export function inflectionMorphBulletItems(entry: Lexeme): string[] {
+    const lines = inflectionMorphDisplayLines(entry);
+    if (lines.length < 2) return [];
+    if (formOfMorphMergedProseLine(entry)) return [];
+    return lines;
+}
+
+export function hasFormOfMorphBullets(entry: Lexeme): boolean {
+    return inflectionMorphBulletItems(entry).length > 0;
+}
+
+/** Exactly one morph line → inline next to surface (e.g. "ing-form"), not a &lt;ul&gt;. */
+export function formOfMorphSingleLinePhrase(entry: Lexeme): string {
+    const lines = inflectionMorphDisplayLines(entry);
+    return lines.length === 1 ? lines[0] : "";
+}
+
+/** Lowercase headline label ("Plural of" → "plural of") for compact form-of row. */
+export function formOfLabelDisplayLower(entry: Lexeme): string {
+    const raw = entry.form_of?.label?.trim();
+    if (!raw) return "";
+    return raw.toLowerCase();
+}
+
+/**
+ * Single-line inflected card (mock L-05): surface + label + lemma + one gloss, no `→` row.
+ */
+export function formOfUltraCompactEligible(entry: Lexeme): boolean {
+    if (!entry.form_of) return false;
+    if (entry.type === "FORM_OF") return false;
+    if (formOfMorphInlinePhrase(entry)) return false;
+    if (formOfMorphSingleLinePhrase(entry)) return false;
+    if (hasFormOfMorphBullets(entry)) return false;
+    if (inflectionMorphDisplayLines(entry).length > 1) return false;
+    const s = entry.senses;
+    if (!s || s.length !== 1) return false;
+    if (s[0].subsenses && s[0].subsenses.length > 0) return false;
+    const g = (s[0].gloss ?? "").trim();
+    return Boolean(g);
+}
+
+/** e.g. `plural of:` / `inflected form of:` — avoids `plural of of:` when label already ends with “of”. */
+export function formOfUltraCompactLabel(entry: Lexeme): string {
+    const l = formOfLabelDisplayLower(entry);
+    if (!l) return "inflected form of:";
+    const trimmed = l.replace(/:\s*$/, "").trim();
+    if (/\bof$/.test(trimmed)) return `${trimmed}:`;
+    return `${trimmed} of:`;
+}
+
+/**
+ * Minimal HTML for the inflected-form headline (surface + optional morph bullets + "of:"),
+ * matching entry.html.hbs. Pair with a nested full lemma fragment (→ lemma body).
  */
 export function formatInflectedFormHeadline(entry: Lexeme): string {
     if (!entry.form_of) return "";
     const surface = (entry as Lexeme & { headword?: string }).headword ?? entry.form;
     const headword = escapeHtml(String(surface || "").trim());
-    const label = escapeHtml(String(entry.form_of.label || "").trim());
+    const inlinePhrase = formOfMorphInlinePhrase(entry);
+    const morphLines = inflectionMorphDisplayLines(entry);
+    const bullets = inflectionMorphBulletItems(entry);
+    const single = formOfMorphSingleLinePhrase(entry);
+    const labelLower = escapeHtml(formOfLabelDisplayLower(entry));
     const sub = entry.form_of.subclass ? escapeHtml(entry.form_of.subclass) : "";
-    return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><span class="entry-line entry-line-head"><span class="form-of-surface${sub ? ` ${sub}` : ""}">${headword}</span><span class="inflection-label">${label}</span><span class="inline-sep">of:</span></span></div></div>`;
+    const ofCompact = `<span class="form-of-of-inline"> of:</span>`;
+    const surf = `<span class="form-of-surface${sub ? ` ${sub}` : ""}">${headword}</span>`;
+
+    if (inlinePhrase) {
+        const q = escapeHtml(inlinePhrase);
+        return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><div class="form-of-head-stack"><span class="entry-line entry-line-head form-of-compact-line form-of-inline-morph">${surf}<strong class="form-of-morph-inline"> ${q}</strong>${ofCompact}</span></div></div></div>`;
+    }
+
+    const merged = formOfMorphMergedProseLine(entry);
+    if (merged) {
+        const q = escapeHtml(merged);
+        return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><div class="form-of-head-stack form-of-merged-morph"><span class="entry-line entry-line-head form-of-compact-line form-of-merged-morph-line">${surf}<strong class="form-of-morph-inline"> ${q}</strong>${ofCompact}</span></div></div></div>`;
+    }
+
+    if (bullets.length >= 2) {
+        const ul = `<ul class="form-of-morph-lines">${bullets.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
+        const ofSolo = `<div class="form-of-of-line-solo"><span class="inline-sep">of:</span></div>`;
+        return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><div class="form-of-head-stack form-of-multiline-morph"><span class="entry-line entry-line-head form-of-surface-alone">${surf}</span>${ul}${ofSolo}</div></div></div>`;
+    }
+
+    if (single) {
+        const q = escapeHtml(single);
+        return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><div class="form-of-head-stack"><span class="entry-line entry-line-head form-of-compact-line">${surf}<strong class="form-of-morph-inline"> ${q}</strong>${ofCompact}</span></div></div></div>`;
+    }
+
+    const kind = labelLower ? `<span class="form-of-kind-inline inflection-label">${labelLower}</span>` : "";
+    return `<div class="wiktionary-entry is-redirect is-form-headline"><div class="entry-body"><div class="form-of-head-stack"><span class="entry-line entry-line-head form-of-compact-line">${surf}${kind ? ` ${kind}` : ""}${ofCompact}</span></div></div></div>`;
+}
+
+/** Subexpression helpers for form-of Handlebars branches */
+Handlebars.registerHelper("formOfMorphBulletItems", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return [];
+    return inflectionMorphBulletItems(entry);
+});
+Handlebars.registerHelper("hasFormOfMorphBullets", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return false;
+    return hasFormOfMorphBullets(entry);
+});
+Handlebars.registerHelper("formOfMorphSingleLinePhrase", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return "";
+    return formOfMorphSingleLinePhrase(entry);
+});
+Handlebars.registerHelper("formOfLabelLower", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return "";
+    return formOfLabelDisplayLower(entry);
+});
+Handlebars.registerHelper("formOfMorphInlinePhrase", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return "";
+    return formOfMorphInlinePhrase(entry);
+});
+Handlebars.registerHelper("formOfMorphMergedProseLine", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return "";
+    return formOfMorphMergedProseLine(entry);
+});
+Handlebars.registerHelper("formOfUltraCompactEligible", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return false;
+    return formOfUltraCompactEligible(entry);
+});
+Handlebars.registerHelper("formOfUltraCompactLabel", (entry: Lexeme | undefined) => {
+    if (!entry || typeof entry !== "object") return "";
+    return formOfUltraCompactLabel(entry);
+});
+
+const htmlEntryTemplate = Handlebars.compile(HTML_ENTRY_TEMPLATE);
+const htmlHomonymGroupTemplate = Handlebars.compile(HTML_LEXEME_HOMONYM_GROUP_TEMPLATE);
+const mdEntryTemplate = Handlebars.compile(MD_ENTRY_TEMPLATE);
+const entryCss = ENTRY_CSS;
+
+function prepareLexemeHtmlContext(entry: any, options: FormatOptions): Record<string, unknown> {
+    const standalone = options.mode === "html";
+    const usageNotes = Array.isArray(entry.usage_notes)
+        ? entry.usage_notes.map((n: unknown) =>
+              typeof n === "string"
+                  ? renderUsageNoteWithRefLinks(n)
+                  : new Handlebars.SafeString(escapeHtml(String(n)))
+          )
+        : entry.usage_notes;
+    return {
+        ...entry,
+        headword: entry.headword || entry.form,
+        pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
+        schema_version: SCHEMA_VERSION,
+        standalone,
+        relations: entry.relations ?? entry.semantic_relations,
+        usage_notes: usageNotes,
+    };
+}
+
+function formatLexemeHtmlFragment(lexeme: Lexeme, options: FormatOptions): string {
+    const ctx = prepareLexemeHtmlContext(lexeme, {
+        ...options,
+        mode: options.mode === "html" ? "html-fragment" : options.mode,
+    });
+    return htmlEntryTemplate(ctx);
+}
+
+function formatHomonymGroupHtml(items: Lexeme[], options: FormatOptions): string {
+    const first = items[0];
+    const wikidata = items.find((l) => l.wikidata)?.wikidata ?? first.wikidata;
+    const usage_notes = items.find((l) => l.usage_notes?.length)?.usage_notes ?? first.usage_notes;
+    const shared = prepareLexemeHtmlContext(
+        { ...first, wikidata, usage_notes },
+        { ...options, mode: "html-fragment" }
+    );
+    const stacks = items.map((lex) => ({
+        etymology: lex.etymology,
+        senses: lex.senses,
+        relations: lex.semantic_relations,
+        derived_terms: lex.derived_terms,
+    }));
+    return htmlHomonymGroupTemplate({
+        headword: first.form,
+        shared,
+        stacks,
+    });
+}
+
+/**
+ * Render a full {@link FetchResult}: optional `notes` banner, **homonym-merged** HTML
+ * (`template-coverage-mock-entries.md` · L-02), and empty-result messaging (L-15 / META-A2).
+ */
+export function formatFetchResult(result: FetchResult, options: FormatOptions = {}): string {
+    const mode = options.mode || "html";
+    const notesHtml =
+        result.notes?.length && (mode === "html" || mode === "html-fragment")
+            ? `<div class="wiktionary-fetch-notes" role="status">${result.notes
+                  .map((n) => `<p>${escapeHtml(String(n))}</p>`)
+                  .join("")}</div>`
+            : "";
+    const notesLead =
+        mode !== "html" && mode !== "html-fragment" && result.notes?.length
+            ? `${result.notes.join("\n")}\n\n`
+            : "";
+
+    if (mode === "html" || mode === "html-fragment") {
+        const groups = groupLexemesForIntegratedHomonyms(result.lexemes);
+        const body =
+            result.lexemes.length === 0
+                ? `<div class="wiktionary-fetch-empty" role="alert"><p>No lexemes in this result.</p></div>`
+                : groups
+                      .map((g) =>
+                          g.type === "single"
+                              ? formatLexemeHtmlFragment(g.items[0], options)
+                              : formatHomonymGroupHtml(g.items, options)
+                      )
+                      .join("\n");
+        const html = `${notesHtml}${body}`;
+
+        if (mode === "html") {
+            return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiktionary — fetch result</title>
+    <style>
+        ${entryCss}
+        .wiktionary-fetch-notes { font-size: 0.85em; margin-bottom: 1rem; opacity: 0.9; }
+        .wiktionary-fetch-empty { color: var(--error-color, #b45309); margin: 1rem 0; }
+        body.dictionary-entry-standalone {
+            background-color: #fdfcf8;
+            color: #1a1a1a;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="dictionary-entry-standalone">
+    ${html}
+</body>
+</html>`.trim();
+        }
+        return html;
+    }
+
+    if (mode === "markdown") {
+        const mdNotes = result.notes?.length ? result.notes.map((n) => `> ${n}`).join("\n") + "\n\n" : "";
+        if (result.lexemes.length === 0) return `${mdNotes}*(No lexemes.)*`;
+        return (
+            mdNotes +
+            result.lexemes.map((lex) => format(lex, { ...options, mode: "markdown" })).join("\n\n---\n\n")
+        );
+    }
+
+    return (
+        notesLead +
+        (result.lexemes.length === 0
+            ? "(No lexemes.)"
+            : result.lexemes.map((lex) => format(lex, options)).join("\n\n"))
+    );
 }
 
 /**
@@ -422,25 +852,10 @@ class HtmlStyle extends TextStyle {
         }).join("");
     }
     rich(entry: any, options: FormatOptions): string {
-        const standalone = options.mode === "html";
-        const usageNotes = Array.isArray(entry.usage_notes)
-            ? entry.usage_notes.map((n: unknown) =>
-                typeof n === "string" ? renderUsageNoteWithRefLinks(n) : new Handlebars.SafeString(escapeHtml(String(n)))
-              )
-            : entry.usage_notes;
-        const context = {
-            ...entry,
-            headword: entry.headword || entry.form,
-            pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
-            schema_version: SCHEMA_VERSION,
-            standalone,
-            relations: entry.relations ?? entry.semantic_relations,
-            usage_notes: usageNotes,
-        };
-
+        const context = prepareLexemeHtmlContext(entry, options);
         let html = htmlEntryTemplate(context);
 
-        if (standalone) {
+        if (options.mode === "html") {
             // If standalone, wrap in basic HTML structure with the premium CSS
             return `
 <!DOCTYPE html>
@@ -448,7 +863,7 @@ class HtmlStyle extends TextStyle {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${entry.headword} - Wiktionary Entry</title>
+    <title>${String((entry.headword || entry.form || "Entry") as string)} - Wiktionary Entry</title>
     <style>
         ${entryCss}
         body.dictionary-entry-standalone {

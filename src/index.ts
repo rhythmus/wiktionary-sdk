@@ -539,6 +539,7 @@ function slug(s: string) {
 // Consolidate exports to avoid duplicates and lint errors
 export * from "./library";
 export * from "./formatter";
+export * from "./lexeme-display-groups";
 export * from "./stem";
 export * from "./wrapper-invoke";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";

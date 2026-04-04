@@ -1,22 +1,65 @@
 <div class="wiktionary-entry {{#if form_of}}is-redirect{{/if}}">
   <div class="entry-body">
-    <span class="entry-line entry-line-head">
-      {{~#if form_of~}}
+    {{~#if (formOfUltraCompactEligible this)~}}
+    <span class="entry-line entry-line-head form-of-ultra-compact-line">
       <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span>
-      <span class="inflection-label">{{form_of.label}}</span>
-      <span class="inline-sep">of:</span>
-      <span class="redirect-arrow">→</span>
+      <span class="form-of-kind-inline inflection-label">{{formOfUltraCompactLabel this}}</span>
       <span class="lemma lemma-target">{{form_of.lemma}}</span>
+      {{#if senses.[0].gloss}}<span class="gloss form-of-tail-gloss">{{senses.[0].gloss}}</span>{{/if}}
+    </span>
+    {{~else~}}
+    {{~#if form_of~}}
+    <div class="form-of-head-stack{{#if (hasFormOfMorphBullets this)}} form-of-multiline-morph{{/if}}{{#if (formOfMorphMergedProseLine this)}} form-of-merged-morph{{/if}}">
+      {{~#if (formOfMorphInlinePhrase this)~}}
+      <span class="entry-line entry-line-head form-of-compact-line form-of-inline-morph">
+        <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span><strong class="form-of-morph-inline"> {{formOfMorphInlinePhrase this}}</strong><span class="form-of-of-inline"> of:</span>
+      </span>
+      {{~else if (formOfMorphMergedProseLine this)~}}
+      <span class="entry-line entry-line-head form-of-compact-line form-of-merged-morph-line">
+        <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span><strong class="form-of-morph-inline"> {{formOfMorphMergedProseLine this}}</strong><span class="form-of-of-inline"> of:</span>
+      </span>
+      {{~else if (hasFormOfMorphBullets this)~}}
+      <span class="entry-line entry-line-head form-of-surface-alone">
+        <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span>
+      </span>
+      <ul class="form-of-morph-lines">
+        {{#each (formOfMorphBulletItems this)}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      <div class="form-of-of-line-solo"><span class="inline-sep">of:</span></div>
+      {{~else if (formOfMorphSingleLinePhrase this)~}}
+      <span class="entry-line entry-line-head form-of-compact-line">
+        <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span><strong class="form-of-morph-inline"> {{formOfMorphSingleLinePhrase this}}</strong><span class="form-of-of-inline"> of:</span>
+      </span>
       {{~else~}}
-      <span class="lemma">{{headword}}</span>
+      <span class="entry-line entry-line-head form-of-compact-line">
+        <span class="form-of-surface {{form_of.subclass}}">{{headword}}</span>{{#if form_of.label}} <span class="form-of-kind-inline inflection-label">{{formOfLabelLower this}}</span>{{/if}}<span class="form-of-of-inline"> of:</span>
+      </span>
       {{~/if~}}
-
+      <span class="entry-line entry-line-head form-of-lemma-row">
+        <span class="redirect-arrow">→</span>
+        <span class="lemma lemma-target">{{form_of.lemma}}</span>
+        {{~#if pronunciation.romanization~}}
+        <span class="romanization">/{{pronunciation.romanization}}/</span>
+        {{~/if~}}
+        <span class="pos">{{posLine this}}</span>
+        {{~#if headword_morphology.principal_parts~}}
+        <span class="principal-parts">
+          {{#each headword_morphology.principal_parts}}
+          <span class="pp-item">{{this}}</span>{{#unless @last}}<span class="inline-sep">–</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{~/if~}}
+      </span>
+    </div>
+    {{~else~}}
+    <span class="entry-line entry-line-head">
+      <span class="lemma">{{headword}}</span>
       {{~#if pronunciation.romanization~}}
       <span class="romanization">/{{pronunciation.romanization}}/</span>
       {{~/if~}}
-
       <span class="pos">{{posLine this}}</span>
-
       {{~#if headword_morphology.principal_parts~}}
       <span class="principal-parts">
         {{#each headword_morphology.principal_parts}}
@@ -25,8 +68,13 @@
       </span>
       {{~/if~}}
     </span>
+    {{~/if~}}
 
-    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(<span class="etym-arrow etym-arrow-from-lemma">←</span></span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} {{term}}{{/if}}{{#if gloss}} ({{gloss}}){{/if}}{{#unless @last}} <span class="etym-arrow">{{etymSymbol relation}}</span> {{/unless}}{{~/each~}})</span></span>{{~/if~}}
+    {{~#unless form_of~}}
+    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>{{else}}{{#if senses}}<span class="entry-line etym-missing"><span class="etym-placeholder">(etymology not given on Wiktionary)</span></span>{{/if}}{{~/if~}}
+    {{~else~}}
+    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>{{~/if~}}
+    {{~/unless~}}
 
     {{~#if senses~}}
     <span class="entry-line">
@@ -41,6 +89,13 @@
           {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
           {{/if}}
           {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+          {{#if subsenses}}
+          <span class="subsense-block">
+            {{#each subsenses}}
+            <span class="subsense-item">{{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}{{#if gloss}}<span class="gloss subsense-gloss">{{gloss}}</span>{{/if}}</span>
+            {{/each}}
+          </span>
+          {{/if}}
         </span>
         {{/each}}
       </span>
@@ -103,6 +158,7 @@
       <span class="metadata-pill">Subclass: {{this}}</span>
       {{/each}}
     </span>
+    {{~/if~}}
     {{~/if~}}
   </div>
 </div>

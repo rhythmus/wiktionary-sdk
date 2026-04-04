@@ -1,0 +1,107 @@
+<div class="wiktionary-entry wiktionary-entry-homonym-group">
+  <div class="entry-body">
+    <span class="entry-line entry-line-head">
+      <span class="lemma">{{headword}}</span>
+      {{~#if shared.pronunciation.romanization~}}
+      <span class="romanization">/{{shared.pronunciation.romanization}}/</span>
+      {{~/if~}}
+      <span class="pos">{{posLine shared}}</span>
+      {{~#if shared.headword_morphology.principal_parts~}}
+      <span class="principal-parts">
+        {{#each shared.headword_morphology.principal_parts}}
+        <span class="pp-item">{{this}}</span>{{#unless @last}}<span class="inline-sep">–</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{~/if~}}
+    </span>
+    {{#each stacks}}
+    <div class="homonym-etym-block">
+      {{~#if etymology.chain~}}
+      <span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>
+      {{~else~}}
+      {{~#if senses~}}
+      <span class="entry-line etym-missing"><span class="etym-placeholder">(etymology not given on Wiktionary)</span></span>
+      {{~/if~}}
+      {{~/if~}}
+      {{~#if senses~}}
+      <span class="entry-line">
+        <span class="sense-inline">
+          {{#each senses}}
+          <span class="sense-item">
+            {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}</span>{{/ifCond}}
+            {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
+            {{#if only_used_in}}
+            <span class="def-only-used-in"><span class="def-oui-lead">only used in</span> <span class="def-oui-terms">{{#each only_used_in.terms}}<span class="def-oui-term">{{this}}</span>{{#unless @last}}<span class="def-oui-sep">, </span>{{/unless}}{{/each}}</span>{{#if only_used_in.t_gloss}} <span class="def-oui-gloss">({{only_used_in.t_gloss}})</span>{{/if}}</span>
+            {{else}}
+            {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
+            {{/if}}
+            {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+            {{#if subsenses}}
+            <span class="subsense-block">
+              {{#each subsenses}}
+              <span class="subsense-item">{{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}{{#if gloss}}<span class="gloss subsense-gloss">{{gloss}}</span>{{/if}}</span>
+              {{/each}}
+            </span>
+            {{/if}}
+          </span>
+          {{/each}}
+        </span>
+      </span>
+      {{~/if~}}
+      {{~#if (or relations derived_terms.items)~}}
+      <span class="entry-line">
+        {{#if relations.antonyms}}
+        <span class="line-label">ANT.</span>
+        <span class="relation-group">
+          {{#each relations.antonyms}}
+          <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{/if}}
+        {{#if relations.synonyms}}
+        <span class="line-label">SYN.</span>
+        <span class="relation-group">
+          {{#each relations.synonyms}}
+          <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{/if}}
+        {{#if derived_terms.items}}
+        <span class="line-label">DER.</span>
+        <span class="relation-group">
+          {{#each derived_terms.items}}
+          <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{/if}}
+      </span>
+      {{~/if~}}
+    </div>
+    {{/each}}
+    {{~#if shared.usage_notes~}}
+    <span class="entry-line entry-line-note">
+      <span class="line-label line-label-note">{{#ifCond shared.usage_notes.length ">" 1}}NOTES{{else}}NOTE{{/ifCond}}</span><span class="note-gap" aria-hidden="true">&emsp;</span>
+      <span class="usage-inline">
+        {{#ifCond shared.usage_notes.length ">" 1}}
+          {{#each shared.usage_notes}}
+          <span class="usage-note-item"><strong>{{addOne @index}}</strong> {{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
+          {{/each}}
+        {{else}}
+          <span class="usage-note-item">{{shared.usage_notes.[0]}}</span>
+        {{/ifCond}}
+      </span>
+    </span>
+    {{~/if~}}
+    {{~#if shared.wikidata~}}
+    <span class="entry-line entry-line-meta">
+      <span class="metadata-pill">Wikidata {{shared.wikidata.qid}}</span>
+      {{#each shared.wikidata.instance_of}}
+      <span class="metadata-pill">Instance: {{this}}</span>
+      {{/each}}
+      {{#each shared.wikidata.subclass_of}}
+      <span class="metadata-pill">Subclass: {{this}}</span>
+      {{/each}}
+    </span>
+    {{~/if~}}
+  </div>
+</div>

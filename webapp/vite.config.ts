@@ -6,6 +6,7 @@ import fs from 'fs'
 const ROOT_DIR = path.resolve(__dirname, '..')
 const TEMPLATES_DIR = path.resolve(ROOT_DIR, 'src/templates')
 const HTML_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'entry.html.hbs')
+const HTML_HOMONYM_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'lexeme-homonym-group.html.hbs')
 const MD_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'entry.md.hbs')
 const CSS_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'entry.css')
 const BUNDLE_PATH = path.resolve(TEMPLATES_DIR, 'templates.ts')
@@ -19,6 +20,7 @@ function toTemplateLiteralSource(content: string): string {
 
 function buildTemplateBundleSource(): string {
   const html = toTemplateLiteralSource(fs.readFileSync(HTML_TEMPLATE_PATH, 'utf8'))
+  const htmlHomonym = toTemplateLiteralSource(fs.readFileSync(HTML_HOMONYM_TEMPLATE_PATH, 'utf8'))
   const md = toTemplateLiteralSource(fs.readFileSync(MD_TEMPLATE_PATH, 'utf8'))
   const css = toTemplateLiteralSource(fs.readFileSync(CSS_TEMPLATE_PATH, 'utf8'))
 
@@ -26,11 +28,14 @@ function buildTemplateBundleSource(): string {
  * AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
  * Source files:
  * - src/templates/entry.html.hbs
+ * - src/templates/lexeme-homonym-group.html.hbs
  * - src/templates/entry.md.hbs
  * - src/templates/entry.css
  */
 
 export const HTML_ENTRY_TEMPLATE = \`${html}\`;
+
+export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = \`${htmlHomonym}\`;
 
 export const MD_ENTRY_TEMPLATE = \`${md}\`;
 
@@ -47,7 +52,7 @@ function syncTemplateBundle(): boolean {
 }
 
 function templateSyncPlugin() {
-  const sourceFiles = [HTML_TEMPLATE_PATH, MD_TEMPLATE_PATH, CSS_TEMPLATE_PATH]
+  const sourceFiles = [HTML_TEMPLATE_PATH, HTML_HOMONYM_TEMPLATE_PATH, MD_TEMPLATE_PATH, CSS_TEMPLATE_PATH]
   return {
     name: 'template-source-sync',
     buildStart() {
