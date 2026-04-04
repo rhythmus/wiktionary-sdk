@@ -1,9 +1,9 @@
-# Wiktionary SDK — Formal Specification (v3.3)
+# Wiktionary SDK — Formal Specification (v3.4)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
 
-This revision (v3.3) aligns the normative spec with the **current TypeScript implementation** in `src/` (package `wiktionary-sdk`, version as in root `package.json`), including orchestration details, MediaWiki request shapes, module boundaries, and known type/schema naming edges.
+This revision (v3.4) extends v3.3 with **operational hardening** (debug/cache), **testable REST wiring** (`buildApiFetchResponse`), **Vitest + jsdom coverage** for extracted webapp helpers, and pointers to **`audit.md`** (repository critique) and **`docs/STAGED_IMPLEMENTATION_PLAN.md`** (merged roadmap + staged engineering plan). Normative extraction behaviour is unchanged unless noted inline.
 
 ## Related: query result combinatorics
 
@@ -39,7 +39,7 @@ Return:
 
 The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.0.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
-**Roadmap note (non-normative):** For staged delivery history, see `docs/ROADMAP.md`.
+**Roadmap note (non-normative):** For staged delivery history and future work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`.
 
 ### 1.1 Primary API entry point: `wiktionary()`
 
@@ -823,6 +823,8 @@ The minimal HTTP wrapper exposes **`GET /api/fetch`** with query parameters
 `pos` (mapped to `preferredPos` in code), `enrich` (default true; set `enrich=false` to disable), and optional `format=yaml|json`.
 It does **not** currently expose **`matchMode`**, **`sort`**, **`debugDecoders`**, or direct **`pos`** filtering semantics identical to `wiktionary({ pos })` — extending the query string to mirror `cli/index.ts` / `webapp` parity is a straightforward future improvement.
 
+**Implementation note:** Response assembly lives in **`src/server-fetch.ts`** as **`buildApiFetchResponse(url, deps?)`**, which returns `{ status, headers, body }` so unit tests can inject **`deps.wiktionaryFn`** without listening on a port. **`server.ts`** delegates to that helper. YAML responses use **`Content-Type: text/yaml; charset=utf-8`** so clients treat the payload as UTF-8 explicitly.
+
 **Health:** `GET /api/health` returns a small JSON status object.
 
 ## 12. Design Rationale
@@ -1149,7 +1151,7 @@ they often pass type checks but change runtime semantics.
 **Design:** Wrapper invocation is centralized in
 `src/wrapper-invoke.ts` via `invokeWrapperMethod()` and reused by:
 - `cli/index.ts` (`invokeExtractWrapper`)
-- `webapp/src/App.tsx` (`handleApiExecute`)
+- `webapp/src/playground-api-execute.ts` (`runPlaygroundApiExecute`), called from **`App.tsx`**
 
 The helper enforces canonical signatures for special families:
 - `translate(query, sourceLang, target, props, preferredPos)`
@@ -1191,6 +1193,49 @@ Beyond happy-path tests, the suite now includes:
 by shape drift, not extraction logic. Negative and adapter-level tests close
 that gap.
 
+### 12.32 Debug padding and TieredCache JSON resilience
+
+**Debug padding:** When `debugDecoders: true` and lemma resolution appends
+rows, `FetchResult.debug` is padded with **fresh** empty arrays per resolved
+lexeme (`Array.from(..., () => [])`). **Rationale:** `Array.prototype.fill([])`
+reuses one array reference for every slot, so mutating “lexeme *i*” events
+would alias across indices — a subtle regression for inspector UIs.
+
+**TieredCache L1:** `JSON.parse` on L1 string values is wrapped in
+`try/catch`. **Rationale:** disk corruption, manual cache tampering, or
+version skew can leave non-JSON strings in L1; treating parse failure as a
+cache miss and **deleting** the bad entry avoids throwing on unrelated
+`get()` calls and self-heals on the next write.
+
+### 12.33 Testable REST handler (`buildApiFetchResponse`)
+
+**Problem:** `server.ts` historically inlined fetch logic, making it awkward to
+assert status codes, YAML vs JSON `Content-Type`, and error bodies without a
+full HTTP server.
+
+**Design:** `buildApiFetchResponse` parses `URL` search params, calls
+`wiktionary()` (or a test double), and returns plain `{ status, headers, body }`.
+**Rationale:** keeps CORS and response-shape rules in one module; tests stay
+offline via mocked `wiktionaryFn`.
+
+### 12.34 Orchestration audit suites and webapp RTL tests
+
+Beyond goldens and integration matrices, the repository adds **targeted audit
+tests** (filenames `*-audit.test.ts`) that encode expectations from the
+engineering audit: orchestration (`wiktionary` / fuzzy / debug), API fetch
+shapes, `wrapper-invoke` parity edges, `server-fetch` HTTP mapping, parser and
+registry invariants, formatter and form-of enrichment behaviour, morphology
+tag helpers, and `GroupedLexemeResults` typing. **Rationale:** freeze
+non-obvious contracts called out in `audit.md` without bloating the main
+regression files.
+
+**Webapp:** Selected UI helpers (**URL/query sync**, **FormOfLexemeBlock**,
+**playground API runner**) live in standalone modules under `webapp/src/` for
+readability. **Vitest** runs **`test/webapp/*.test.ts(x)`** with **`jsdom`**,
+**`@testing-library/react`**, and shared **`test/vitest-setup.ts`** (jest-dom
+matchers, RTL cleanup). **Rationale:** guard popstate/query behaviour and
+playground error paths that are easy to break inside a large `App.tsx`.
+
 ---
 
 **Artifacts:**
@@ -1201,6 +1246,9 @@ that gap.
 - `schema/normalized-entry.schema.json`: Formal output schema (v3.0.0).
 - `docs/dictionary-entry-v2.yaml`: Canonical machine-readable specimen.
 - `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and triple-window playground.
+- `webapp/src/playground-api-execute.ts`, `url-query-popstate.ts`, `FormOfLexemeBlock.tsx`, `pick-lemma-lexeme.ts`: extracted playground helpers (tested under `test/webapp/`).
+- `audit.md`: Architecture and reliability critique (non-normative; informs audit tests).
+- `docs/STAGED_IMPLEMENTATION_PLAN.md`: Merged roadmap, testing deferrals, and audit-aligned phases.
 - `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
 - `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.
 - `server.ts`: HTTP API wrapper.
@@ -1208,7 +1256,7 @@ that gap.
 
 ## 13. Post-v1.0 roadmap (non-normative)
 
-This section is informational only. For the detailed staged plan, see `docs/ROADMAP.md`.
+This section is informational only. For the detailed staged plan, see `docs/STAGED_IMPLEMENTATION_PLAN.md`.
 
 **Completed (post-v1.0):**
 
@@ -1241,6 +1289,12 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   title fallback, Wikipedia title fallback, and no-QID branches.
 - **Negative schema hardening**: malformed payload cases intentionally
   rejected by JSON Schema validation suite.
+- **Audit-driven regression suites**: `*-audit.test.ts` files encode
+  orchestration, REST wiring, parser/registry, formatter, and wrapper contracts
+  called out in `audit.md`; **`buildApiFetchResponse`** keeps `server.ts`
+  testable without sockets; debug padding and TieredCache JSON parse guard
+  (§12.32–12.33). Webapp playground helpers covered by **`test/webapp/`**
+  (jsdom + React Testing Library, §12.34).
 
 **Completed (v1.1 SDK Evolution):**
 
@@ -1504,6 +1558,7 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 | **`wrapper-invoke.ts`** | **`invokeWrapperMethod()`** — canonical argument wiring for CLI and webapp (`translate`, `wikipediaLink`, `isInstance`, `conjugate`, `hyphenate`, …). |
 | **`utils.ts`** | **`deepMerge()`**, **`commonsThumbUrl()`**, shared utilities. |
 | **`cache.ts`** | **`TieredCache`**, **`MemoryCache`**, **`getCache()`** / **`setCache()`** global accessor pattern for L1 (+ optional L2/L3 adapters). |
+| **`server-fetch.ts`** | **`buildApiFetchResponse()`** — pure assembly of `GET /api/fetch` responses for `server.ts` and tests. |
 | **`rate-limiter.ts`** | **`RateLimiter`**, **`getRateLimiter()`**, throttle + User-Agent headers. |
 
 ### 14.2 Consumers
@@ -1511,8 +1566,8 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 | Surface | Location | Notes |
 |---------|----------|-------|
 | **CLI** | `cli/index.ts` | `--extract`, `--props`, `--sort`, `--no-enrich`, batch mode, YAML/JSON/ANSI output. |
-| **HTTP** | `server.ts` | Minimal `GET /api/fetch` (see §11.1). |
-| **Webapp** | `webapp/src/App.tsx` | Playground, inspector, triple-window codegen; uses same **`invokeWrapperMethod`** contract as CLI. |
+| **HTTP** | `server.ts` | Minimal `GET /api/fetch` (see §11.1); delegates to **`src/server-fetch.ts`**. |
+| **Webapp** | `webapp/src/App.tsx` + helpers | Playground, inspector, triple-window codegen; **`runPlaygroundApiExecute`** uses **`invokeWrapperMethod`** like CLI (§12.29). |
 
 ### 14.3 Tooling (`tools/`)
 
@@ -1535,6 +1590,8 @@ Representative suites (see **`test/README.md`** for tiers and mocking rules):
 - **`golden/entry-snapshots.test.ts`** — stable projections vs committed snapshots.
 - **`integration*.test.ts`**, **`fallback-enrichment-matrix.test.ts`**, **`negative-schema-hardening.test.ts`** — integration and schema guards.
 - **`network-replay.test.ts`** — optional live/replay path (`WIKT_TEST_LIVE=1`).
+- **`*-audit.test.ts`** — orchestration, API, server-fetch, parser, registry, formatter, form-of, morphology, library, wrapper-invoke audits (see §12.34, `audit.md`).
+- **`test/webapp/*.test.ts(x)`** — jsdom + React Testing Library for extracted playground modules (`vitest-setup.ts`).
 
 ### 14.5 Morphology implementation detail (Greek-first)
 
@@ -1560,4 +1617,4 @@ The codebase is deliberately modular so the following extensions can be pursued 
 
 ---
 
-*End of specification v3.3.*
+*End of specification v3.4.*

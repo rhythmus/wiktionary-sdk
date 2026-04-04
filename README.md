@@ -55,7 +55,7 @@ Set `sort: "priority"` to apply a hardcoded language-priority heuristic instead:
 
 Within the same priority tier, lexemes are sorted alphabetically by language code; within the same language, by PoS heading.
 
-> **Note:** The priority values above are provisional. A future release will make them configurable and expand coverage — see [Roadmap](docs/ROADMAP.md).
+> **Note:** The priority values above are provisional. A future release will make them configurable and expand coverage — see [Staged implementation plan](docs/STAGED_IMPLEMENTATION_PLAN.md) (Stage 23 / Phase 8).
 
 ### 2. CLI Execution (DevOps pipelines)
 You can execute exactly the same core engine natively from your shell. By default, it dumps the entire requested schema:
@@ -415,7 +415,7 @@ wiktionary-sdk/
     ├── wiktionary-sdk-spec.md              # Formal technical specification
     ├── form-of-display-and-mediawiki-parse.md  # Form-of Lua vs wikitext; parse enrichment (e.g. Spanish sense)
     ├── query-result-dimensional-matrix.md      # All dimensions of wiktionary() results (languages, PoS, etymology, …)
-    └── ROADMAP.md                          # Post-v1.0 staged implementation roadmap
+    └── STAGED_IMPLEMENTATION_PLAN.md       # Post-v1.0 roadmap + audit-aligned phases + Stages 23–25
 ```
 
 ## 🚀 Getting Started
@@ -556,20 +556,7 @@ See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps fo
 
 ## 🧭 Roadmap (post-v1.0)
 
-`docs/ROADMAP.md` is the living post‑v1.0 plan. **Completed:**
-
-- **Parser correctness**: brace-aware parameter splitting (pipes inside `{{...}}` preserved).
-- **Translation shape**: `term` (required), `gloss?`, `transliteration?`, `gender?`, `alt?` from explicit params.
-- **Unknown language**: `lang=it` returns early with a note; no silent fallback to Greek.
-- **Schema versioning**: `FetchResult` always includes `schema_version`.
-- **Packaging**: CLI and server run from built JS; cache key normalization for redirects.
-- **Decoder debug mode**: `debugDecoders: true` returns per-entry decoder match info; webapp shows Decoder column.
-- **Template location metadata**: `templates_all` preserves document order and optional `start`/`end`/`line`.
-- **Cycle protection**: lemma resolution tracks visited `(lang, lemma)`; `lemma_triggered_by_lexeme_id` on resolved lemma lexemes.
-- **Declared decoder coverage**: `handlesTemplates` on decoders; introspection uses declared coverage.
-- **Sense gloss_raw**: exact text before stripping for forensic verification.
-- **Section links**: `derived_terms`, `related_terms`, `descendants` from `{{l}}`/`{{link}}`.
-- **Sample mode**: `--sample N` on template-introspect reports top missing templates by frequency.
+The plan lives in **[docs/STAGED_IMPLEMENTATION_PLAN.md](docs/STAGED_IMPLEMENTATION_PLAN.md)** (delivered stages 14–22, testing deferrals, engineering phases 0–10, future Stages 23–25). For **completed** post‑v1.0 narrative, see spec §13 and **Part I** of that document.
 
 ## 🔮 Future Work: Text-to-Dictionary (T2D)
 

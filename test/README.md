@@ -49,6 +49,30 @@ Review the `.snap` diff in the PR.
 
 **Duplicate `id` values are invalid**: the coverage test deduplicates by `id`, so a second decoder with the same `id` is never checked for evidence and can mask missing fixtures. **`test/registry-ids.test.ts`** fails if any decoder `id` appears more than once in `registry.getDecoders()`.
 
+## Audit regression suites (`*-audit.test.ts`)
+
+Targeted tests that lock in expectations from **`audit.md`** (architecture,
+orchestration, REST surface, parser/registry edges) without inflating the main
+feature tests:
+
+- **`orchestration-audit.test.ts`** — `wiktionary()` / fuzzy / `debugDecoders` padding behaviour.
+- **`api-fetch-audit.test.ts`** — MediaWiki client shapes used by the engine.
+- **`wrapper-invoke-audit.test.ts`** — `invokeWrapperMethod` argument wiring.
+- **`server-fetch-audit.test.ts`** — `buildApiFetchResponse()` status, YAML `Content-Type`, injectable `wiktionaryFn`.
+- **`parser-audit.test.ts`**, **`registry-markup-formof-audit.test.ts`** — parser + registry invariants tied to audit notes.
+- **`formatter-audit.test.ts`**, **`form-of-parse-enrich-audit.test.ts`**, **`morphology-tags-audit.test.ts`**, **`library-audit.test.ts`** — presentation and enrichment boundaries.
+- **`types-grouped-results.test.ts`** — `GroupedLexemeResults` typing expectations.
+
+## Webapp component tests (jsdom + RTL)
+
+**`test/webapp/*.test.ts(x)`** run under **`@vitest-environment jsdom`** with
+**`@testing-library/react`** and **`@testing-library/jest-dom`**. Shared setup:
+**`test/vitest-setup.ts`** (jest-dom matchers, RTL `cleanup` after each test).
+**`vitest.config.ts`** dedupes `react` / `react-dom` and includes `*.test.tsx`.
+
+Modules under test mirror extractions from **`webapp/src/App.tsx`**:
+**`FormOfLexemeBlock`**, **`usePopstateQuerySync`**, **`runPlaygroundApiExecute`**.
+
 ## Interface + contract hardening suites
 
 - **`test/integration-adapters.test.ts`** validates formatter handling of wrapper-row arrays and SDK/Webapp API method parity.
