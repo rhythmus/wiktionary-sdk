@@ -166,8 +166,8 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 | # | Todo | Scope | Verification |
 |---|------|--------|----------------|
 | **4.5.1** | **Extract pure helpers (no `reg.register` moves).** | **Done** — `section-extract.ts` (`extractSectionByLevelHeaders`, `parseSectionLinkTemplates`, `matchesSectionHeading`), `gender-map.ts`, `form-of-display-label.ts` (`buildFormOfDisplayLabel`); `register-all-decoders.ts` imports them. | Order test + full suite. |
-| **4.5.2** | **Introduce orchestrator pattern.** | Replace inline tail of `register-all-decoders.ts` with **one** `registerSectionsAndMisc(reg)` (or similar) that **still lives in the same file** but proves the call-chain pattern; **or** go straight to **`registerCoreAndPronunciation(reg)`** in a new file re-exported/called from `registerAllDecoders`. | Order test; no behaviour change. |
-| **4.5.3** | **`register-core-pronunciation.ts`.** | Move first four decoders + hyphenation constants/helpers into **`registerCoreAndPronunciation(reg)`**; `registerAllDecoders` calls it **first**. | Order test. |
+| **4.5.2** | **Introduce orchestrator pattern.** | **Done** — `registerAllDecoders` calls `registerCoreAndPronunciation(reg)`; nested **`registerSectionsAndCitationDecoders()`** (section-links → references) and **`registerInflectionTableAndStems()`** (inflection ref + Greek stems) close over `reg` and `formatUsageNoteLine`. | Order test. |
+| **4.5.3** | **`register-core-pronunciation.ts`.** | **Done** — `store-raw-templates`, `ipa`, `hyphenation`, `alternative-forms-section` + hyphenation helpers in **`registerCoreAndPronunciation`** (`register-core-pronunciation.ts`). | Order test. |
 | **4.5.4** | **`register-headwords-el-nl-de.ts`.** | Move eight `el-*-head`, three `nl-*-head`, three `de-*-head` blocks; import **`GENDER_MAP`** from **`gender-map.ts`** if not already. | Order test. |
 | **4.5.5** | **`register-form-of-wikidata.ts`.** | Move `form-of` + `wikidata-p31`; ensure **`buildFormOfDisplayLabel`** imported from **`form-of-display-label.ts`**. | Order test. |
 | **4.5.6** | **`register-translations.ts`.** | Move `translations` + `parseTranslationsFromBlock`. | Order test. |
@@ -318,7 +318,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 
 1. **Semantic HTML5** — `entry.semantic-html.hbs`, `FormatterStyle` **`semantic-html`**: `<article lang>`, `<header>`, `<dl>`/`<dd>` senses, `<blockquote>` examples, microdata/`data-*`, ARIA as appropriate.
 2. **TEI Lex-0** — `entry.tei.hbs` or serializer → TEI `<entry>` **fragment**; mapping table in spec.
-3. **OntoLex-Lemon (JSON-LD)** — programmatic `@graph`; **`jsonld`** or **`ontolex`** style.
+3. **OntoLex-Lemon (JSON-LD)** — programmatic `@graph`; **`jsonld`** or **`ontolex`** ocheststyle.
 4. **LMF (ISO 24613)** — XML serializer; may share mapping logic with TEI.
 5. **XDXF** — XML for dictionary interchange.
 

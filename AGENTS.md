@@ -13,7 +13,7 @@ We extract what is *explicitly* in the Wikitext. We do not guess stems, complete
 ## 🏗️ Architectural Anchors
 
 ### 1. Registry-Based Decoders (`src/registry.ts` + `src/registry/register-all-decoders.ts`)
-The engine is a decentralized registry of pure functions (`TemplateDecoder`). Implementations live in **`registerAllDecoders(reg)`** (`register-all-decoders.ts`); the package entry **`registry.ts`** builds the singleton and re-exports predicates / **`stripWikiMarkup`**.
+The engine is a decentralized registry of pure functions (`TemplateDecoder`). Implementations live in **`registerAllDecoders(reg)`** (`register-all-decoders.ts`), which composes **`registerCoreAndPronunciation(reg)`** and other registration blocks; the package entry **`registry.ts`** builds the singleton and re-exports predicates / **`stripWikiMarkup`**.
 - **Pattern**: If a template exists in the wild, create a decoder for it.
 - **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in the registry layer (`register-all-decoders.ts` and `src/registry/*.ts` helpers).
 - **Per-language form-of templates** (en.wiktionary): Treat `{{xx-verb form of|…}}`, `{{xx-noun form of|…}}`, `{{xx-adj form of|…}}` as first-class. The lemma is often **only** in `|1=`; the language is implied by the template name. They must participate in the same `form_of` / `guessLexemeTypeFromTemplates` path as `inflection of` so **lemma resolution** (second `wiktionary()` fetch) runs when the definition line is template-only. **`only used in`** is *not* a lemma pointer; it is decoded on sense lines as structured `only_used_in` (see `types.ts`).

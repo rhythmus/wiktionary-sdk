@@ -20,156 +20,14 @@ import {
     matchesSectionHeading,
     parseSectionLinkTemplates,
 } from "./section-extract";
+import { registerCoreAndPronunciation } from "./register-core-pronunciation";
 
 /**
  * Register all template/section decoders in **historical source order**.
  * Call once per {@link DecoderRegistry} instance (typically the package singleton).
  */
 export function registerAllDecoders(reg: DecoderRegistry): void {
-/** --- Core: store raw template calls (always) --- **/
-reg.register({
-    id: "store-raw-templates",
-    handlesTemplates: [], // matches all via matches()
-    matches: (_ctx) => true,
-    decode: (ctx) => {
-        const store: any = { entry: { templates: {} } };
-        for (const t of ctx.templates) {
-            if (!store.entry.templates[t.name]) store.entry.templates[t.name] = [];
-            store.entry.templates[t.name].push({ params: t.params, raw: t.raw });
-        }
-        return store;
-    },
-});
-
-/** --- Headword templates --- **/
-reg.register({
-    id: "ipa",
-    handlesTemplates: ["IPA"],
-    matches: (ctx) => ctx.templates.some((t) => t.name === "IPA"),
-    decode: (ctx) => {
-        const t = ctx.templates.find((t) => t.name === "IPA");
-        const pos = t?.params?.positional ?? [];
-        // First look for something with /.../ if possible
-        let ipa = pos.find((x) => x.startsWith("/") || x.startsWith("[")) ?? null;
-        // Fallback: first candidate that resembles IPA, not a language code.
-        if (!ipa) {
-            ipa = pos.find((x) => x.length > 3 || /[/\[\]ˈˌ]/.test(x)) ?? null;
-        }
-        if (!ipa) return {};
-        return { entry: { pronunciation: { IPA: ipa } } };
-    },
-});
-
-/** First positional is often a language code (|el|, |grk-ita|); otherwise all positionals are syllables. */
-function hyphenationSyllablesFromPositionals(positional: string[] | undefined): string[] {
-    const pos = (positional || []).map((p) => p.trim()).filter(Boolean);
-    if (pos.length === 0) return [];
-    // First token already in target script → no leading lang (e.g. {{hyphenation|γρά|φω}}). Must run before the
-    // "second is non-ASCII" branch, or Greek|Greek would be misread as lang|syllables.
-    if (/[^\x00-\x7F]/.test(pos[0])) {
-        return pos;
-    }
-    // Second token in non-Latin script while first is ASCII → first is a lang code (e.g. {{hyphenation|el|γρά|φω}}).
-    if (pos.length >= 2 && /[^\x00-\x7F]/.test(pos[1])) {
-        return pos.slice(1);
-    }
-    // All ASCII: leading token may be a language code (|el|bank|, |el|foo|bar|) or a syllable (|foo|bar|).
-    const first = pos[0].toLowerCase();
-    const shortLang = /^[a-z]{2,3}$/i.test(first);
-    const skipFirst =
-        pos.length >= 2 &&
-        (HYPHENATION_COMPOUND_LANG_PREFIXES.has(first) ||
-            (shortLang && HYPHENATION_LEADING_LANG_CODES.has(first)));
-    return skipFirst ? pos.slice(1) : pos;
-}
-
-/** Wiktionary-specific hyphenation language tags (not ISO 639-1 single tokens). */
-const HYPHENATION_COMPOUND_LANG_PREFIXES = new Set(["grk-ita", "grk-bgr"]);
-
-/** ISO 639-1-style codes commonly used as first param on en.wiktionary {{hyphenation|…}} (closed list; excludes ba to reduce syllable false positives). */
-const HYPHENATION_LEADING_LANG_CODES = new Set(
-    (
-        "aa ab ae af ak am an ar as av ay az be bg bh bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee " +
-        "el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu " +
-        "ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my " +
-        "na nb nd ne ng nl nn no nr nv ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw " +
-        "ta te tg th ti tk tl tn to tr ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu " +
-        "grc grk mul und got tr nl pl fi sv no da cs hu ro bg sr hr sk sl uk be he ar fa zh ja ko hi vi id ms tl sw wo ha yo zu xh st tn ne ng bm bi so om si my km lo th jv su ceb haw mi sm to fy af co br oc an sc rm wa li vo eo io ie ia jbo tok pih dz ch ay qu gn ht lv lt et ast nah rap ab cv"
-    )
-        .split(/\s+/)
-        .filter(Boolean)
-);
-
-reg.register({
-    id: "hyphenation",
-    handlesTemplates: ["hyphenation"],
-    matches: (ctx) => ctx.lines.some((l) => /^\s*[*#]*\s*\{\{hyphenation\|/.test(l)),
-    decode: (ctx) => {
-        const line = ctx.lines.find((l) => /^\s*[*#]*\s*\{\{hyphenation\|/.test(l));
-        if (!line) return {};
-        const tpls = parseTemplates(line);
-        const t = tpls.find((x) => x.name === "hyphenation");
-        if (!t) return { entry: { hyphenation: { raw: line.trim() } } };
-        const sylls = hyphenationSyllablesFromPositionals(t.params.positional);
-        if (sylls.length === 0) return { entry: { hyphenation: { raw: line.trim() } } };
-        return { entry: { hyphenation: { syllables: sylls, raw: line.trim() } } };
-    },
-});
-
-/** --- Alternative forms section --- **/
-reg.register({
-    id: "alternative-forms-section",
-    handlesTemplates: [],
-    matches: (ctx) => /^=+\s*Alternative forms\s*=+/im.test(ctx.posBlockWikitext),
-    decode: (ctx) => {
-        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Alternative forms");
-        if (!section) return {};
-        
-        const lines = section.raw.split("\n").filter(l => l.includes("{{") || l.includes("[["));
-        const alternative_forms: Array<{ term: string; qualifier?: string; raw: string; type?: string; labels?: string[] }> = [];
-        
-        for (const line of lines) {
-            const tpls = parseTemplates(line);
-            
-            // 1. Handle {{alt form of}}, {{polytonic form of}}, etc.
-            const variantTpl = tpls.find(t => 
-                t.name.includes("form of") || t.name === "alt form" || t.name === "polytonic variant"
-            );
-            
-            if (variantTpl) {
-                const pos = variantTpl.params.positional ?? [];
-                const term = pos[1] || pos[0] || "";
-                if (!term) continue;
-                
-                const type = variantTpl.name.replace(" form of", "").replace(" variant", "").trim();
-                const labels = variantTpl.params.named?.["q"] ? [variantTpl.params.named["q"]] : [];
-                
-                alternative_forms.push({
-                    term,
-                    raw: line.trim(),
-                    type,
-                    labels: labels.length > 0 ? labels : undefined
-                });
-                continue;
-            }
-            
-            // 2. Handle generic list items with [[links]]
-            const linkMatch = line.match(/\[\[([^|\]]+)(?:\|[^\]]+)?\]\]/);
-            if (linkMatch) {
-                const term = linkMatch[1];
-                const qualifierMatch = line.match(/\(([^)]+)\)/);
-                alternative_forms.push({
-                    term,
-                    raw: line.trim(),
-                    qualifier: qualifierMatch ? qualifierMatch[1] : undefined
-                });
-            }
-        }
-        
-        if (alternative_forms.length === 0) return {};
-        return { entry: { alternative_forms } };
-    },
-});
+registerCoreAndPronunciation(reg);
 
 reg.register({
     id: "el-adj-head",
@@ -1095,166 +953,158 @@ reg.register({
     },
 });
 
-/** --- Phase 7.1: Section decoders for l/link (Derived/Related/Descendants) --- **/
+/** Section / citation decoders (Derived terms … References); nested to close over {@link formatUsageNoteLine}. */
+function registerSectionsAndCitationDecoders(): void {
+    const SECTION_LINK_HEADERS = ["Derived terms", "Related terms", "Descendants"] as const;
+    const SECTION_LINK_FIELDS = ["derived_terms", "related_terms", "descendants"] as const;
 
-const SECTION_LINK_HEADERS = ["Derived terms", "Related terms", "Descendants"] as const;
-const SECTION_LINK_FIELDS = ["derived_terms", "related_terms", "descendants"] as const;
-
-reg.register({
-    id: "section-links",
-    handlesTemplates: ["l", "link"],
-    matches: (ctx) => {
-        const txt = ctx.posBlockWikitext;
-        return SECTION_LINK_HEADERS.some((h) => new RegExp(`^=+\\s*${h}\\s*=+`, "im").test(txt));
-    },
-    decode: (ctx) => {
-        const patch: any = { entry: {} };
-        for (let i = 0; i < SECTION_LINK_HEADERS.length; i++) {
-            const header = SECTION_LINK_HEADERS[i];
-            const field = SECTION_LINK_FIELDS[i];
-            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, header);
-            if (!section || !section.raw) continue;
-            const items = parseSectionLinkTemplates(section.raw);
-            if (items.length === 0) continue;
-            patch.entry[field] = { raw_text: section.raw, items } as SectionWithLinks;
-        }
-        if (Object.keys(patch.entry).length === 0) return {};
-        return patch;
-    },
-});
-
-/** --- Alternative forms section --- **/
-reg.register({
-    id: "alternative-forms",
-    handlesTemplates: [],
-    matches: (ctx) => /^=+\s*Alternative forms\s*=+/im.test(ctx.posBlockWikitext),
-    decode: (ctx) => {
-        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Alternative forms");
-        if (!section) return {};
-        const items: Array<{ term: string; qualifier?: string; raw: string }> = [];
-        for (const line of section.raw.split("\n")) {
-            const trimmed = line.replace(/^\*\s*/, "").trim();
-            if (!trimmed) continue;
-            const tpls = parseTemplates(trimmed);
-            const lTpl = tpls.find(t => t.name === "l" || t.name === "link" || t.name === "alt");
-            if (lTpl) {
-                const pos = lTpl.params.positional ?? [];
-                const term = lTpl.name === "alt" ? (pos[1] ?? "") : (pos[1] ?? "");
-                const qualifier = lTpl.params.named?.["qual"] || lTpl.params.named?.["q"] || undefined;
-                if (term) items.push({ term, qualifier, raw: trimmed });
-            } else {
-                // Plain wikilink fallback: [[term]]
-                const m = trimmed.match(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/);
-                if (m) items.push({ term: m[1].trim(), raw: trimmed });
+    reg.register({
+        id: "section-links",
+        handlesTemplates: ["l", "link"],
+        matches: (ctx) => {
+            const txt = ctx.posBlockWikitext;
+            return SECTION_LINK_HEADERS.some((h) => new RegExp(`^=+\\s*${h}\\s*=+`, "im").test(txt));
+        },
+        decode: (ctx) => {
+            const patch: any = { entry: {} };
+            for (let i = 0; i < SECTION_LINK_HEADERS.length; i++) {
+                const header = SECTION_LINK_HEADERS[i];
+                const field = SECTION_LINK_FIELDS[i];
+                const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, header);
+                if (!section || !section.raw) continue;
+                const items = parseSectionLinkTemplates(section.raw);
+                if (items.length === 0) continue;
+                patch.entry[field] = { raw_text: section.raw, items } as SectionWithLinks;
             }
-        }
-        if (items.length === 0) return {};
-        return { entry: { alternative_forms: items } };
-    },
-});
+            if (Object.keys(patch.entry).length === 0) return {};
+            return patch;
+        },
+    });
 
-/** --- See also section --- **/
-reg.register({
-    id: "see-also",
-    handlesTemplates: [],
-    matches: (ctx) => /^=+\s*See also\s*=+/im.test(ctx.posBlockWikitext),
-    decode: (ctx) => {
-        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "See also");
-        if (!section) return {};
-        const terms: string[] = [];
-        for (const line of section.raw.split("\n")) {
-            const trimmed = line.replace(/^\*\s*/, "").trim();
-            if (!trimmed) continue;
-            const tpls = parseTemplates(trimmed);
-            for (const t of tpls) {
-                if (t.name === "l" || t.name === "link") {
-                    const term = t.params.positional?.[1];
-                    if (term) terms.push(term);
+    reg.register({
+        id: "alternative-forms",
+        handlesTemplates: [],
+        matches: (ctx) => /^=+\s*Alternative forms\s*=+/im.test(ctx.posBlockWikitext),
+        decode: (ctx) => {
+            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Alternative forms");
+            if (!section) return {};
+            const items: Array<{ term: string; qualifier?: string; raw: string }> = [];
+            for (const line of section.raw.split("\n")) {
+                const trimmed = line.replace(/^\*\s*/, "").trim();
+                if (!trimmed) continue;
+                const tpls = parseTemplates(trimmed);
+                const lTpl = tpls.find((t) => t.name === "l" || t.name === "link" || t.name === "alt");
+                if (lTpl) {
+                    const pos = lTpl.params.positional ?? [];
+                    const term = lTpl.name === "alt" ? (pos[1] ?? "") : (pos[1] ?? "");
+                    const qualifier = lTpl.params.named?.["qual"] || lTpl.params.named?.["q"] || undefined;
+                    if (term) items.push({ term, qualifier, raw: trimmed });
+                } else {
+                    const m = trimmed.match(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/);
+                    if (m) items.push({ term: m[1].trim(), raw: trimmed });
                 }
             }
-            // Wikilink fallback
-            const re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
-            let m;
-            while ((m = re.exec(trimmed)) !== null) {
-                if (!terms.includes(m[1].trim())) terms.push(m[1].trim());
-            }
-        }
-        if (terms.length === 0) return {};
-        return { entry: { see_also: terms } };
-    },
-});
+            if (items.length === 0) return {};
+            return { entry: { alternative_forms: items } };
+        },
+    });
 
-/** --- Anagrams section --- **/
-reg.register({
-    id: "anagrams",
-    handlesTemplates: [],
-    matches: (ctx) => /^=+\s*Anagrams\s*=+/im.test(ctx.posBlockWikitext),
-    decode: (ctx) => {
-        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Anagrams");
-        if (!section) return {};
-        const anagrams: string[] = [];
-        for (const line of section.raw.split("\n")) {
-            const trimmed = line.replace(/^\*\s*/, "").trim();
-            if (!trimmed) continue;
-            // Try {{l}} template first
-            const tpls = parseTemplates(trimmed);
-            for (const t of tpls) {
-                if (t.name === "l" || t.name === "link") {
-                    const term = t.params.positional?.[1];
-                    if (term) anagrams.push(term);
+    reg.register({
+        id: "see-also",
+        handlesTemplates: [],
+        matches: (ctx) => /^=+\s*See also\s*=+/im.test(ctx.posBlockWikitext),
+        decode: (ctx) => {
+            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "See also");
+            if (!section) return {};
+            const terms: string[] = [];
+            for (const line of section.raw.split("\n")) {
+                const trimmed = line.replace(/^\*\s*/, "").trim();
+                if (!trimmed) continue;
+                const tpls = parseTemplates(trimmed);
+                for (const t of tpls) {
+                    if (t.name === "l" || t.name === "link") {
+                        const term = t.params.positional?.[1];
+                        if (term) terms.push(term);
+                    }
                 }
-            }
-            // Plain wikilink fallback
-            if (anagrams.length === 0 || !tpls.some(t => t.name === "l" || t.name === "link")) {
                 const re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
                 let m;
                 while ((m = re.exec(trimmed)) !== null) {
-                    const term = m[1].trim();
-                    if (!anagrams.includes(term)) anagrams.push(term);
+                    if (!terms.includes(m[1].trim())) terms.push(m[1].trim());
                 }
             }
-            // Plain comma-separated words fallback (no templates or links)
-            if (!trimmed.includes("{{") && !trimmed.includes("[[") && trimmed.match(/^[\w\s,]+$/)) {
-                for (const word of trimmed.split(",").map(s => s.trim()).filter(Boolean)) {
-                    if (!anagrams.includes(word)) anagrams.push(word);
+            if (terms.length === 0) return {};
+            return { entry: { see_also: terms } };
+        },
+    });
+
+    reg.register({
+        id: "anagrams",
+        handlesTemplates: [],
+        matches: (ctx) => /^=+\s*Anagrams\s*=+/im.test(ctx.posBlockWikitext),
+        decode: (ctx) => {
+            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Anagrams");
+            if (!section) return {};
+            const anagrams: string[] = [];
+            for (const line of section.raw.split("\n")) {
+                const trimmed = line.replace(/^\*\s*/, "").trim();
+                if (!trimmed) continue;
+                const tpls = parseTemplates(trimmed);
+                for (const t of tpls) {
+                    if (t.name === "l" || t.name === "link") {
+                        const term = t.params.positional?.[1];
+                        if (term) anagrams.push(term);
+                    }
+                }
+                if (anagrams.length === 0 || !tpls.some((t) => t.name === "l" || t.name === "link")) {
+                    const re = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+                    let m;
+                    while ((m = re.exec(trimmed)) !== null) {
+                        const term = m[1].trim();
+                        if (!anagrams.includes(term)) anagrams.push(term);
+                    }
+                }
+                if (!trimmed.includes("{{") && !trimmed.includes("[[") && trimmed.match(/^[\w\s,]+$/)) {
+                    for (const word of trimmed.split(",").map((s) => s.trim()).filter(Boolean)) {
+                        if (!anagrams.includes(word)) anagrams.push(word);
+                    }
                 }
             }
-        }
-        if (anagrams.length === 0) return {};
-        return { entry: { anagrams } };
-    },
-});
+            if (anagrams.length === 0) return {};
+            return { entry: { anagrams } };
+        },
+    });
 
-/** --- Usage notes (===Usage notes=== or ===Notes===); single decoder — formatUsageNoteLine handles refs/templates --- **/
-reg.register({
-    id: "usage-notes",
-    handlesTemplates: [],
-    matches: (ctx) => /^=+\s*(Usage notes|Notes)\s*=+/im.test(ctx.posBlockWikitext),
-    decode: (ctx) => {
-        let section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Usage notes");
-        if (!section) section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Notes");
-        if (!section) return {};
-        const notes = section.raw.split("\n").map(formatUsageNoteLine).filter(Boolean);
-        if (notes.length === 0) return {};
-        return { entry: { usage_notes: notes } };
-    },
-});
+    reg.register({
+        id: "usage-notes",
+        handlesTemplates: [],
+        matches: (ctx) => /^=+\s*(Usage notes|Notes)\s*=+/im.test(ctx.posBlockWikitext),
+        decode: (ctx) => {
+            let section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Usage notes");
+            if (!section) section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "Notes");
+            if (!section) return {};
+            const notes = section.raw.split("\n").map(formatUsageNoteLine).filter(Boolean);
+            if (notes.length === 0) return {};
+            return { entry: { usage_notes: notes } };
+        },
+    });
 
-/** --- References section --- **/
-reg.register({
-    id: "references",
-    handlesTemplates: [],
-    matches: (ctx) => /^=+\s*References\s*=+/im.test(ctx.posBlockWikitext),
-    decode: (ctx) => {
-        const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "References");
-        if (!section) return {};
-        const refs = section.raw.split("\n").map(l => stripWikiMarkup(l).trim()).filter(Boolean);
-        if (refs.length === 0) return {};
-        return { entry: { references: refs } };
-    },
-});
+    reg.register({
+        id: "references",
+        handlesTemplates: [],
+        matches: (ctx) => /^=+\s*References\s*=+/im.test(ctx.posBlockWikitext),
+        decode: (ctx) => {
+            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, "References");
+            if (!section) return {};
+            const refs = section.raw.split("\n").map((l) => stripWikiMarkup(l).trim()).filter(Boolean);
+            if (refs.length === 0) return {};
+            return { entry: { references: refs } };
+        },
+    });
+}
+registerSectionsAndCitationDecoders();
 
-/** --- Inflection Table Reference --- **/
+function registerInflectionTableAndStems(): void {
 reg.register({
     id: "inflection-table-ref",
     handlesTemplates: [],
@@ -1325,4 +1175,6 @@ reg.register({
         };
     }
 });
+}
+registerInflectionTableAndStems();
 }
