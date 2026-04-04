@@ -7,6 +7,7 @@ import {
     formOfMorphLinesAreAbbrevTokensOnly,
     inflectionMorphDisplayLines,
 } from "./formatter";
+import { parallelMap } from "./utils";
 
 /**
  * Per-language form-of templates (`{{xx-verb form of}}`, `{{xx-noun form of}}`, `{{xx-adj form of}}`
@@ -74,7 +75,13 @@ export async function enrichLexemeFormOfMorphLinesFromParse(lex: Lexeme, pageTit
     };
 }
 
-export async function enrichFormOfMorphLinesFromParseBatch(lexemes: Lexeme[], pageTitle: string): Promise<void> {
+export async function enrichFormOfMorphLinesFromParseBatch(
+    lexemes: Lexeme[],
+    pageTitle: string,
+    concurrency?: number,
+): Promise<void> {
     const targets = lexemes.filter(lexemeNeedsFormOfParseEnrichment);
-    await Promise.all(targets.map((l) => enrichLexemeFormOfMorphLinesFromParse(l, pageTitle)));
+    await parallelMap(targets, concurrency ?? Infinity, (l) =>
+        enrichLexemeFormOfMorphLinesFromParse(l, pageTitle),
+    );
 }

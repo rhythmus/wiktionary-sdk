@@ -1,17 +1,79 @@
 import { getRateLimiter } from "./rate-limiter";
 import { getCache } from "./cache";
 
-export async function mwFetchJson(origin: string, params: Record<string, string>) {
+export interface MwFetchJsonOptions {
+    /** Aborts the in-flight request when signalled (e.g. shutdown). */
+    signal?: AbortSignal;
+    /**
+     * Abort after this many milliseconds. Composes with `signal`.
+     * Prefer setting this in Node/server contexts; browsers may rely on `signal` from `AbortController`.
+     */
+    timeoutMs?: number;
+}
+
+export async function mwFetchJson(
+    origin: string,
+    params: Record<string, string>,
+    options?: MwFetchJsonOptions,
+) {
+    const { signal: outer, timeoutMs } = options ?? {};
+    if (outer?.aborted) {
+        const r = outer.reason;
+        throw r instanceof Error ? r : new Error(String(r ?? "Aborted"));
+    }
+
     const limiter = getRateLimiter();
     await limiter.throttle();
 
     const u = new URL(origin);
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
-    const res = await fetch(u.toString(), {
-        headers: limiter.getHeaders(),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-    return await res.json();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ac = new AbortController();
+
+    const killTimer = () => {
+        if (timer !== undefined) {
+            clearTimeout(timer);
+            timer = undefined;
+        }
+    };
+
+    const onOuterAbort = () => {
+        killTimer();
+        try {
+            ac.abort(outer?.reason);
+        } catch {
+            ac.abort();
+        }
+    };
+
+    let fetchSignal: AbortSignal | undefined;
+
+    if (timeoutMs != null && timeoutMs > 0) {
+        timer = setTimeout(() => {
+            ac.abort(new Error(`MediaWiki request timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+        fetchSignal = ac.signal;
+        if (outer) {
+            if (outer.aborted) onOuterAbort();
+            else outer.addEventListener("abort", onOuterAbort, { once: true });
+        }
+    } else if (outer) {
+        fetchSignal = outer;
+    }
+
+    try {
+        const res = await fetch(u.toString(), {
+            headers: limiter.getHeaders(),
+            ...(fetchSignal ? { signal: fetchSignal } : {}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        return await res.json();
+    } finally {
+        killTimer();
+        if (outer && timeoutMs != null && timeoutMs > 0) {
+            outer.removeEventListener("abort", onOuterAbort);
+        }
+    }
 }
 
 /**

@@ -36,6 +36,16 @@ describe("Phase 3.2: MemoryCache", () => {
     await cache.clear();
     expect(cache.size).toBe(0);
   });
+
+  it("evicts oldest entries when maxEntries is set (L1 cap)", async () => {
+    const capped = new MemoryCache({ maxEntries: 2 });
+    await capped.set("a", "1", 60_000);
+    await capped.set("b", "2", 60_000);
+    await capped.set("c", "3", 60_000);
+    expect(await capped.get("a")).toBeNull();
+    expect(await capped.get("b")).toBe("2");
+    expect(await capped.get("c")).toBe("3");
+  });
 });
 
 describe("Phase 3.2: TieredCache", () => {
@@ -82,6 +92,18 @@ describe("Phase 3.2: TieredCache", () => {
     expect(await tiered.get("bad")).toBeNull();
     expect(await l2.get("bad")).toBeNull();
   });
+
+  it("respects l1MaxEntries on TieredCache", async () => {
+    const tiered = new TieredCache({ l1MaxEntries: 2 });
+    await tiered.set("a", 1);
+    await tiered.set("b", 2);
+    await tiered.set("c", 3);
+    const l1 = (tiered as any).l1 as MemoryCache;
+    expect(l1.size).toBe(2);
+    expect(await tiered.get("a")).toBeNull();
+    expect(await tiered.get("b")).toBe(2);
+    expect(await tiered.get("c")).toBe(3);
+  });
 });
 
 describe("Phase 3.3: RateLimiter", () => {
@@ -120,5 +142,13 @@ describe("Phase 3.3: RateLimiter", () => {
     await Promise.all([limiter.throttle(), limiter.throttle()]);
     expect((limiter as any).processing).toBe(false);
     expect((limiter as any).queue.length).toBe(0);
+  });
+
+  it("throws when maxQueue would be exceeded (§13.4)", async () => {
+    const limiter = new RateLimiter({ minIntervalMs: 50, maxQueue: 2 });
+    const noop = () => {};
+    (limiter as any).queue.push(noop, noop);
+    await expect(limiter.throttle()).rejects.toThrow(/queue exceeded/);
+    (limiter as any).queue.length = 0;
   });
 });

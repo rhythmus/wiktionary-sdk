@@ -25,6 +25,21 @@ const DEFAULT_TTL = 30 * 60 * 1000; // 30 minutes
 
 export class MemoryCache implements CacheAdapter {
   private store = new Map<string, { value: string; expires: number }>();
+  private readonly maxEntries: number | null;
+
+  constructor(opts?: { maxEntries?: number }) {
+    const m = opts?.maxEntries;
+    this.maxEntries = m != null && m > 0 ? Math.floor(m) : null;
+  }
+
+  private evictIfNeeded(): void {
+    if (this.maxEntries == null) return;
+    while (this.store.size > this.maxEntries) {
+      const first = this.store.keys().next().value;
+      if (first === undefined) break;
+      this.store.delete(first);
+    }
+  }
 
   async get(key: string): Promise<string | null> {
     const entry = this.store.get(key);
@@ -38,6 +53,7 @@ export class MemoryCache implements CacheAdapter {
 
   async set(key: string, value: string, ttlMs: number): Promise<void> {
     this.store.set(key, { value, expires: Date.now() + ttlMs });
+    this.evictIfNeeded();
   }
 
   async delete(key: string): Promise<void> {
@@ -63,8 +79,12 @@ export class TieredCache {
     l2?: CacheAdapter;
     l3?: CacheAdapter;
     defaultTtl?: number;
+    /** Cap L1 entry count (FIFO eviction by insertion order). L2/L3 unchanged. */
+    l1MaxEntries?: number;
   }) {
-    this.l1 = new MemoryCache();
+    this.l1 = new MemoryCache(
+      opts?.l1MaxEntries != null ? { maxEntries: opts.l1MaxEntries } : undefined,
+    );
     this.l2 = opts?.l2 ?? null;
     this.l3 = opts?.l3 ?? null;
     this.defaultTtl = opts?.defaultTtl ?? DEFAULT_TTL;
@@ -149,6 +169,7 @@ export function configureCache(opts: {
   l2?: CacheAdapter;
   l3?: CacheAdapter;
   defaultTtl?: number;
+  l1MaxEntries?: number;
 }): TieredCache {
   globalCache = new TieredCache(opts);
   return globalCache;

@@ -27,7 +27,7 @@ import {
     isFormOfTemplateName,
     isVariantFormOfTemplateName,
 } from "./registry";
-import { deepMerge, commonsThumbUrl } from "./utils";
+import { deepMerge, commonsThumbUrl, parallelMap } from "./utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
 
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
@@ -62,6 +62,10 @@ export async function wiktionary(
         debugDecoders?: boolean;
         sort?: "source" | "priority";
         matchMode?: "strict" | "fuzzy";
+        /** Max concurrent lemma-resolution fetches (default: unlimited). */
+        lemmaFetchConcurrency?: number;
+        /** Max concurrent form-of `action=parse` calls per page (default: unlimited). */
+        formOfParseConcurrency?: number;
     }
 ): Promise<FetchResult> {
     const normalizedOpts = {
@@ -165,6 +169,8 @@ export async function wiktionaryRecursive({
     enrich = true,
     debugDecoders = false,
     sort = "source",
+    lemmaFetchConcurrency,
+    formOfParseConcurrency,
     _visited,
 }: {
     query: string;
@@ -174,6 +180,8 @@ export async function wiktionaryRecursive({
     enrich?: boolean;
     debugDecoders?: boolean;
     sort?: "source" | "priority";
+    lemmaFetchConcurrency?: number;
+    formOfParseConcurrency?: number;
     _visited: Set<string>;
 }): Promise<FetchResult> {
     query = query.normalize("NFC");
@@ -352,7 +360,7 @@ export async function wiktionaryRecursive({
     }
 
     if (enrich) {
-        await enrichFormOfMorphLinesFromParseBatch(lexemes, qPage.title);
+        await enrichFormOfMorphLinesFromParseBatch(lexemes, qPage.title, formOfParseConcurrency);
     }
 
     const lemmaRequests: Array<{ lemma: string; lang: WikiLang; triggeredBy: string }> = [];
@@ -379,7 +387,8 @@ export async function wiktionaryRecursive({
     for (const { lemma, lang: lLang, triggeredBy } of uniqueRequests) {
         triggerMap.set(`${lLang}:${lemma}`, triggeredBy);
     }
-    const fetchPromises = uniqueRequests.map(async ({ lemma, lang: lLang }) => {
+    const limit = lemmaFetchConcurrency ?? Infinity;
+    const resolved = await parallelMap(uniqueRequests, limit, async ({ lemma, lang: lLang }) => {
         const res = await wiktionaryRecursive({
             query: lemma,
             lang: lLang,
@@ -388,6 +397,8 @@ export async function wiktionaryRecursive({
             enrich,
             debugDecoders,
             sort,
+            lemmaFetchConcurrency,
+            formOfParseConcurrency,
             _visited,
         });
         let cands = res.lexemes.filter((l) => l.type === "LEXEME");
@@ -398,7 +409,6 @@ export async function wiktionaryRecursive({
         );
         return cands[0] ? { lemma, lang: lLang, lexeme: cands[0] } : null;
     });
-    const resolved = await Promise.all(fetchPromises);
     for (const r of resolved) {
         if (r) {
             const triggeredBy = triggerMap.get(`${r.lang}:${r.lemma}`);

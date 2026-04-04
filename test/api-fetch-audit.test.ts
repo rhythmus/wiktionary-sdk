@@ -67,4 +67,39 @@ describe("api audit: mwFetchJson", () => {
       mwFetchJson("https://example.invalid/api.php", { action: "query" })
     ).rejects.toThrow(/HTTP 503/);
   });
+
+  it("aborts when timeoutMs elapses before fetch resolves", async () => {
+    globalThis.fetch = vi.fn().mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          const s = init?.signal;
+          if (!s) {
+            reject(new Error("expected signal"));
+            return;
+          }
+          const onAbort = () => reject(s.reason);
+          if (s.aborted) {
+            onAbort();
+            return;
+          }
+          s.addEventListener("abort", onAbort);
+        }),
+    ) as any;
+
+    await expect(
+      mwFetchJson("https://example.invalid/api.php", { action: "query" }, { timeoutMs: 20 }),
+    ).rejects.toThrow(/timed out/i);
+  });
+
+  it("rejects before fetch when caller signal is already aborted", async () => {
+    const ac = new AbortController();
+    ac.abort(new Error("user cancelled"));
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as any;
+
+    await expect(
+      mwFetchJson("https://example.invalid/api.php", { action: "query" }, { signal: ac.signal }),
+    ).rejects.toThrow(/user cancelled/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

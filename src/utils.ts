@@ -165,3 +165,31 @@ export function commonsThumbUrl(filename: string, width: number) {
         normalized
     )}/${width}px-${encodeURIComponent(normalized)}`;
 }
+
+/**
+ * Run async work on items with at most `concurrency` in flight.
+ * `concurrency` ≤ 0 or `Infinity` means unbounded (same as `Promise.all`).
+ */
+export async function parallelMap<T, R>(
+    items: readonly T[],
+    concurrency: number,
+    mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+    const n = items.length;
+    if (n === 0) return [];
+    const limit = !Number.isFinite(concurrency) || concurrency <= 0 ? Infinity : Math.floor(concurrency);
+    if (limit === Infinity || limit >= n) {
+        return Promise.all(items.map((item, i) => mapper(item, i)));
+    }
+    const results: R[] = new Array(n);
+    let next = 0;
+    async function worker(): Promise<void> {
+        for (;;) {
+            const i = next++;
+            if (i >= n) return;
+            results[i] = await mapper(items[i], i);
+        }
+    }
+    await Promise.all(Array.from({ length: limit }, () => worker()));
+    return results;
+}
