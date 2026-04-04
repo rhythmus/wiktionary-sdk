@@ -66,6 +66,22 @@ describe("Phase 3.2: TieredCache", () => {
     await tiered.set("key", { data: true });
     expect(await l2.get("key")).not.toBeNull();
   });
+
+  it("treats corrupt L1 JSON as a miss and drops the key (§13.3)", async () => {
+    const tiered = new TieredCache();
+    const l1 = (tiered as any).l1 as MemoryCache;
+    await l1.set("bad", "{ not-json", 60_000);
+    expect(await tiered.get("bad")).toBeNull();
+    expect(await l1.get("bad")).toBeNull();
+  });
+
+  it("treats corrupt L2 JSON as a miss and deletes L2 key (§13.3)", async () => {
+    const l2 = new MemoryCache();
+    await l2.set("bad", "undefined", 60_000);
+    const tiered = new TieredCache({ l2 });
+    expect(await tiered.get("bad")).toBeNull();
+    expect(await l2.get("bad")).toBeNull();
+  });
 });
 
 describe("Phase 3.3: RateLimiter", () => {
@@ -89,5 +105,20 @@ describe("Phase 3.3: RateLimiter", () => {
   it("stores proxy config", () => {
     const limiter = new RateLimiter({ proxyUrl: "http://proxy:8080" });
     expect(limiter.proxyUrl).toBe("http://proxy:8080");
+  });
+
+  it("spaces concurrent throttle calls by minIntervalMs (§13.4)", async () => {
+    const limiter = new RateLimiter({ minIntervalMs: 40 });
+    const start = Date.now();
+    await Promise.all([limiter.throttle(), limiter.throttle(), limiter.throttle(), limiter.throttle()]);
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeGreaterThanOrEqual(3 * 40 - 5);
+  });
+
+  it("leaves processing false after queue drains (§13.4)", async () => {
+    const limiter = new RateLimiter({ minIntervalMs: 1 });
+    await Promise.all([limiter.throttle(), limiter.throttle()]);
+    expect((limiter as any).processing).toBe(false);
+    expect((limiter as any).queue.length).toBe(0);
   });
 });

@@ -10,15 +10,17 @@ import {
   rhymes, homophones, syllableCount, allImages, audioGallery, audioDetails, exampleDetails,
   externalLinks, internalLinks, isInstance, isSubclass, alternativeForms, seeAlso, anagrams,
   citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
-  categories, langlinks, inflectionTableRef, gender, transitivity, invokeWrapperMethod,
+  categories, langlinks, inflectionTableRef, gender, transitivity,
   stripCombiningMarksForPageTitle,
 } from '@engine/index';
 import { ENTRY_CSS } from '@engine/templates/templates';
 import { SHARED_COPY } from './shared-copy.generated';
-import type { Lexeme, WikiLang, DecoderDebugEvent, FetchResult } from '@engine/types';
-import { normalizeWikiLangArg, langToLanguageName, languageNameToLang } from '@engine/parser';
-import { format, formatInflectedFormHeadline } from '@engine/formatter';
-import { parseMorphologyTags } from '@engine/morphology';
+import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/types';
+import { langToLanguageName, languageNameToLang } from '@engine/parser';
+import { format } from '@engine/formatter';
+import { FormOfLexemeBlock } from './FormOfLexemeBlock';
+import { runPlaygroundApiExecute } from './playground-api-execute';
+import { readInitialQueryFromWindow, usePopstateQuerySync } from './url-query-popstate';
 
 /** Full language name for pills / labels (codes + section titles like "Latin"). */
 function langName(lang: string) {
@@ -98,33 +100,6 @@ function buildLexemePillGroups(lexemes: Lexeme[]): LexemePillGroup[] {
   });
 }
 
-/**
- * Pick the lemma LEXEME from a second wiktionary() response. Uses only API fields:
- * page title match (`form` === lemma query from {{… of}}) and optional PoS tie-break
- * from the inflected lexeme’s decoded part_of_speech (not guessed elsewhere).
- */
-function pickLemmaLexemeFromSecondFetch(
-  res: FetchResult,
-  lemmaQuery: string,
-  preferredPos: string | undefined,
-): Lexeme | null {
-  const q = lemmaQuery.trim();
-  const qNorm = stripCombiningMarksForPageTitle(q);
-  const candidates = res.lexemes.filter((l) => {
-    if (l.type !== 'LEXEME') return false;
-    const f = (l.form ?? '').trim();
-    if (f === q) return true;
-    return stripCombiningMarksForPageTitle(f) === qNorm;
-  });
-  if (candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0];
-  if (preferredPos && preferredPos !== 'Auto') {
-    const byPos = candidates.find((l) => l.part_of_speech === preferredPos);
-    if (byPos) return byPos;
-  }
-  return candidates[0];
-}
-
 function lexemeNeedsLemmaResolution(lex: Lexeme | undefined): boolean {
   return Boolean(
     lex &&
@@ -165,123 +140,6 @@ function filterMergedStackIndices(results: Lexeme[], indices: number[]): number[
     return !mergedStackOmitAsRedundantLemma(lex, others);
   });
 }
-
-/** One inflected/form-of row: own lemma fetch + nested lemma HTML (for merged group cards). */
-const FormOfLexemeBlock: React.FC<{
-  lexeme: Lexeme;
-  debugMode: boolean;
-  matchMode: 'strict' | 'fuzzy';
-}> = ({ lexeme, debugMode, matchMode }) => {
-  const [lemmaResolveEntry, setLemmaResolveEntry] = useState<Lexeme | null>(null);
-  const [lemmaResolveLoading, setLemmaResolveLoading] = useState(false);
-  const [lemmaResolveError, setLemmaResolveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const lemmaQuery = lexeme.form_of!.lemma!.trim();
-    const lang = normalizeWikiLangArg(lexeme.language);
-    const preferredPos =
-      lexeme.part_of_speech && lexeme.part_of_speech !== 'Auto'
-        ? lexeme.part_of_speech
-        : undefined;
-
-    let cancelled = false;
-    setLemmaResolveLoading(true);
-    setLemmaResolveError(null);
-    setLemmaResolveEntry(null);
-
-    wiktionary({
-      query: lemmaQuery,
-      lang,
-      pos: 'Auto',
-      enrich: true,
-      debugDecoders: debugMode,
-      matchMode,
-    })
-      .then((res) => {
-        if (cancelled) return;
-        const picked = pickLemmaLexemeFromSecondFetch(res, lemmaQuery, preferredPos);
-        if (!picked) {
-          const noise = /retried without combining marks/i;
-          const meaningful = res.notes.find((n) => !noise.test(n));
-          setLemmaResolveError(
-            meaningful ??
-              (res.lexemes.length === 0
-                ? 'No lexemes for this lemma page (language section or PoS filter).'
-                : 'No lemma lexeme in the API response for this page.'),
-          );
-          setLemmaResolveEntry(null);
-        } else {
-          setLemmaResolveEntry(picked);
-          setLemmaResolveError(null);
-        }
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setLemmaResolveError(e instanceof Error ? e.message : String(e));
-        setLemmaResolveEntry(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLemmaResolveLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    lexeme.id,
-    lexeme.form_of?.lemma,
-    lexeme.language,
-    lexeme.part_of_speech,
-    lexeme.type,
-    debugMode,
-    matchMode,
-  ]);
-
-  const inflectedFormHeadlineHtml = useMemo(() => formatInflectedFormHeadline(lexeme), [lexeme]);
-
-  const nestedLemmaEntryHtml = useMemo(() => {
-    if (!lemmaResolveEntry) return '';
-    const fromForm = parseMorphologyTags((lexeme.form_of?.tags ?? []).map(String));
-    const lemmaGender = lemmaResolveEntry.headword_morphology?.gender;
-    const mergedGender = lemmaGender ?? fromForm.gender;
-    const entryForDisplay =
-      mergedGender && !lemmaGender
-        ? {
-            ...lemmaResolveEntry,
-            headword_morphology: {
-              ...lemmaResolveEntry.headword_morphology,
-              gender: mergedGender,
-            },
-          }
-        : lemmaResolveEntry;
-    return format(entryForDisplay, { mode: 'html-fragment' });
-  }, [lemmaResolveEntry, lexeme]);
-
-  return (
-    <div className="dict-merged-lexeme-block dict-entry-form-of-wrap">
-      <div dangerouslySetInnerHTML={{ __html: inflectedFormHeadlineHtml }} />
-      <div className="dict-entry-nested-row">
-        <span className="dict-entry-nested-arrow" aria-hidden="true">→</span>
-        <div className="dict-entry-nested-body">
-          {lemmaResolveLoading && (
-            <div className="dict-entry-lemma-nested dict-entry-lemma-loading">
-              <Loader2 size={20} className="animate-spin" aria-hidden />
-              <span> Loading lemma…</span>
-            </div>
-          )}
-          {!lemmaResolveLoading && lemmaResolveError && (
-            <div className="dict-entry-lemma-nested dict-entry-lemma-error" role="alert">
-              {lemmaResolveError}
-            </div>
-          )}
-          {!lemmaResolveLoading && lemmaResolveEntry && (
-            <div className="dict-entry-lemma-nested" dangerouslySetInnerHTML={{ __html: nestedLemmaEntryHtml }} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const PlainLexemeHtmlBlock: React.FC<{ lexeme: Lexeme }> = ({ lexeme }) => {
   const html = useMemo(() => {
@@ -631,14 +489,8 @@ function highlightPlaygroundTs(code: string): ReactNode {
 
 // ── Component ────────────────────────────────────────────────────────────────
 const App: React.FC = () => {
-  const getQueryFromUrl = () => {
-    if (typeof window === 'undefined') return '';
-    const raw = new URLSearchParams(window.location.search).get('q');
-    return (raw ?? '').trim();
-  };
-
   // Search & results state
-  const [query, setQuery] = useState(() => getQueryFromUrl() || 'γράφω');
+  const [query, setQuery] = useState(() => readInitialQueryFromWindow('γράφω'));
   const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
   const [matchMode, setMatchMode] = useState<'strict' | 'fuzzy'>('fuzzy');
@@ -704,30 +556,29 @@ const App: React.FC = () => {
 
   const handleApiExecute = useCallback(async () => {
     setApiLoading(true);
-    try {
-      let propsObj: Record<string, unknown> | undefined = undefined;
-      if (apiProps.trim()) {
-        try { propsObj = JSON.parse(apiProps); }
-        catch { setApiResult({ error: 'Invalid JSON' }); setApiFormatted(null); setApiLoading(false); return; }
-      }
-      const fn = API_METHODS[apiMethod];
-      const res = await invokeWrapperMethod(apiMethod, fn, query, {
-        sourceLang: lang,
-        preferredPos: prefPos,
-        props: propsObj,
-      });
-      setApiResult(res);
-      // Format for the terminal using the colour-coded terminal-html style
-      try {
-        const html = format(res, { mode: 'terminal-html' });
-        setApiFormatted(html);
-      } catch {
-        setApiFormatted(null); // fallback to raw
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setApiResult({ error: msg });
-      setApiFormatted(`<span style="color:#f87171">Error: ${msg}</span>`);
+    const out = await runPlaygroundApiExecute({
+      apiMethod,
+      apiPropsRaw: apiProps,
+      query,
+      lang,
+      prefPos,
+      apiMethods: API_METHODS,
+    });
+    if (!out.ok && out.error === 'invalid_json') {
+      setApiResult({ error: 'Invalid JSON' });
+      setApiFormatted(null);
+      setApiLoading(false);
+      return;
+    }
+    if (!out.ok && out.error === 'invoke') {
+      setApiResult(out.result);
+      setApiFormatted(out.formatted);
+      setApiLoading(false);
+      return;
+    }
+    if (out.ok) {
+      setApiResult(out.result);
+      setApiFormatted(out.formatted);
     }
     setApiLoading(false);
   }, [apiMethod, apiProps, query, lang, prefPos]);
@@ -774,14 +625,7 @@ const App: React.FC = () => {
     handleSearch(); 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const onPopState = () => {
-      const q = getQueryFromUrl();
-      setQuery(q || 'γράφω');
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  usePopstateQuerySync(setQuery, 'γράφω');
 
   useEffect(() => {
     const captureBaseline = (key: 'ts' | 'cli' | 'rest', ref: React.RefObject<HTMLDivElement | null>) => {

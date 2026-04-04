@@ -46,10 +46,13 @@ describe("cross-interface parity: shared wrapper invocation", () => {
     spy.mockRestore();
   });
 
-  it("ensures webapp playground uses shared invocation helper", () => {
+  it("ensures webapp playground uses shared invocation helper via runPlaygroundApiExecute", () => {
     const appPath = resolve(__dirname, "../webapp/src/App.tsx");
     const appText = readFileSync(appPath, "utf-8");
-    expect(appText.includes("invokeWrapperMethod(apiMethod, fn, query")).toBe(true);
+    expect(appText.includes("runPlaygroundApiExecute")).toBe(true);
+    const playPath = resolve(__dirname, "../webapp/src/playground-api-execute.ts");
+    const playText = readFileSync(playPath, "utf-8");
+    expect(playText.includes("invokeWrapperMethod")).toBe(true);
   });
 });
 
