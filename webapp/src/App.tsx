@@ -18,6 +18,7 @@ import { SHARED_COPY } from './shared-copy.generated';
 import type { Lexeme, WikiLang, DecoderDebugEvent, FetchResult } from '@engine/types';
 import { normalizeWikiLangArg, langToLanguageName, languageNameToLang } from '@engine/parser';
 import { format, formatInflectedFormHeadline } from '@engine/formatter';
+import { parseMorphologyTags } from '@engine/morphology';
 
 /** Full language name for pills / labels (codes + section titles like "Latin"). */
 function langName(lang: string) {
@@ -43,6 +44,58 @@ function posLabelForPill(r: Lexeme): string {
   return String(raw)
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Group pills by language + PoS; the card stacks every lexeme in the active group. */
+function lexemePillGroupKey(r: Lexeme): string {
+  const lang = String(r.language ?? '').trim();
+  const posRaw =
+    (r.part_of_speech && String(r.part_of_speech).trim()) ||
+    r.part_of_speech_heading ||
+    r.part_of_speech ||
+    '';
+  const posNorm = String(posRaw).toLowerCase().replace(/_/g, ' ').trim();
+  return `${lang}\u0000${posNorm}`;
+}
+
+type LexemePillGroup = {
+  key: string;
+  /** Indices into the flat `results` array, in API order. */
+  indices: number[];
+  representative: Lexeme;
+};
+
+/** Sort flat indices by etymology section index for stable stacked display. */
+function sortIndicesByEtymology(lexemes: Lexeme[], indices: number[]): number[] {
+  return [...indices].sort((a, b) => {
+    const ea = lexemes[a]?.etymology_index ?? 0;
+    const eb = lexemes[b]?.etymology_index ?? 0;
+    if (ea !== eb) return ea - eb;
+    return a - b;
+  });
+}
+
+/** One pill per (language, PoS); indices list all lexeme rows in that group (API order). */
+function buildLexemePillGroups(lexemes: Lexeme[]): LexemePillGroup[] {
+  const map = new Map<string, number[]>();
+  const keyOrder: string[] = [];
+  for (let i = 0; i < lexemes.length; i++) {
+    const key = lexemePillGroupKey(lexemes[i]);
+    if (!map.has(key)) {
+      map.set(key, []);
+      keyOrder.push(key);
+    }
+    map.get(key)!.push(i);
+  }
+  return keyOrder.map((key) => {
+    const indices = map.get(key)!;
+    const sorted = sortIndicesByEtymology(lexemes, indices);
+    return {
+      key,
+      indices: sorted,
+      representative: lexemes[sorted[0]],
+    };
+  });
 }
 
 /**
@@ -71,6 +124,176 @@ function pickLemmaLexemeFromSecondFetch(
   }
   return candidates[0];
 }
+
+function lexemeNeedsLemmaResolution(lex: Lexeme | undefined): boolean {
+  return Boolean(
+    lex &&
+      (lex.type === 'INFLECTED_FORM' || lex.type === 'FORM_OF') &&
+      lex.form_of?.lemma?.trim(),
+  );
+}
+
+/**
+ * Drop a standalone LEXEME from the merged hero card when another row in the same
+ * (language + PoS) group is a form-of pointing at that surface form — the nested
+ * lemma block already renders the same target (e.g. skip bare "sens" when "sense plural of → sens" follows).
+ */
+function mergedStackOmitAsRedundantLemma(lex: Lexeme, othersInGroup: Lexeme[]): boolean {
+  if (lex.type !== 'LEXEME') return false;
+  const form = (lex.form ?? '').trim();
+  if (!form) return false;
+  const formNorm = stripCombiningMarksForPageTitle(form);
+  for (const o of othersInGroup) {
+    if (o === lex) continue;
+    if (o.type !== 'INFLECTED_FORM' && o.type !== 'FORM_OF') continue;
+    const lemma = o.form_of?.lemma?.trim();
+    if (!lemma) continue;
+    const lemmaNorm = stripCombiningMarksForPageTitle(lemma);
+    if (lemma === form || lemmaNorm === formNorm) return true;
+  }
+  return false;
+}
+
+function filterMergedStackIndices(results: Lexeme[], indices: number[]): number[] {
+  return indices.filter((i) => {
+    const lex = results[i];
+    if (!lex) return false;
+    const others = indices
+      .filter((j) => j !== i)
+      .map((j) => results[j])
+      .filter((x): x is Lexeme => Boolean(x));
+    return !mergedStackOmitAsRedundantLemma(lex, others);
+  });
+}
+
+/** One inflected/form-of row: own lemma fetch + nested lemma HTML (for merged group cards). */
+const FormOfLexemeBlock: React.FC<{
+  lexeme: Lexeme;
+  debugMode: boolean;
+  matchMode: 'strict' | 'fuzzy';
+}> = ({ lexeme, debugMode, matchMode }) => {
+  const [lemmaResolveEntry, setLemmaResolveEntry] = useState<Lexeme | null>(null);
+  const [lemmaResolveLoading, setLemmaResolveLoading] = useState(false);
+  const [lemmaResolveError, setLemmaResolveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const lemmaQuery = lexeme.form_of!.lemma!.trim();
+    const lang = normalizeWikiLangArg(lexeme.language);
+    const preferredPos =
+      lexeme.part_of_speech && lexeme.part_of_speech !== 'Auto'
+        ? lexeme.part_of_speech
+        : undefined;
+
+    let cancelled = false;
+    setLemmaResolveLoading(true);
+    setLemmaResolveError(null);
+    setLemmaResolveEntry(null);
+
+    wiktionary({
+      query: lemmaQuery,
+      lang,
+      pos: 'Auto',
+      enrich: true,
+      debugDecoders: debugMode,
+      matchMode,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const picked = pickLemmaLexemeFromSecondFetch(res, lemmaQuery, preferredPos);
+        if (!picked) {
+          const noise = /retried without combining marks/i;
+          const meaningful = res.notes.find((n) => !noise.test(n));
+          setLemmaResolveError(
+            meaningful ??
+              (res.lexemes.length === 0
+                ? 'No lexemes for this lemma page (language section or PoS filter).'
+                : 'No lemma lexeme in the API response for this page.'),
+          );
+          setLemmaResolveEntry(null);
+        } else {
+          setLemmaResolveEntry(picked);
+          setLemmaResolveError(null);
+        }
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setLemmaResolveError(e instanceof Error ? e.message : String(e));
+        setLemmaResolveEntry(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLemmaResolveLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    lexeme.id,
+    lexeme.form_of?.lemma,
+    lexeme.language,
+    lexeme.part_of_speech,
+    lexeme.type,
+    debugMode,
+    matchMode,
+  ]);
+
+  const inflectedFormHeadlineHtml = useMemo(() => formatInflectedFormHeadline(lexeme), [lexeme]);
+
+  const nestedLemmaEntryHtml = useMemo(() => {
+    if (!lemmaResolveEntry) return '';
+    const fromForm = parseMorphologyTags((lexeme.form_of?.tags ?? []).map(String));
+    const lemmaGender = lemmaResolveEntry.headword_morphology?.gender;
+    const mergedGender = lemmaGender ?? fromForm.gender;
+    const entryForDisplay =
+      mergedGender && !lemmaGender
+        ? {
+            ...lemmaResolveEntry,
+            headword_morphology: {
+              ...lemmaResolveEntry.headword_morphology,
+              gender: mergedGender,
+            },
+          }
+        : lemmaResolveEntry;
+    return format(entryForDisplay, { mode: 'html-fragment' });
+  }, [lemmaResolveEntry, lexeme]);
+
+  return (
+    <div className="dict-merged-lexeme-block dict-entry-form-of-wrap">
+      <div dangerouslySetInnerHTML={{ __html: inflectedFormHeadlineHtml }} />
+      <div className="dict-entry-nested-row">
+        <span className="dict-entry-nested-arrow" aria-hidden="true">→</span>
+        <div className="dict-entry-nested-body">
+          {lemmaResolveLoading && (
+            <div className="dict-entry-lemma-nested dict-entry-lemma-loading">
+              <Loader2 size={20} className="animate-spin" aria-hidden />
+              <span> Loading lemma…</span>
+            </div>
+          )}
+          {!lemmaResolveLoading && lemmaResolveError && (
+            <div className="dict-entry-lemma-nested dict-entry-lemma-error" role="alert">
+              {lemmaResolveError}
+            </div>
+          )}
+          {!lemmaResolveLoading && lemmaResolveEntry && (
+            <div className="dict-entry-lemma-nested" dangerouslySetInnerHTML={{ __html: nestedLemmaEntryHtml }} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PlainLexemeHtmlBlock: React.FC<{ lexeme: Lexeme }> = ({ lexeme }) => {
+  const html = useMemo(() => {
+    try {
+      return format(lexeme, { mode: 'html-fragment' });
+    } catch (e) {
+      console.error('Format error:', e);
+      return '';
+    }
+  }, [lexeme]);
+  return <div className="dict-merged-lexeme-block" dangerouslySetInnerHTML={{ __html: html }} />;
+};
 
 // ── SDK method registry ──────────────────────────────────────────────────────
 const API_METHODS: Record<string, any> = {
@@ -419,10 +642,6 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
   const [matchMode, setMatchMode] = useState<'strict' | 'fuzzy'>('fuzzy');
-  /** Second fetch for non-lemma → lemma resolution (explicit API; no in-result guessing). */
-  const [lemmaResolveEntry, setLemmaResolveEntry] = useState<Lexeme | null>(null);
-  const [lemmaResolveLoading, setLemmaResolveLoading] = useState(false);
-  const [lemmaResolveError, setLemmaResolveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Lexeme[]>([]);
   const [rawBlock, setRawBlock] = useState('');
@@ -630,6 +849,22 @@ const App: React.FC = () => {
   };
 
   // ── Decoder matches ──────────────────────────────────────────────────────
+  const lexemePillGroups = useMemo(() => buildLexemePillGroups(results), [results]);
+
+  /** Flat indices for the pill group that contains the current selection (stacked card; omits lemma rows duplicated by a form-of nested target). */
+  const activeLexemeGroupIndices = useMemo(() => {
+    if (results.length === 0) return [];
+    const g = lexemePillGroups.find((gr) => gr.indices.includes(selectedEntryIdx));
+    const raw = g
+      ? g.indices
+      : [Math.max(0, Math.min(selectedEntryIdx, results.length - 1))];
+    return filterMergedStackIndices(results, raw);
+  }, [results, lexemePillGroups, selectedEntryIdx]);
+
+  const handleLexemePillClick = useCallback((group: LexemePillGroup) => {
+    setSelectedEntryIdx(group.indices[0]);
+  }, []);
+
   const decoderMatches = useMemo(() => {
     if (!debugMode || results.length === 0) return [];
     const events = debugEvents[selectedEntryIdx] ?? debugEvents[0];
@@ -645,107 +880,6 @@ const App: React.FC = () => {
   }, [debugMode, results, selectedEntryIdx, debugEvents]);
 
   const currentEntry = results[selectedEntryIdx] || results[0];
-
-  const needsLemmaResolution = useMemo(
-    () =>
-      Boolean(
-        currentEntry &&
-          (currentEntry.type === 'INFLECTED_FORM' || currentEntry.type === 'FORM_OF') &&
-          currentEntry.form_of?.lemma?.trim(),
-      ),
-    [currentEntry],
-  );
-
-  useEffect(() => {
-    if (!needsLemmaResolution || !currentEntry?.form_of?.lemma?.trim()) {
-      setLemmaResolveEntry(null);
-      setLemmaResolveLoading(false);
-      setLemmaResolveError(null);
-      return;
-    }
-
-    const lemmaQuery = currentEntry.form_of!.lemma!.trim();
-    const lang = normalizeWikiLangArg(currentEntry.language);
-    const preferredPos =
-      currentEntry.part_of_speech && currentEntry.part_of_speech !== 'Auto'
-        ? currentEntry.part_of_speech
-        : undefined;
-
-    let cancelled = false;
-    setLemmaResolveLoading(true);
-    setLemmaResolveError(null);
-    setLemmaResolveEntry(null);
-
-    wiktionary({
-      query: lemmaQuery,
-      lang,
-      pos: 'Auto',
-      enrich: true,
-      debugDecoders: debugMode,
-      matchMode,
-    })
-      .then((res) => {
-        if (cancelled) return;
-        const picked = pickLemmaLexemeFromSecondFetch(res, lemmaQuery, preferredPos);
-        if (!picked) {
-          const noise = /retried without combining marks/i;
-          const meaningful = res.notes.find((n) => !noise.test(n));
-          setLemmaResolveError(
-            meaningful ??
-              (res.lexemes.length === 0
-                ? 'No lexemes for this lemma page (language section or PoS filter).'
-                : 'No lemma lexeme in the API response for this page.'),
-          );
-          setLemmaResolveEntry(null);
-        } else {
-          setLemmaResolveEntry(picked);
-          setLemmaResolveError(null);
-        }
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setLemmaResolveError(e instanceof Error ? e.message : String(e));
-        setLemmaResolveEntry(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLemmaResolveLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    needsLemmaResolution,
-    currentEntry?.id,
-    currentEntry?.form_of?.lemma,
-    currentEntry?.language,
-    currentEntry?.part_of_speech,
-    currentEntry?.type,
-    debugMode,
-    matchMode,
-  ]);
-
-  const inflectedFormHeadlineHtml = useMemo(() => {
-    if (!needsLemmaResolution || !currentEntry) return '';
-    return formatInflectedFormHeadline(currentEntry);
-  }, [needsLemmaResolution, currentEntry]);
-
-  const nestedLemmaEntryHtml = useMemo(() => {
-    if (!lemmaResolveEntry) return '';
-    return format(lemmaResolveEntry, { mode: 'html-fragment' });
-  }, [lemmaResolveEntry]);
-
-  // Render high-fidelity HTML for the current entry (Gold Standard v2.4.0)
-  const highFidelityHtml = useMemo(() => {
-    if (!currentEntry) return '';
-    if (needsLemmaResolution) return '';
-    try {
-      return format(currentEntry, { mode: 'html-fragment' });
-    } catch (e) {
-      console.error("Format error:", e);
-      return '';
-    }
-  }, [currentEntry, needsLemmaResolution]);
 
   const pills = SUGGESTED_PROPS[apiMethod] ?? DEFAULT_PILLS;
 
@@ -935,46 +1069,47 @@ const App: React.FC = () => {
       <AnimatePresence>
         {currentEntry && (
           <motion.div
-            key={currentEntry.form + selectedEntryIdx}
+            key={`${currentEntry.id ?? currentEntry.form}-${activeLexemeGroupIndices.join(',')}`}
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="dict-card app-dict-card"
           >
-            {/* Inflected/form-of: headline from first query; lemma body from second wiktionary() (decoded lemma + lang + pos). */}
-            {needsLemmaResolution ? (
-              <div className="dict-entry-form-of-wrap">
-                <div dangerouslySetInnerHTML={{ __html: inflectedFormHeadlineHtml }} />
-                <div className="dict-entry-nested-row">
-                  <span className="dict-entry-nested-arrow" aria-hidden="true">→</span>
-                  <div className="dict-entry-nested-body">
-                    {lemmaResolveLoading && (
-                      <div className="dict-entry-lemma-nested dict-entry-lemma-loading">
-                        <Loader2 size={20} className="animate-spin" aria-hidden />
-                        <span> Loading lemma…</span>
-                      </div>
-                    )}
-                    {!lemmaResolveLoading && lemmaResolveError && (
-                      <div className="dict-entry-lemma-nested dict-entry-lemma-error" role="alert">
-                        {lemmaResolveError}
-                      </div>
-                    )}
-                    {!lemmaResolveLoading && lemmaResolveEntry && (
-                      <div className="dict-entry-lemma-nested" dangerouslySetInnerHTML={{ __html: nestedLemmaEntryHtml }} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div dangerouslySetInnerHTML={{ __html: highFidelityHtml }} />
-            )}
+            {/* Stack every lexeme in the active (language + PoS) group — lemma fetches run per form-of row. */}
+            <div className="dict-merged-lexeme-stack">
+              {activeLexemeGroupIndices.map((idx) => {
+                const lex = results[idx];
+                if (!lex) return null;
+                if (lexemeNeedsLemmaResolution(lex)) {
+                  return <FormOfLexemeBlock key={lex.id} lexeme={lex} debugMode={debugMode} matchMode={matchMode} />;
+                }
+                return <PlainLexemeHtmlBlock key={lex.id} lexeme={lex} />;
+              })}
+            </div>
 
-            {/* Lexeme switcher pills */}
+            {/* One pill per language + PoS; card shows all rows in that group together */}
             {results.length > 1 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '2rem', borderTop: '1px solid var(--page-border)', paddingTop: '1.25rem' }}>
-                {results.map((r, i) => (
-                  <button key={i} className={`dict-entry-pill${i === selectedEntryIdx ? ' active' : ''}`} onClick={() => setSelectedEntryIdx(i)}>
-                    Lexeme {i + 1}: {langName(r.language)} · {posLabelForPill(r)}
-                  </button>
-                ))}
+                {lexemePillGroups.map((g) => {
+                  const active = g.indices.includes(selectedEntryIdx);
+                  const r = g.representative;
+                  const base = `${langName(r.language)} · ${posLabelForPill(r)}`;
+                  const visibleCount = filterMergedStackIndices(results, g.indices).length;
+                  const label = visibleCount > 1 ? `${base} (${visibleCount})` : base;
+                  const title =
+                    visibleCount > 1
+                      ? `${visibleCount} entry block(s) for this language and part of speech are combined in the card above (lemma-only rows omitted when shown via a form-of link).`
+                      : undefined;
+                  return (
+                    <button
+                      key={g.key}
+                      type="button"
+                      className={`dict-entry-pill${active ? ' active' : ''}`}
+                      title={title}
+                      onClick={() => handleLexemePillClick(g)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </motion.div>
@@ -1278,7 +1413,11 @@ const App: React.FC = () => {
                             value={selectedEntryIdx}
                             onChange={(e) => setSelectedEntryIdx(Number(e.target.value))}
                           >
-                            {results.map((r, i) => <option key={i} value={i}>Lexeme {i + 1}: {r.type}</option>)}
+                            {results.map((r, i) => (
+                              <option key={i} value={i}>
+                                Lexeme {i + 1}: {langName(r.language)} · {posLabelForPill(r)} · {r.type}
+                              </option>
+                            ))}
                           </select>
                         )}
                       </div>

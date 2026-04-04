@@ -694,6 +694,16 @@ code {
   font-family: 'Source Serif 4', serif;
 }
 
+/* Etymology row: full language names must read as normal prose (not small-caps / all-caps). */
+.dict-card .wiktionary-entry .etym-inline,
+.dict-card .wiktionary-entry .lang-tag {
+  font-variant: normal;
+  font-variant-caps: normal;
+  font-feature-settings: normal;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .dict-card .dict-entry-nested-arrow {
   font-family: 'Source Serif 4', serif;
   font-variant-emoji: text;
@@ -707,8 +717,7 @@ code {
   }
 }
 
-.dict-card .redirect-arrow,
-.dict-card .etym-arrow {
+.dict-card .redirect-arrow {
   font-variant-emoji: text;
 }
 
@@ -767,6 +776,13 @@ code {
   border-color: var(--page-accent);
   background: rgba(79, 70, 229, 0.08);
   color: var(--page-accent);
+}
+
+/* Hero card: multiple lexemes for same language + PoS stacked vertically */
+.dict-merged-lexeme-stack .dict-merged-lexeme-block + .dict-merged-lexeme-block {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--page-border);
 }
 
 /* ── Dark island wrapper ── */
