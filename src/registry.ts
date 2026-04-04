@@ -815,7 +815,7 @@ function glossFromAuxDefinitionTemplate(t: TemplateCall): string | null {
 function glossFromDefinitionLine(
     rawClean: string,
     gloss: string,
-    ctxLang: string,
+    _ctxLang: string,
 ): {
     displayGloss: string;
     only_used_in?: OnlyUsedIn;

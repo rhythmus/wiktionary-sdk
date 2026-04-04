@@ -560,7 +560,6 @@ export function formatInflectedFormHeadline(entry: Lexeme): string {
     const surface = (entry as Lexeme & { headword?: string }).headword ?? entry.form;
     const headword = escapeHtml(String(surface || "").trim());
     const inlinePhrase = formOfMorphInlinePhrase(entry);
-    const morphLines = inflectionMorphDisplayLines(entry);
     const bullets = inflectionMorphBulletItems(entry);
     const single = formOfMorphSingleLinePhrase(entry);
     const labelLower = escapeHtml(formOfLabelDisplayLower(entry));

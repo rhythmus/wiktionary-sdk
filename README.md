@@ -10,6 +10,16 @@ Wiktionary SDK is a specialized tool for the **deterministic and source-faithful
 
 The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).
 
+### Version axes
+
+| Axis | Current value | Where it lives |
+|------|----------------|----------------|
+| **npm package** | `1.2.0` (see `package.json` `version`) | Release tagging / consumers |
+| **Output `schema_version`** | `3.0.0` | `SCHEMA_VERSION` in `src/types.ts`, emitted on every `FetchResult` |
+| **Formal spec revision** | v3.4 | Title line in `docs/wiktionary-sdk-spec.md` |
+
+Bump rules for schema vs code: see `VERSIONING.md`. The spec revision and `SCHEMA_VERSION` can move at different cadences; the table above is the support checklist from `audit.md` §2.2.
+
 ## 🚀 Quick Start: Programmatic vs. CLI
 
 The SDK features a strict separation between programmatic usage inside Node.js applications and powerful data-piping capabilities via the terminal.
@@ -429,6 +439,14 @@ The core engine compiles to both ESM and CJS targets:
 ```bash
 npm install
 npm run build        # outputs to dist/esm/ and dist/cjs/
+```
+
+### Manual API smoke (optional)
+
+Requires network access (not run in CI):
+
+```bash
+npx tsx tools/verify_v2.ts
 ```
 
 ### 🖥️ Running the Web Frontend
