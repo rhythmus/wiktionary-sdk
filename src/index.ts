@@ -28,6 +28,7 @@ import {
     isVariantFormOfTemplateName,
 } from "./registry";
 import { deepMerge, commonsThumbUrl } from "./utils";
+import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
 
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
     if (!site || !title || !site.endsWith("wiki")) return undefined;
@@ -348,6 +349,10 @@ export async function wiktionaryRecursive({
                 lexemes.push(base);
             }
         }
+    }
+
+    if (enrich) {
+        await enrichFormOfMorphLinesFromParseBatch(lexemes, qPage.title);
     }
 
     const lemmaRequests: Array<{ lemma: string; lang: WikiLang; triggeredBy: string }> = [];

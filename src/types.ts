@@ -186,6 +186,13 @@ export interface Lexeme {
     /** Human-readable label rendered from the tag array, e.g. "1st pers. singular perfective past". */
     label?: string;
     named: Record<string, string>;
+    /**
+     * Inflection gloss lines from MediaWiki parse of the definition line (Lua output for
+     * per-lang form-of templates such as {{es-verb form of|…}}, {{de-noun form of|…}}), when
+     * not present as ## wikitext subsenses.
+     */
+    display_morph_lines?: string[];
+    display_morph_lines_source?: "mediawiki_parse";
   };
   translations?: Record<string, Array<{
     term: string;

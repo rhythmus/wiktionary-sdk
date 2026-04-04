@@ -207,7 +207,16 @@
           "type": "string",
           "description": "Human-readable label rendered from the tag array, e.g. '1st pers. singular perfective past'."
         },
-        "named": { "type": "object", "additionalProperties": { "type": "string" } }
+        "named": { "type": "object", "additionalProperties": { "type": "string" } },
+        "display_morph_lines": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Inflection lines from MediaWiki parse of the definition (e.g. {{ll-verb|noun|adj form of}} Lua HTML)."
+        },
+        "display_morph_lines_source": {
+          "type": "string",
+          "enum": ["mediawiki_parse"]
+        }
       },
       "additionalProperties": false
     },

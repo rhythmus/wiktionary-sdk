@@ -171,6 +171,9 @@ form_of:
   subclass: "inflected"          # misspelling | abbreviation | plural | inflected
   label: "1st pers. singular perfective past"
   named: {}
+  # Optional: Lua-expanded morph lines from action=parse (per-lang * form of); see docs/form-of-display-and-mediawiki-parse.md
+  # display_morph_lines: ["first-person singular present subjunctive", "..."]
+  # display_morph_lines_source: mediawiki_parse
 
 # ── Wikidata Enrichment ───────────────────────────────────────────────────
 wikidata:

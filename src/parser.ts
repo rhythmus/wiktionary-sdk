@@ -310,6 +310,67 @@ export function languageNameToLang(name: string): WikiLang | null {
 }
 
 /**
+ * Wiktionary etymology template codes not covered by {@link langToLanguageName} (historical langs, proto-languages, etc.).
+ * Keys must be lowercase; lookup uses {@link String#toLowerCase}.
+ */
+const ETYM_LANG_EXTRA: Record<string, string> = {
+    ang: "Old English",
+    enm: "Middle English",
+    fro: "Old French",
+    frm: "Middle French",
+    gem: "Proto-Germanic",
+    "gem-pro": "Proto-Germanic",
+    goh: "Old High German",
+    gmh: "Middle High German",
+    got: "Gothic",
+    "grc-koi": "Koine Greek",
+    grm: "Medieval Greek",
+    "ine-pro": "Proto-Indo-European",
+    "cel-pro": "Proto-Celtic",
+    "sla-pro": "Proto-Slavic",
+    "ira-pro": "Proto-Iranian",
+    "itc-pro": "Proto-Italic",
+    frk: "Frankish",
+    "la-vul": "Vulgar Latin",
+    non: "Old Norse",
+    osx: "Old Saxon",
+    cu: "Old Church Slavonic",
+    sga: "Old Irish",
+    cy: "Welsh",
+    ga: "Irish",
+    gd: "Scottish Gaelic",
+    br: "Breton",
+    kw: "Cornish",
+    xcl: "Classical Armenian",
+    hy: "Armenian",
+    fa: "Persian",
+    peo: "Old Persian",
+    sa: "Sanskrit",
+    hit: "Hittite",
+    he: "Hebrew",
+    arc: "Aramaic",
+    xpi: "Proto-Indo-Iranian",
+};
+
+/**
+ * Human-readable label for an etymology chain/cognate {@code source_lang} code.
+ * Uses {@link langToLanguageName}, then {@link languageNameToLang} for section-style names, then {@link ETYM_LANG_EXTRA}; otherwise returns the trimmed source string.
+ */
+export function etymSourceLangDisplayName(code: string): string {
+    const raw = code.trim();
+    if (!raw) return "";
+    const k = raw.toLowerCase();
+    const core = langToLanguageName(k as WikiLang);
+    if (core !== null) return core;
+    const fromSection = languageNameToLang(raw);
+    if (fromSection) {
+        const n = langToLanguageName(fromSection);
+        if (n !== null) return n;
+    }
+    return ETYM_LANG_EXTRA[k] ?? raw;
+}
+
+/**
  * Lexeme.language may be a WikiLang code or a Wiktionary section title (e.g. "Afrikaans")
  * when no code mapping existed at parse time. Normalize for {@link wiktionary} `lang`
  * (must be a known code or `"Auto"`).
