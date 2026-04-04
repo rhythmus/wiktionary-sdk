@@ -141,7 +141,7 @@
 
 | File | Responsibility |
 |------|----------------|
-| **`register-all-decoders.ts`** | **`registerAllDecoders(reg)`** only: sequential calls to `registerCoreAndPronunciation(reg)`, `registerHeadwordsElNlDe(reg)`, … in historical order (~40–120 lines). |
+| **`register-all-decoders.ts`** | **`registerAllDecoders(reg)`** only: sequential **`register*(reg)`** calls in historical order (thin orchestrator). |
 | **`register-core-pronunciation.ts`** | `store-raw-templates`, `ipa`, `hyphenation`, `alternative-forms-section` + hyphenation helpers (or import from **`hyphenation.ts`**). |
 | **`register-headwords-el-nl-de.ts`** | All `el-*-head`, `nl-*-head`, `de-*-head` decoders. |
 | **`register-form-of-wikidata.ts`** | `form-of`, `wikidata-p31` + local label helpers **or** imports from **`form-of-display-label.ts`**. |
@@ -176,7 +176,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 | **4.5.9** | **`register-semantic-relations.ts`.** | **Done** — `semantic-relations` + relation maps in **`register-semantic-relations.ts`**; **`matchesSectionHeading`** from **`section-extract.ts`**. | Order test. |
 | **4.5.10** | **`register-etymology.ts`.** | **Done** — `etymology` + template sets + **`normalizeEtymologyFields`** in **`register-etymology.ts`**. | Order test. |
 | **4.5.11** | **`register-pronunciation-extra.ts`.** | **Done** — `el-ipa`, `audio`, `romanization`, `rhymes`, `homophones` in **`register-pronunciation-extra.ts`**. | Order test. |
-| **4.5.12** | **`register-sections.ts`.** | Move `section-links`, `alternative-forms`, `see-also`, `anagrams`, `usage-notes`, `references`; depend on **`section-extract`**. | Order test. |
+| **4.5.12** | **`register-sections.ts`.** | **Done** — section/citation decoders in **`register-sections.ts`** (`section-extract`, **`format-usage-note-line`**). | Order test. |
 | **4.5.13** | **`register-inflection-stems.ts`.** | Move `inflection-table-ref`, `el-verb-stems`, `el-noun-stems`. | Order test; **`register-all-decoders.ts`** should now be orchestrator-only (+ imports). |
 | **4.5.14** | **Public **`registerAllDecoders`** re-export (optional).** | From **`src/registry.ts`**: `export { registerAllDecoders } from "./registry/register-all-decoders"` (and optionally **`DecoderRegistry`** already exported). Enables tests/tools to instantiate a **clean** `DecoderRegistry` without importing an internal path. Document in spec §14.1 if added. | Typecheck consumers; no default behaviour change. |
 | **4.5.15** | **Single source of truth for canonical decoder `id` list (optional).** | Move **`EXPECTED_DECODER_IDS`** to e.g. **`src/registry/decoder-ids.ts`** (or **`test/fixtures/registry-decoder-ids.json`**) **imported by** `registry-decoder-order.test.ts` **and** referenced from **`docs/registry-inventory.md`** (manual sync note or codegen script). Reduces drift between doc and test. | Order test still passes; doc accuracy. |
