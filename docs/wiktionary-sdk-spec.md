@@ -3,7 +3,7 @@
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
 
-This revision (v3.4) extends v3.3 with **operational hardening** (debug/cache), **testable REST wiring** (`buildApiFetchResponse`), **Vitest + jsdom coverage** for extracted webapp helpers, and pointers to **`audit.md`** (repository critique) and **`docs/STAGED_IMPLEMENTATION_PLAN.md`** (merged roadmap + staged engineering plan). Normative extraction behaviour is unchanged unless noted inline.
+This revision (v3.4) extends v3.3 with **operational hardening** (debug/cache), **testable REST wiring** (`buildApiFetchResponse`), **Vitest + jsdom coverage** for extracted webapp helpers, and pointers to **`audit.md`** (repository critique) and **`docs/STAGED_IMPLEMENTATION_PLAN.md`** (remaining work — phased engineering + product backlog; delivered history in **`CHANGELOG.md`**). Normative extraction behaviour is unchanged unless noted inline.
 
 ## Related: query result combinatorics
 
@@ -39,7 +39,7 @@ Return:
 
 The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.0.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
-**Roadmap note (non-normative):** For staged delivery history and future work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`.
+**Roadmap note (non-normative):** For **outstanding** phased work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 
 ### 1.1 Primary API entry point: `wiktionary()`
 
@@ -1248,7 +1248,7 @@ playground error paths that are easy to break inside a large `App.tsx`.
 - `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and triple-window playground.
 - `webapp/src/playground-api-execute.ts`, `url-query-popstate.ts`, `FormOfLexemeBlock.tsx`, `pick-lemma-lexeme.ts`: extracted playground helpers (tested under `test/webapp/`).
 - `audit.md`: Architecture and reliability critique (non-normative; informs audit tests).
-- `docs/STAGED_IMPLEMENTATION_PLAN.md`: Merged roadmap, testing deferrals, and audit-aligned phases.
+- `docs/STAGED_IMPLEMENTATION_PLAN.md`: Forward-only implementation plan (remaining work); delivered history in `CHANGELOG.md`.
 - `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
 - `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.
 - `server.ts`: HTTP API wrapper.
@@ -1256,7 +1256,7 @@ playground error paths that are easy to break inside a large `App.tsx`.
 
 ## 13. Post-v1.0 roadmap (non-normative)
 
-This section is informational only. For the detailed staged plan, see `docs/STAGED_IMPLEMENTATION_PLAN.md`.
+This section is informational only. For the **backlog** of staged engineering and product work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. Delivered roadmap stages are summarized in `CHANGELOG.md`.
 
 **Completed (post-v1.0):**
 

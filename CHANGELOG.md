@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 for its output schema (see `VERSIONING.md`).
 
+## [Unreleased]
+
+### Changed
+
+- `docs/STAGED_IMPLEMENTATION_PLAN.md` now lists **remaining work** only. Delivered multi-stage roadmap history is summarized in [Roadmap history — delivered engineering stages](#roadmap-history--delivered-engineering-stages) below.
+
+---
+
+## Roadmap history — delivered engineering stages
+
+These items were formerly tracked in `docs/STAGED_IMPLEMENTATION_PLAN.md` as **Part I — Historical roadmap**. They are **done**; this appendix keeps a single traceability trail. Package-facing notes remain in the versioned sections above (`[2.0.0-rc.1]`, `[1.2.0]`, etc.).
+
+| Stage (historical) | Focus (summary) |
+|--------------------|-----------------|
+| **14** (v2.0) | Offline-first test harness: API stubs, `test:perf` / `test:all` / `test:network`, goldens, decoder-coverage guard, parser invariants, `normalizeWiktionaryQueryPage`, `test/README.md`; registry subsense / `TAG_LABEL_MAP` refinements. |
+| **15** | Sense qualifiers, etymology `raw_text`, `LANG_PRIORITY` expansion (NL/DE/FR/RU), audio beyond Greek-only templates. |
+| **16** | RDF/SPARQL research notes; legacy mapping experiments; playground **Schema Inspector**. |
+| **17** (v2.1) | Audio, examples, links, Wikidata P31/P279; **library / CLI / webapp parity** for convenience wrappers; playground UX; **AGENTS.md** cross-interface parity rules. |
+| **18** (v2.1) | NL/DE headword decoders; `INFLECTED_FORM` vs `FORM_OF`; JSON Schema for `RichEntry` / `InflectionTable`; etymology `TEMPLATE_RELATION_MAP`. |
+| **19** (v2.2) | Pronunciation audio galleries; structured citations; `subclass_of` (P279); `audioGallery()`, `citations()`, `isSubclass()`. |
+| **20** (v2.2) | Handlebars HTML/Markdown, `entry.html.hbs` + `entry.css`, `richEntry()` extensions. |
+| **21** (v2.3) | Non-lemma morphological rendering; inflected variants in `richEntry()`; redirect-style HTML/Markdown. |
+| **22** (v2.4) | Form-of `subclass` granularity; etymology symbols + CSS; schema/YAML updates. |
+| **22 / v2.5.0** (second tranche) | Greek verb/noun template depth; register / alternative-forms classification; HTML/CSS “purist” pass; morphology strategy documented (template decoding preferred over DOM scraping for core fields). |
+
+**Testing baseline already shipped** (no longer a plan item): default `npm test` excludes bench; `test:perf`, `test:all`, `test:network` (`WIKT_TEST_LIVE`); golden snapshots; decoder corpus evidence test; `derivations` ↔ `derivedTerms` alias; README compliance suite — see `test/README.md` and the `[2.0.0-rc.1]` section above.
+
+---
+
 ## [1.2.0] - 2026-03-29
 
 ### Added

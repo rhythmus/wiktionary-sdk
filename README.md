@@ -415,7 +415,7 @@ wiktionary-sdk/
     ├── wiktionary-sdk-spec.md              # Formal technical specification
     ├── form-of-display-and-mediawiki-parse.md  # Form-of Lua vs wikitext; parse enrichment (e.g. Spanish sense)
     ├── query-result-dimensional-matrix.md      # All dimensions of wiktionary() results (languages, PoS, etymology, …)
-    └── STAGED_IMPLEMENTATION_PLAN.md       # Post-v1.0 roadmap + audit-aligned phases + Stages 23–25
+    └── STAGED_IMPLEMENTATION_PLAN.md       # Remaining work: phased engineering + product backlog
 ```
 
 ## 🚀 Getting Started
@@ -556,7 +556,7 @@ See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps fo
 
 ## 🧭 Roadmap (post-v1.0)
 
-The plan lives in **[docs/STAGED_IMPLEMENTATION_PLAN.md](docs/STAGED_IMPLEMENTATION_PLAN.md)** (delivered stages 14–22, testing deferrals, engineering phases 0–10, future Stages 23–25). For **completed** post‑v1.0 narrative, see spec §13 and **Part I** of that document.
+The plan lives in **[docs/STAGED_IMPLEMENTATION_PLAN.md](docs/STAGED_IMPLEMENTATION_PLAN.md)** (phases 0–10: hygiene through long-horizon items). **Delivered** roadmap stages 14–22 and the testing baseline are summarized in **`CHANGELOG.md`** (*Roadmap history — delivered engineering stages*). For narrative “what shipped” detail, see spec §13.
 
 ## 🔮 Future Work: Text-to-Dictionary (T2D)
 

@@ -168,7 +168,7 @@ Includes 11 tests for cache and rate limiter.
 ```
 
 ```
-docs: update README, spec, and STAGED_IMPLEMENTATION_PLAN to reflect all implemented phases
+docs: update README, spec, CHANGELOG, and STAGED_IMPLEMENTATION_PLAN after a roadmap phase
 
 Rewrite README.md with updated architecture diagram, full project
 structure, all npm scripts, Docker usage, decoder coverage table, and
@@ -176,8 +176,7 @@ schema versioning reference.
 
 Update wiktionary-fetch-spec.md from v0.9 draft to v1.0.
 
-Update docs/STAGED_IMPLEMENTATION_PLAN.md when marking delivered roadmap phases;
-keep narrative in one place.
+When roadmap items ship, update **`CHANGELOG.md`** (versioned notes + roadmap history appendix) and trim or check off items in **`docs/STAGED_IMPLEMENTATION_PLAN.md`**; keep “what shipped” narrative primarily in the spec §13 and changelog.
 ```
 
 ---
@@ -187,4 +186,4 @@ keep narrative in one place.
 - [Wiktionary SDK spec](docs/wiktionary-sdk-spec.md) (ground truth)
 - [Form-of display & MediaWiki parse enrichment](docs/form-of-display-and-mediawiki-parse.md) (Lua vs wikitext, Spanish case, parse API rationale, what not to do)
 - [Query result dimensional matrix](docs/query-result-dimensional-matrix.md) (combinatorics: languages, PoS, etymologies, lexeme types, morph richness, fuzzy merge)
-- [Staged implementation plan](docs/STAGED_IMPLEMENTATION_PLAN.md) (roadmap + engineering phases)
+- [Staged implementation plan](docs/STAGED_IMPLEMENTATION_PLAN.md) (remaining engineering + product backlog; delivered stages in `CHANGELOG.md`)
