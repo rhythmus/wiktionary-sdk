@@ -1,7 +1,9 @@
-# Wiktionary SDK — Formal Specification (v3.2)
+# Wiktionary SDK — Formal Specification (v3.3)
 
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
+
+This revision (v3.3) aligns the normative spec with the **current TypeScript implementation** in `src/` (package `wiktionary-sdk`, version as in root `package.json`), including orchestration details, MediaWiki request shapes, module boundaries, and known type/schema naming edges.
 
 ## Related: query result combinatorics
 
@@ -35,21 +37,42 @@ Return:
 3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
 4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
-The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`), versioned per `VERSIONING.md`.
+The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.0.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
-**Roadmap note (non-normative):** this document specifies v2.0 behavior and
-data contracts. For the implementation history and completed stages, see `docs/ROADMAP.md`.
+**Roadmap note (non-normative):** For staged delivery history, see `docs/ROADMAP.md`.
+
+### 1.1 Primary API entry point: `wiktionary()`
+
+The **canonical** async function for full extraction is **`wiktionary()`**, exported from `src/index.ts` (re-exported via the package entry `src/index.ts` → built `dist/esm/index.js` / `dist/cjs/index.js`). Older prose may refer to a legacy name (`fetchWiktionary`); in code, use **`wiktionary`**.
+
+**Options (as implemented):**
+
+| Option | Type | Default | Role |
+|--------|------|---------|------|
+| `query` | `string` | (required) | Page title on **en.wiktionary.org** (after redirects). Normalized to **NFC** before fetch. |
+| `lang` | `WikiLang` \| `"Auto"` | `"Auto"` | Language section filter, or scan all mapped `==Language==` sections. |
+| `pos` | `string` \| `"Auto"` | `"Auto"` | Restrict to PoS blocks whose normalized heading matches (see `mapHeadingToPos()` / heading text). |
+| `preferredPos` | `string?` | — | When resolving lemma pages with multiple `LEXEME` rows, prefer matching `part_of_speech` for ordering; sets `preferred: true` on matches. |
+| `enrich` | `boolean` | `true` | If `true`: Wikidata enrichment for lemma lexemes **and** optional **form-of** `display_morph_lines` via `action=parse` (see §3.5d, `src/form-of-parse-enrich.ts`). If `false`, both paths are skipped. |
+| `debugDecoders` | `boolean` | `false` | Populate `FetchResult.debug` with per-lexeme `DecoderDebugEvent[]` from the registry. |
+| `sort` | `"source"` \| `"priority"` | `"source"` | Lexeme ordering after merge (see §12.28). |
+| `matchMode` | `"strict"` \| `"fuzzy"` | `"strict"` | Strict: single page fetch for `query`. Fuzzy: union of deduplicated lexemes across NFC, lowercased, and combining-mark-stripped variants (`stripCombiningMarksForPageTitle`), with `notes` explaining variants (see `src/index.ts`). |
+
+**Internal recursion:** `wiktionaryRecursive()` performs the actual work: page fetch, section walk, decode, optional form-of parse batch, lemma fetches for `INFLECTED_FORM`, Wikidata attachment, then merge of primary + resolved lemma lexemes. A visited set keyed by `` `${lang}:${title}` `` prevents infinite lemma cycles.
+
+**Page title retry:** If the requested title has no page but **stripping Unicode combining marks** yields a different string, the engine attempts one fetch for that variant (without adding a duplicate visit for the original key) and records a note when `debugDecoders` is true.
 
 ## 2. Data Sources
 
 ### 2.1 Wiktionary (primary)
 
 - API endpoint: `https://en.wiktionary.org/w/api.php`
-- Fetch method:
+- Fetch method (as in `fetchWikitextEnWiktionary()` in `src/api.ts`):
   - `action=query`
-  - `prop=revisions|pageprops|categories|images|langlinks|info`
+  - `format=json`, `formatversion=2`, `origin=*` (CORS-friendly for browser consumers)
+  - `prop=revisions|pageprops|categories|images|langlinks|info|links|extlinks`
   - `rvprop=content`, `rvslots=main`
-  - `cllimit=50`, `imlimit=20`, `lllimit=20`
+  - `cllimit=100`, `imlimit=50`, `lllimit=50`, `pllimit=100` (page links), `ellimit=100` (external links)
   - `redirects=1`
 
 In addition to the Wikitext revision content, every API call now retrieves:
@@ -57,8 +80,12 @@ In addition to the Wikitext revision content, every API call now retrieves:
 - **`categories`**: structured list of page categories ("Category:" prefix stripped).
 - **`langlinks`**: links to parallel Wiktionary editions in other languages.
 - **`info`**: page-level metadata — `touched` (last edit timestamp), `length` (wikitext byte count), `pageid`, `lastrevid` (revision ID).
+- **`links`**: in-page wikilinks (normalized to `page_links` on each lexeme).
+- **`extlinks`**: external URLs (normalized to `external_links` on each lexeme).
 
 **Rationale:** the English Wiktionary is used as the canonical parsing surface even for Greek entries. Structured categories and metadata are extracted from the API directly — this is far more reliable than trying to parse them from wikitext headings or prose.
+
+**Cache keys:** Successful responses are stored under `wikt:${title}` (requested and canonical title after redirects) via `TieredCache` in `src/cache.ts` (L1 memory always; L2/L3 optional adapters).
 
 ### 2.2 Wikidata (optional enrichment)
 
@@ -77,9 +104,9 @@ Used only if `pageprops.wikibase_item` is present.
 
 All API requests are subject to:
 
-- **Rate limiting**: configurable throttle, default 100ms minimum interval (10 req/s) per Wikimedia guidelines. Managed by `src/rate-limiter.ts`.
-- **User-Agent**: custom header identifying the tool (`Wiktionary SDK/1.0`).
-- **Caching**: multi-tier cache (`src/cache.ts`) prevents redundant requests. L1 in-memory with TTL, L2/L3 pluggable for persistent and shared storage.
+- **Rate limiting**: configurable throttle, default 100ms minimum interval (10 req/s) per Wikimedia guidelines. Managed by `src/rate-limiter.ts` (`RateLimiter.throttle()` before each `mwFetchJson` call).
+- **User-Agent**: default string in `src/rate-limiter.ts` (`Wiktionary SDK/1.0` plus repository URL placeholder). Call **`configureRateLimiter({ userAgent, minIntervalMs, proxyUrl })`** before network use to replace the global limiter instance.
+- **Caching**: multi-tier cache (`src/cache.ts`) prevents redundant requests. L1 in-memory with TTL, L2/L3 pluggable for persistent and shared storage. **`configureCache({ l2, l3, defaultTtl })`** replaces the global `TieredCache` before fetches run.
 - **Unicode Normalization**: All Wikitext, page titles, and query strings are normalized to **NFC (Unicode Composed Form)** via `src/api.ts` and `src/index.ts`. This ensures consistent matching of Greek accented characters (e.g., `έ`) across different operating systems (MacOS NFD vs. Linux/Web NFC).
 
 ## 3. Outputs
@@ -101,12 +128,12 @@ debug: [...]      # optional; present when debugDecoders=true
 metadata:          # page-level data from the API
   categories: [...]
   langlinks: [...]
-  info: { last_modified, length, pageid }
+  info: { last_modified, length, pageid, lastrevid }
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
   `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.0.0"`.
-- `debug` (optional): When `fetchWiktionary({ debugDecoders: true })` is used,
+- `debug` (optional): When `wiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `lexemes[i]`, listing which
   decoder matched which templates and what fields it produced.
 - `metadata` (optional): Page-level data fetched alongside the wikitext
@@ -153,12 +180,11 @@ Each `Lexeme` contains:
 | `lemma_triggered_by_lexeme_id` | string? | Lexeme id that triggered lemma resolution |
 | `categories` | `string[]` | API categories filtered by language section |
 | `langlinks` | `Array<{lang, title}>` | Interwiki links to other Wiktionary editions |
-| `page_links` | `string[]` | Internal wikilinks extracted from the page |
-| `external_links` | `string[]` | External HTTP links extracted from the page |
-| `instance_of` | `string[]` | Wikidata QIDs for "instance of" (P31) |
-| `subclass_of` | `string[]` | Wikidata QIDs for "subclass of" (P279) |
-| `metadata` | `{last_modified?, length?, pageid?}` | Page-level API metadata |
-| `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media |
+| `page_links` | `string[]` | Internal wikilinks from `prop=links` (`normalizeWiktionaryQueryPage`) |
+| `external_links` | `string[]` | External URLs from `prop=extlinks` |
+| `images` | `string[]` | File titles from `prop=images` (Commons/Wiki titles) |
+| `metadata` | `{last_modified?, length?, pageid?, lastrevid?}` | Per-lexeme copy of page `info` (same values for all lexemes from one fetch) |
+| `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media; includes **`instance_of`** (P31) and **`subclass_of`** (P279) QID arrays when claims exist |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
 
 **Mandatory traceability** (`WiktionarySource`):
@@ -180,6 +206,8 @@ source:
 `revision_id`, `last_modified`, and `pageid` are populated from the API `info`
 block, enabling exact reproducibility (e.g. cache-busting by revision ID) and
 audit trails.
+
+**Implementation note (lemma resolution metadata):** Resolved lemma lexemes (merged into `FetchResult.lexemes` after an inflected-form fetch) carry `resolved_for_query` (original query) and **`lemma_triggered_by_lexeme_id`** (the `Lexeme.id` of the `INFLECTED_FORM` row that triggered the lemma fetch). `src/types.ts`, JSON Schema, and runtime output all use this single field name.
 
 ### 3.3 Sense structure
 
@@ -457,6 +485,12 @@ preferred. Scalar exceptions are marked below.
 | `rhymes(q, l)` | `LexemeResult<string[]>[]` | Rhyming words per lexeme. |
 | `homophones(q, l)` | `LexemeResult<string[]>[]` | Homophones per lexeme. |
 
+#### 3.9.3 `translate()` modes (`library.ts`)
+
+- **`mode: "gloss"` (default):** After **`lemma()`** resolution, reads **`lexeme.translations[targetLang]`** from the **English** Wiktionary entry (translation table templates only; no extra inference).
+- **`mode: "senses"` + `targetLang === "en"`:** Reuses the same lemma fetch on en.wiktionary and maps **`Sense.gloss`** strings per lexeme.
+- **`mode: "senses"` + other `targetLang`:** Calls **`mwFetchJson`** on `https://${targetLang}.wiktionary.org/w/api.php` for the lemma title, then scans wikitext for **language-specific `== … ==` headers** (`getNativeSenses()`). This path is inherently heuristic (header list per language) and is best-effort; failures log to `console.error` and yield empty arrays.
+
 ### 3.11 Morphological Extraction Methodology (The "Source-Faithful" Pivot)
 
 To fulfill the primary goal of providing accurate conjugation and declension paradigms, the SDK implements a two-tier strategy:
@@ -472,7 +506,7 @@ If stems cannot be extracted, the SDK falls back to the legacy execution-based s
 3. **DOM Dissection**: The SDK receives the rendered HTML and structurally traverses the generated `.inflection-table`.
 4. **Coordinate Mapping**: Grammatical keys (e.g., `person: "3", number: "singular"`) are mapped to the intersecting table cells to retrieve the literal form.
 
-**Rationale**: This ensures absolute parity with the human-facing website without the SDK needing to maintain its own linguistic rule engine. This constitutes the project's single documented exception to the _"No HTML Scraping"_ rule.
+**Rationale**: This ensures absolute parity with the human-facing website without the SDK needing to maintain its own linguistic rule engine. This constitutes the project's single documented exception to the _"No HTML Scraping"_ rule when consuming **arbitrary article HTML**. A **second, narrower** `action=parse` use exists for **form-of morph lines** (`src/form-of-parse-enrich.ts`): the SDK submits the **definition-line wikitext** with the **known page title** as context and parses only the returned fragment (nested `<ol>` items). That is the same class of API call as morphology expansion, not `/wiki/…` HTML scraping.
 
 ### 3.10 Morphology Engine and Smart Defaults
 
@@ -497,7 +531,7 @@ The `conjugate()` and `decline()` functions implement a **Smart Override** strat
   2. **Ancient Greek (`grc`)**
   3. **English (`en`)**
   4. Others (Alphabetical)
-- **Unknown language codes:** If `lang` is specified but not found in the mapping, `fetchWiktionary()` returns early with an empty `lexemes` array.
+- **Unknown language codes:** If `lang` is specified but not found in the mapping (`langToLanguageName()` returns `null`), `wiktionary()` returns early with an empty `lexemes` array and an explanatory `notes` entry.
 
 ### 4.2 Etymology and PoS segmentation — the Wikitext hierarchy problem
 
@@ -658,21 +692,28 @@ Named sections (`===Usage notes===`, `====Translations====`) are identified by h
 
 ## 5. Decoder Registry Architecture
 
-The system is a registry of pure decoders (`src/registry.ts`):
+The system is a registry of decoders (`src/registry.ts`) coordinated by `DecoderRegistry`:
 
 ```ts
 interface TemplateDecoder {
-  id: string
-  matches(ctx: DecodeContext): boolean
-  decode(ctx: DecodeContext): Partial<NormalizedEntry>
+  id: string;
+  /** Optional: explicit template names for introspection / coverage tools */
+  handlesTemplates?: string[];
+  matches(ctx: DecodeContext): boolean;
+  /** Returns a patch object `{ entry?: Partial<Lexeme>, … }`; merged with other decoders */
+  decode(ctx: DecodeContext): unknown;
 }
+
+// decodeAll(ctx, { debug?: boolean }) =>
+//   - normally: merged patch (deep-merged into the lexeme shell)
+//   - debug: { patch, debug: DecoderDebugEvent[] }
 ```
 
 **Rules:**
 
 - Decoders may only read explicit template parameters or explicit Wikitext lines/sections.
 - Decoders must not infer stems/endings/classes if not present.
-- All template calls are stored verbatim under `entry.templates`.
+- All template calls are stored verbatim under `lexeme.templates` by the `store-raw-templates` decoder (runs for every context).
 
 **Current decoder families (v2):**
 
@@ -694,6 +735,8 @@ interface TemplateDecoder {
 16. **Section links**: parses `====Derived terms====`, `====Related terms====`, `====Descendants====` for `{{l}}` and `{{link}}` templates; stores both `raw_text` and structured `items`.
 
 Each decoder may declare `handlesTemplates: string[]` for introspection; `registry.getHandledTemplates()` returns the union for coverage reporting.
+
+**Merge semantics:** `mergePatches()` deep-merges all decoder outputs in registration order. Conflicts are last-writer-wins at the key level; template storage is aggregated by name. **Registration order matters** — `AGENTS.md` requires no duplicate `id` values and warns that reordering patches can change behaviour.
 
 ## 6. Lemma Resolution (explicit only)
 
@@ -725,10 +768,21 @@ provided.
 
 ## 8. Wikidata Enrichment (lemma-only)
 
-If enabled and if `pageprops.wikibase_item` exists:
+Wikidata attachment runs only when `enrich !== false` in `wiktionary()`. It applies to lexemes with `type === "LEXEME"` on the **queried** page (see loop in `src/index.ts`).
 
-- Fetch entity
-- Attach labels, descriptions, sitelinks, and `P18` image with thumbnail URL
+**QID resolution order (per page, first successful wins and is reused across lexemes on that page):**
+
+1. `pageprops.wikibase_item` from the Wiktionary page (when present).
+2. Else **`fetchWikidataEntityByWiktionaryTitle(enwiktionary, title)`** — `wbgetentities` with `sites=enwiktionary&titles=…`.
+3. Else **`fetchWikidataEntityByWikipediaTitle(enwiki, title)`** — same API with `sites=enwiki` (helps when the lemma aligns with a Wikipedia article but pageprops are missing).
+
+**Entity fetch:** `fetchWikidataEntity(qid)` loads `labels`, `descriptions`, `claims`, `sitelinks`. The SDK:
+
+- Builds `sitelinks[].url` when the API omits it, using `https://${lang}.wikipedia.org/wiki/…` for `*wiki` sites.
+- Maps **`P18`** to `wikidata.media` with Commons filename, `commons_file`, and **`commonsThumbUrl()`** thumbnail (default width 420) from `src/utils.ts`.
+- Maps **`P31`** → `wikidata.instance_of` and **`P279`** → `wikidata.subclass_of` as arrays of QID strings.
+
+Failures are recorded on the lexeme as **`wikidata_error`** (string message) in the catch path — this field is runtime-only and not part of the formal JSON Schema; consumers should treat it as diagnostic.
 
 ## 9. Template Coverage Strategy
 
@@ -762,6 +816,15 @@ TypeScript sources required for consumers. Cache keys normalize redirects:
 **Browser Support:** All API calls use `origin: "*"` to support native browser
 execution within the Webapp's API Playground.
 
+### 11.1 REST server surface (`server.ts`) vs full SDK options
+
+The minimal HTTP wrapper exposes **`GET /api/fetch`** with query parameters
+`query`, `lang` (defaults to `el`, unlike the library default `Auto`), optional
+`pos` (mapped to `preferredPos` in code), `enrich` (default true; set `enrich=false` to disable), and optional `format=yaml|json`.
+It does **not** currently expose **`matchMode`**, **`sort`**, **`debugDecoders`**, or direct **`pos`** filtering semantics identical to `wiktionary({ pos })` — extending the query string to mirror `cli/index.ts` / `webapp` parity is a straightforward future improvement.
+
+**Health:** `GET /api/health` returns a small JSON status object.
+
 ## 12. Design Rationale
 
 ### 12.1 Modular Engine vs. Integrated App
@@ -793,7 +856,7 @@ The `/webapp` is not just a demo; it is a **Developer Inspector**.
 - **Comparison View:** Side-by-side view of the same term in different languages or etymology blocks.
 
 ### 12.6 Registry-Driven Debug Events
-When `debugDecoders: true` is passed to `fetchWiktionary`, each entry receives a `DecoderDebugEvent[]` listing decoder id, matched templates, and fields produced. **Rationale:** coverage reporting and introspection tools no longer rely on probe-based heuristics ("did decoding produce a patch?"); they use declared `handlesTemplates` and actual decode outcomes. The webapp uses this for the Decoder column in debug mode.
+When `debugDecoders: true` is passed to `wiktionary()`, each primary lexeme receives a `DecoderDebugEvent[]` listing decoder id, matched templates, and fields produced. **Caveat:** lemma-resolved lexemes appended to the result currently receive empty debug arrays in the merged output (see `wiktionaryRecursive` debug concatenation). **Rationale:** coverage reporting and introspection tools use declared `handlesTemplates` and actual decode outcomes. The webapp uses this for the Decoder column in debug mode.
 
 ### 12.7 Template Ordering and Location Metadata
 `templates_all` stores templates in document order with optional `start`, `end`, `line`. **Rationale:** preserves source order for forensic verification; enables accurate click-to-source mapping when raw wikitext and decoded output are displayed side-by-side.
@@ -913,9 +976,12 @@ These are **verification artifacts**, not part of the runtime contract:
 - **Decoder coverage** (`test/decoder-coverage.test.ts`): each registry decoder `id` must appear in the `test/` corpus (template names in fixtures, or explicit allowlist with rationale). **Rationale:** new decoders are not silently untested.
 - **Parser invariants** (`test/parser.invariants.test.ts`): structural checks on `parseTemplates(wikitext, true)` (raw slice equals source span, non-overlapping regions, nesting). **Rationale:** guards the brace-aware parser independent of linguistic content.
 
-### 12.19 Convenience aliases (`phonetic`, `derivations`)
+### 12.19 Convenience aliases (`phonetic`, `derivations`, `audioDetails`, `interwiki`)
 
-The SDK provides several aliases for common linguistic operations to improve DevX. For example, `phonetic()` is an alias for the primary `pronounce()` result, and `derivations()` aggregates results from `derivedTerms()` and `etymologyChain()` into a combined view.
+- **`phonetic`**: In `src/library.ts`, exported as an alias for **`ipa()`** (primary IPA string per lexeme), not for `pronounce()` (audio-first). Prefer importing `ipa` or `pronounce` explicitly if the distinction matters.
+- **`derivations`**: Alias for **`derivedTerms()`** only — returns `derived_terms.items` per lexeme. It does **not** merge `etymologyChain()`; use `etymologyChain()` / `etymology()` separately.
+- **`audioDetails`**: Deprecated alias for **`audioGallery()`** (full `pronunciation.audio_details` list).
+- **`interwiki`**: Alias for **`langlinks()`** (other Wiktionary editions for the page title).
 
 ### 12.20 Rationale for Multi-Audio Galleries
 
@@ -1151,16 +1217,16 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 - **Translation shape correctness**: `term` (required), `gloss?`, `transliteration?`,
   `gender?`, `alt?` from explicit params. No inference.
 - **Unknown language behavior**: `langToLanguageName()` returns `null` for
-  unknown codes; `fetchWiktionary()` returns early with a note.
+  unknown codes; `wiktionary()` returns early with a note.
 - **Schema versioning**: `FetchResult` always includes `schema_version`.
 - **Distribution hardening**: CLI and server compiled to `dist/`; `bin` and
   `serve` point to built JS. Cache key normalization for redirects.
 - **Type alignment**: `LexemeType` matches schema enum.
-- **Registry-driven debug events**: `fetchWiktionary({ debugDecoders: true })` returns
+- **Registry-driven debug events**: `wiktionary({ debugDecoders: true })` returns
   `FetchResult.debug` with per-lexeme decoder match info.
 - **Template ordering and location**: `Lexeme.templates_all` stores templates in document
   order with optional `start`, `end`, `line`. Parser supports `parseTemplates(..., withLocation)`.
-- **Cycle protection and lemma linkage**: `fetchWiktionaryRecursive` with visited set;
+- **Cycle protection and lemma linkage**: `wiktionaryRecursive()` with visited set;
   `lemma_triggered_by_lexeme_id` on resolved lemma lexemes.
 - **Declared decoder coverage**: `handlesTemplates` on decoders; `getHandledTemplates()` for
   introspection. Template-introspect uses declared coverage instead of probe-based logic.
@@ -1251,8 +1317,8 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
   brackets (`[]`) are missing in the wikitext template.
 - **Hyphenation Support**: Confirmed `hyphenate()` returns arrays by default and supports 
   the `{ format: 'string' }` option for full flexibility.
-- **API Aliases**: `phonetic()` is an alias for `ipa()`. `derivations()` is an alias for
-  `derivedTerms()` (same signature; returns `derived_terms.items`, typically `{ term, … }[]`).
+- **API Aliases**: `phonetic` is an alias for `ipa()`. `derivations` is an alias for
+  `derivedTerms()` (returns `derived_terms.items`, typically `{ term, … }[]`).
 
 **Completed (v1.4 Auto-discovery & PoS Filtering):**
 
@@ -1414,3 +1480,84 @@ This section is informational only. For the detailed staged plan, see `docs/ROAD
 - **Hyphenation**: Leading language tokens on `{{hyphenation|…}}` use an explicit allowlist and script-aware rules so Greek syllables are never dropped as if they were language codes.
 - **Tooling**: `npm run report:form-of` runs `tools/form-of-template-report.ts` against the live API to list category members vs `isFormOfTemplateName()` (with a short section for `only used in` as same-category, different semantics).
 - **Tests**: `test/registry-ids.test.ts` guards against duplicate decoder `id` registrations; registry and integration tests cover new decoders and gloss behaviour.
+
+## 14. Implementation map (source tree)
+
+This section is a **reader’s guide** to the repository layout as it exists today. It complements the normative rules above with file-level pointers for contributors and advanced consumers.
+
+### 14.1 Core engine (`src/`)
+
+| Module | Responsibility |
+|--------|----------------|
+| **`index.ts`** | Public **`wiktionary()`**, fuzzy merge, **`wiktionaryRecursive()`**, lemma resolution queue, Wikidata enrichment loop, `sort`, `guessLexemeTypeFromTemplates()` (uses `isFormOfTemplateName` / `isVariantFormOfTemplateName`), re-exports library/formatter/stem/wrapper helpers. |
+| **`types.ts`** | `SCHEMA_VERSION`, `Lexeme`, `FetchResult`, `DecodeContext`, `TemplateDecoder`, `DecoderDebugEvent`, and all shared interfaces. |
+| **`api.ts`** | **`mwFetchJson()`** (rate limit + fetch), **`normalizeWiktionaryQueryPage()`**, **`fetchWikitextEnWiktionary()`**, **`fetchWikidataEntity()`**, Wikidata title lookups by site. |
+| **`parser.ts`** | Language sections (`extractLanguageSection`, `extractAllLanguageSections`), **`splitEtymologiesAndPOS()`** (PoS-boundary rule), **`parseTemplates()`** (brace-aware, optional positions), heading → PoS mapping, language name ↔ code helpers, sense-line parsing helpers used by the registry. |
+| **`registry.ts`** | **`DecoderRegistry`**, **`registry.decodeAll()`**, **`mergePatches()`**, **`stripWikiMarkup()`**, form-of predicates (**`isFormOfTemplateName`**, **`isVariantFormOfTemplateName`**, **`isPerLangFormOfTemplate`**), and all template/section decoders. |
+| **`library.ts`** | Convenience wrappers (**`mapLexemes`**, **`GroupedLexemeResults`**, **`lemma()`**, **`translate()`**, relations, formatting helpers, **`getNativeSenses()`** for `translate(..., { mode: "senses" })` on foreign wikis). |
+| **`morphology.ts`** | **`morphology()`**, **`conjugate()`**, **`decline()`**, **`parseMorphologyTags()`**, Greek template discovery via `templates_all`, **`action=parse`** on raw conjugation/declension template wikitext, HTML table scraping via `node-html-parser`. |
+| **`form-of-parse-enrich.ts`** | Batch **`enrichFormOfMorphLinesFromParseBatch()`**, **`mwParseWikitextFragment()`** (parse with page title context), HTML extraction `ol ol > li`. |
+| **`formatter.ts`** | **`format()`**, **`formatFetchResult()`**, Handlebars registration, morph-line merge helpers shared with enrichment gates, style registry (`text`, `markdown`, `html`, `ansi`, `terminal-html`, …). |
+| **`lexeme-display-groups.ts`** | **`groupLexemesForIntegratedHomonyms()`** — consecutive lexeme grouping for HTML homonym cards (display-only). |
+| **`templates/templates.ts`** | Generated/bundled template strings (`HTML_ENTRY_TEMPLATE`, `ENTRY_CSS`, …). Sources: `src/templates/*.hbs`, `entry.css`. |
+| **`stem.ts`** | Stem extraction from **`lexeme.templates_all`** (paradigm templates). |
+| **`wrapper-invoke.ts`** | **`invokeWrapperMethod()`** — canonical argument wiring for CLI and webapp (`translate`, `wikipediaLink`, `isInstance`, `conjugate`, `hyphenate`, …). |
+| **`utils.ts`** | **`deepMerge()`**, **`commonsThumbUrl()`**, shared utilities. |
+| **`cache.ts`** | **`TieredCache`**, **`MemoryCache`**, **`getCache()`** / **`setCache()`** global accessor pattern for L1 (+ optional L2/L3 adapters). |
+| **`rate-limiter.ts`** | **`RateLimiter`**, **`getRateLimiter()`**, throttle + User-Agent headers. |
+
+### 14.2 Consumers
+
+| Surface | Location | Notes |
+|---------|----------|-------|
+| **CLI** | `cli/index.ts` | `--extract`, `--props`, `--sort`, `--no-enrich`, batch mode, YAML/JSON/ANSI output. |
+| **HTTP** | `server.ts` | Minimal `GET /api/fetch` (see §11.1). |
+| **Webapp** | `webapp/src/App.tsx` | Playground, inspector, triple-window codegen; uses same **`invokeWrapperMethod`** contract as CLI. |
+
+### 14.3 Tooling (`tools/`)
+
+| Script | Role |
+|--------|------|
+| **`verify_templates.ts`** | Template verification against live or recorded data (see `AGENTS.md`). |
+| **`template-introspect.ts`** | Category crawl → missing-decoder report (`npm run introspect`). |
+| **`form-of-template-report.ts`** | Live category vs `isFormOfTemplateName()` (`npm run report:form-of`). |
+| **`sync-shared-copy.ts`** | Regenerate marketing copy for README + webapp (`npm run sync:copy`). |
+| **`refresh-api-recording.ts`** | Refresh offline API fixtures (`npm run refresh-recording`). |
+| **`stress-test.ts`**, **`inspect-word.ts`**, **`raw-api-dump.ts`**, **`test-formatter.ts`** | Ad-hoc diagnostics and benchmarks. |
+
+### 14.4 Tests (`test/`)
+
+Representative suites (see **`test/README.md`** for tiers and mocking rules):
+
+- **`parser.test.ts`**, **`parser.invariants.test.ts`** — template/syntax invariants.
+- **`registry.test.ts`**, **`decoder-coverage.test.ts`**, **`registry-ids.test.ts`** — decoder behaviour and evidence allowlist.
+- **`library.test.ts`**, **`wrapper-contract.test.ts`**, **`cross-interface-parity.test.ts`** — wrappers and CLI/webapp parity.
+- **`golden/entry-snapshots.test.ts`** — stable projections vs committed snapshots.
+- **`integration*.test.ts`**, **`fallback-enrichment-matrix.test.ts`**, **`negative-schema-hardening.test.ts`** — integration and schema guards.
+- **`network-replay.test.ts`** — optional live/replay path (`WIKT_TEST_LIVE=1`).
+
+### 14.5 Morphology implementation detail (Greek-first)
+
+`conjugate()` / `decline()` currently locate **Modern Greek** paradigm templates by prefix on **`lexeme.templates_all`** (e.g. `el-conjug-`, `el-conj-`, `el-noun-`, `el-decl-`, …). They POST the **verbatim** template invocation to **`action=parse`** without always supplying `title=` (unlike form-of enrichment, which passes the page title for Lua context). This is sufficient for many inflection tables but is a **known coupling** to how el-templates expand. Extending the same pipeline to other languages means generalizing template name sets and, where Lua depends on page context, threading **`title`** into parse calls.
+
+### 14.6 Category filtering on lexemes
+
+Per-lexeme **`categories`** are filtered in `index.ts` with a substring heuristic: keep categories whose names mention the **language section display name** (e.g. “Greek”) **or** the generic “pages with” maintenance bucket. Full, unfiltered categories remain on **`FetchResult.metadata.categories`**.
+
+## 15. Future development vectors (non-normative)
+
+The codebase is deliberately modular so the following extensions can be pursued without breaking the “source-faithful decoder registry” invariant:
+
+1. **Configurable language priority**: Replace the hardcoded `LANG_PRIORITY` map in `wiktionary({ sort: "priority" })` with caller-supplied ordering or locale profiles (see §12.28).
+2. **REST/CLI parity**: Thread `matchMode`, `sort`, `debugDecoders`, and true `pos` filter through `server.ts` query params; align default `lang` with library (`Auto` vs `el`).
+3. **Non–en.wiktionary wikis**: Introduce a site parameter (e.g. `el.wiktionary.org`) with separate normalizers; most of the pipeline (brace-aware parse, registry) is reusable, but section headings and template families differ.
+4. **Decoder expansion**: Continue category-driven coverage (`template-introspect`, `report:form-of`); keep **one registration per `id`**, evidence in fixtures or allowlist (`decoder-coverage.test.ts`).
+5. **Persistent cache adapters**: Implement L2/L3 `CacheAdapter` for Node (SQLite/disk) or browser (IndexedDB) and document cache invalidation using `revision_id` / `last_modified`.
+6. **Standard lexicographic exports**: TEI Lex-0, OntoLex-Lemon, LMF — mapped in roadmap Stage 24; would sit beside Handlebars as additional **`FormatterStyle`** or standalone serializers of `Lexeme`.
+7. **Optional schema diagnostics**: Add `wikidata_error` to JSON Schema as an optional string if long-term consumer validation of failed enrichment is desired.
+8. **Morphology beyond Greek**: Parameterize template predicates in `morphology.ts`, reuse `action=parse` with title when Lua modules require it, and add regression fixtures per language.
+9. **Sense disambiguation layer**: Build “Layer 2” consumers (see `docs/TEXT_TO_DICTIONARY_PLAN.md`) that use `FetchResult.lexemes` + metadata to pick senses from running text — explicitly out of scope for the extractor itself.
+
+---
+
+*End of specification v3.3.*
