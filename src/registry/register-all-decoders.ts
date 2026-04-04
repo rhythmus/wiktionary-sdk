@@ -3,17 +3,14 @@ import { parseTemplates } from "../parser";
 import { stripWikiMarkup } from "./strip-wiki-markup";
 import { formatUsageNoteLine } from "./format-usage-note-line";
 import type { DecoderRegistry } from "./decoder-registry";
-import {
-    extractSectionByLevelHeaders,
-    matchesSectionHeading,
-    parseSectionLinkTemplates,
-} from "./section-extract";
+import { extractSectionByLevelHeaders, parseSectionLinkTemplates } from "./section-extract";
 import { registerCoreAndPronunciation } from "./register-core-pronunciation";
 import { registerHeadwordsElNlDe } from "./register-headwords-el-nl-de";
 import { registerFormOfWikidata } from "./register-form-of-wikidata";
 import { registerTranslations } from "./register-translations";
 import { registerSenses } from "./register-senses";
 import { registerMorphologyLa } from "./register-morphology-la";
+import { registerSemanticRelations } from "./register-semantic-relations";
 
 /**
  * Register all template/section decoders in **historical source order**.
@@ -26,85 +23,7 @@ registerFormOfWikidata(reg);
 registerTranslations(reg);
 registerSenses(reg);
 registerMorphologyLa(reg);
-
-/** --- Phase 2.2: Semantic relations --- **/
-
-const RELATION_TEMPLATES: Record<string, keyof import("../types").SemanticRelations> = {
-    syn: "synonyms",
-    ant: "antonyms",
-    hyper: "hypernyms",
-    hypo: "hyponyms",
-};
-
-const RELATION_HEADERS = {
-    "Synonyms": "synonyms",
-    "Antonyms": "antonyms",
-    "Hypernyms": "hypernyms",
-    "Hyponyms": "hyponyms",
-    "Coordinate terms": "coordinate_terms",
-    "Holonyms": "holonyms",
-    "Meronyms": "meronyms",
-    "Troponyms": "troponyms",
-} as const;
-
-reg.register({
-    id: "semantic-relations",
-    handlesTemplates: ["syn", "ant", "hyper", "hypo"],
-    matches: (ctx) =>
-        ctx.templates.some((t) => Object.keys(RELATION_TEMPLATES).includes(t.name)) ||
-        Object.keys(RELATION_HEADERS).some((h) => matchesSectionHeading(ctx.posBlockWikitext, h)),
-    decode: (ctx) => {
-        const relations: import("../types").SemanticRelations = {};
-        
-        // 1. Template-based relations
-        for (const t of ctx.templates) {
-            const key = RELATION_TEMPLATES[t.name];
-            if (!key) continue;
-            const pos = t.params.positional ?? [];
-            const lang = pos[0];
-            if (!lang) continue;
-            const terms = pos.slice(1).filter(Boolean);
-            const qualifier = t.params.named?.["q"] || undefined;
-            const senseId = t.params.named?.["id"] || undefined;
-            if (!relations[key]) relations[key] = [];
-            for (const term of terms) {
-                relations[key]!.push({ term, sense_id: senseId, qualifier });
-            }
-        }
-
-        // 2. Section-based relations (====Synonyms====)
-        for (const [header, field] of Object.entries(RELATION_HEADERS)) {
-            const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, header);
-            if (section) {
-                const items = parseSectionLinkTemplates(section.raw);
-                if (items.length > 0) {
-                    if (!relations[field as keyof import("../types").SemanticRelations]) 
-                        relations[field as keyof import("../types").SemanticRelations] = [];
-                    for (const item of items) {
-                        relations[field as keyof import("../types").SemanticRelations]!.push({ 
-                            term: item.term, 
-                            qualifier: item.gloss 
-                        });
-                    }
-                }
-            }
-        }
-
-        if (Object.keys(relations).length === 0) return {};
-        for (const key of Object.keys(relations) as Array<keyof import("../types").SemanticRelations>) {
-            const values = relations[key];
-            if (!values || values.length === 0) continue;
-            const seen = new Set<string>();
-            relations[key] = values.filter(v => {
-                const sig = `${v.term}::${v.sense_id || ""}::${v.qualifier || ""}`;
-                if (seen.has(sig)) return false;
-                seen.add(sig);
-                return true;
-            });
-        }
-        return { entry: { semantic_relations: relations } };
-    },
-});
+registerSemanticRelations(reg);
 
 /** --- Phase 2.3: Structured etymology & cognates (v2) --- **/
 
