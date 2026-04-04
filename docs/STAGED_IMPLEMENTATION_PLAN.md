@@ -41,7 +41,7 @@
 3. **Phase 1** — Network, cache, and concurrency bounds (operational safety).
 4. **Phase 2** — Types, REST surface, centralized defaults (consumer honesty).
 5. **Phase 3** — Break cycles, introduce `wiktionary-core` / shared display helpers (**high risk** — do before heavy registry surgery).
-6. **Phase 4** — Registry decomposition (**order-preserving** registration).
+6. **Phase 4** — Registry decomposition (**order-preserving** registration). Optional follow-up: **Phase 4.5** — per-family `register-*` modules and shared helpers (`register-all-decoders.ts` as thin orchestrator only).
 7. **Phase 5** — Library and morphology clarity (non-Greek hooks, documentation of “smart defaults”).
 8. **Phase 6** — Webapp UX and component boundaries.
 9. **Phase 7** — Close remaining testing debt (fixture-first library tests, allowlist shrinkage, CI glue).
@@ -124,6 +124,80 @@
 | 4.4 | Shrink **`DECODER_EVIDENCE_ALLOWLIST`** via `decoder-smoke.wikitext` / fixtures (ties to Phase 7.2). | Small PRs |
 
 **Risk:** High — **never reorder** registrations casually. **Depends on:** Phase 3.3 helps.
+
+---
+
+## Phase 4.5 — Registry ergonomics: per-family modules and shared helpers (follow-up to 4.3)
+
+**Goal:** Shrink **`register-all-decoders.ts`** into a **thin orchestrator** plus **`register*(reg)`** family modules and small **pure-helper** files. **Zero change** to global registration order or decoder semantics.
+
+**Non-negotiables**
+
+- After every sub-phase: **`npm test`**, **`npm run build`**, **`webapp` `npm run build`** (if touched), and **`test/registry-decoder-order.test.ts`** green — update **`EXPECTED_DECODER_IDS`** only when **adding** a decoder, never when splitting files.
+- **Do not** reorder `reg.register` calls relative to the canonical sequence in **`docs/registry-inventory.md`**.
+- Prefer **one cohesive PR per sub-phase** (or merge 4.5.1 alone, then one PR per family slice).
+
+**Suggested module layout (target end state)**
+
+| File | Responsibility |
+|------|----------------|
+| **`register-all-decoders.ts`** | **`registerAllDecoders(reg)`** only: sequential calls to `registerCoreAndPronunciation(reg)`, `registerHeadwordsElNlDe(reg)`, … in historical order (~40–120 lines). |
+| **`register-core-pronunciation.ts`** | `store-raw-templates`, `ipa`, `hyphenation`, `alternative-forms-section` + hyphenation helpers (or import from **`hyphenation.ts`**). |
+| **`register-headwords-el-nl-de.ts`** | All `el-*-head`, `nl-*-head`, `de-*-head` decoders. |
+| **`register-form-of-wikidata.ts`** | `form-of`, `wikidata-p31` + local label helpers **or** imports from **`form-of-display-label.ts`**. |
+| **`register-translations.ts`** | `translations` + `parseTranslationsFromBlock`. |
+| **`register-senses.ts`** | `senses` + `parseSenses` and **all** helpers used **only** by sense / usage-note paths (`parseLbTemplate`, `glossFromDefinitionLine`, …). |
+| **`register-morphology-la.ts`** | `el-verb-morphology`, `el-noun-gender`, `la-noun-head` + verb/gender helpers. |
+| **`register-semantic-relations.ts`** | `semantic-relations` + relation constants / `matchesSectionHeading`. |
+| **`register-etymology.ts`** | `etymology` + etymology template maps + `normalizeEtymologyFields`. |
+| **`register-pronunciation-extra.ts`** | `el-ipa`, `audio`, `romanization`, `rhymes`, `homophones`. |
+| **`register-sections.ts`** | `section-links`, `alternative-forms`, `see-also`, `anagrams`, `usage-notes`, `references` — import **`section-extract.ts`** for shared section parsing. |
+| **`register-inflection-stems.ts`** | `inflection-table-ref`, `el-verb-stems`, `el-noun-stems`. |
+| **`section-extract.ts`** | `extractSectionByLevelHeaders`, `parseSectionLinkTemplates` (and optionally `matchesSectionHeading` if kept pure). |
+| **`gender-map.ts`** | **`GENDER_MAP`** (single definition for nl/de/el-noun-gender/la paths). |
+| **`form-of-display-label.ts`** | `TAG_LABEL_MAP`, `tagsToLabel`, `defaultFormOfKindLabel`, `buildFormOfDisplayLabel`. |
+
+Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid** circular imports: helpers must not import `register-*` modules.
+
+---
+
+### Sub-phases (execute in order)
+
+| # | Todo | Scope | Verification |
+|---|------|--------|----------------|
+| **4.5.1** | **Extract pure helpers (no `reg.register` moves).** | (a) Add **`section-extract.ts`**; move `extractSectionByLevelHeaders`, `parseSectionLinkTemplates` from `register-all-decoders.ts`; update call sites to import them. (b) Add **`gender-map.ts`** with **`GENDER_MAP`**; replace in-file duplicate if any. (c) Add **`form-of-display-label.ts`**; move tag/kind/label helpers used by form-of decoder and sense gloss path. | Same decoder order; full test suite; diff should be mostly moves. |
+| **4.5.2** | **Introduce orchestrator pattern.** | Replace inline tail of `register-all-decoders.ts` with **one** `registerSectionsAndMisc(reg)` (or similar) that **still lives in the same file** but proves the call-chain pattern; **or** go straight to **`registerCoreAndPronunciation(reg)`** in a new file re-exported/called from `registerAllDecoders`. | Order test; no behaviour change. |
+| **4.5.3** | **`register-core-pronunciation.ts`.** | Move first four decoders + hyphenation constants/helpers into **`registerCoreAndPronunciation(reg)`**; `registerAllDecoders` calls it **first**. | Order test. |
+| **4.5.4** | **`register-headwords-el-nl-de.ts`.** | Move eight `el-*-head`, three `nl-*-head`, three `de-*-head` blocks; import **`GENDER_MAP`** from **`gender-map.ts`** if not already. | Order test. |
+| **4.5.5** | **`register-form-of-wikidata.ts`.** | Move `form-of` + `wikidata-p31`; ensure **`buildFormOfDisplayLabel`** imported from **`form-of-display-label.ts`**. | Order test. |
+| **4.5.6** | **`register-translations.ts`.** | Move `translations` + `parseTranslationsFromBlock`. | Order test. |
+| **4.5.7** | **`register-senses.ts`.** | Move `senses` and **all** sense-only helpers (`parseSenses`, `parseLbTemplate`, `stripLbTemplates`, `extractQualifier`, `decodeOnlyUsedInFromRaw`, `formatOnlyUsedInPlain`, `glossFromFormOfTemplateCall`, `glossFromAuxDefinitionTemplate`, `glossFromDefinitionLine`, `formatUsageNoteLine`, related constants). | Largest file reduction; order test + golden/sense-heavy tests. |
+| **4.5.8** | **`register-morphology-la.ts`.** | Move `el-verb-morphology`, `el-noun-gender`, `la-noun-head` + `decodeTransitivity`, `VERB_PART_PARAMS`, `decodeLaNounGenderFromTemplate`. | Order test. |
+| **4.5.9** | **`register-semantic-relations.ts`.** | Move `semantic-relations` + `RELATION_TEMPLATES`, `RELATION_HEADERS`, `matchesSectionHeading`; use **`section-extract`** where applicable. | Order test. |
+| **4.5.10** | **`register-etymology.ts`.** | Move `etymology` block + etymology template sets + `normalizeEtymologyFields`. | Order test. |
+| **4.5.11** | **`register-pronunciation-extra.ts`.** | Move `el-ipa`, `audio`, `romanization`, `rhymes`, `homophones`. | Order test. |
+| **4.5.12** | **`register-sections.ts`.** | Move `section-links`, `alternative-forms`, `see-also`, `anagrams`, `usage-notes`, `references`; depend on **`section-extract`**. | Order test. |
+| **4.5.13** | **`register-inflection-stems.ts`.** | Move `inflection-table-ref`, `el-verb-stems`, `el-noun-stems`. | Order test; **`register-all-decoders.ts`** should now be orchestrator-only (+ imports). |
+| **4.5.14** | **Public **`registerAllDecoders`** re-export (optional).** | From **`src/registry.ts`**: `export { registerAllDecoders } from "./registry/register-all-decoders"` (and optionally **`DecoderRegistry`** already exported). Enables tests/tools to instantiate a **clean** `DecoderRegistry` without importing an internal path. Document in spec §14.1 if added. | Typecheck consumers; no default behaviour change. |
+| **4.5.15** | **Single source of truth for canonical decoder `id` list (optional).** | Move **`EXPECTED_DECODER_IDS`** to e.g. **`src/registry/decoder-ids.ts`** (or **`test/fixtures/registry-decoder-ids.json`**) **imported by** `registry-decoder-order.test.ts` **and** referenced from **`docs/registry-inventory.md`** (manual sync note or codegen script). Reduces drift between doc and test. | Order test still passes; doc accuracy. |
+| **4.5.16** | **CI / release guard (optional).** | Small script: `npx tsx tools/assert-registry-order.ts` comparing live `registry.getDecoders().map(d => d.id)` to committed JSON or `decoder-ids.ts` — run in CI alongside Vitest. Duplicates **`registry-decoder-order.test.ts`** only if you want a non-Vitest gate (e.g. pre-publish). | CI green. |
+
+---
+
+### Explicitly out of scope (defer unless product asks)
+
+- **Runtime plugin / dynamic decoder registration** — new public API surface and security/reproducibility concerns.
+- **Reordering decoders** to “clean up” families — invalidates merge semantics; forbidden without a spec change and golden reset.
+- **Splitting a single decoder’s `decode` body** across multiple files without a strong maintainability win — prefer one file per decoder **group**, not per template.
+
+---
+
+### Tie-in to Phase 4.4 and Phase 7
+
+- **4.4 (allowlist shrink):** Family files make it obvious **which fixture** backs which decoder group; use **`register-senses.ts`** / **`register-sections.ts`** boundaries when adding `decoder-smoke.wikitext` snippets.
+- **Phase 7.2 (testing debt):** Isolated **`DecoderRegistry`** via **`registerAllDecoders`** (4.5.14) simplifies tests that must not mutate the package singleton.
+
+**Risk:** Medium (large moves, easy to accidentally reorder). **Mitigation:** run **`registry-decoder-order.test.ts`** after every edit; keep PRs per sub-phase.
 
 ---
 
