@@ -268,9 +268,10 @@ export async function syllableCount(query: string, sourceLang: WikiLang = "Auto"
  */
 export async function partOfSpeech(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<LexemeResult<string | null>[]> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme =>
-        (lexeme.part_of_speech || lexeme.part_of_speech_heading || null)?.replace(/_/g, " ")
-    );
+    return mapLexemes(result, lexeme => {
+        const s = (lexeme.part_of_speech || lexeme.part_of_speech_heading)?.replace(/_/g, " ");
+        return s ?? null;
+    });
 }
 
 /**
@@ -305,7 +306,7 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
     
     const inflectedSource = originalResult.lexemes.find(e => e.type === "INFLECTED_FORM" && e.form === query);
     const resolvedTriggeredId = inflectedSource
-        ? originalResult.lexemes.find(e => (e as any).lemma_triggered_by_lexeme_id === inflectedSource.id)?.id
+        ? originalResult.lexemes.find(e => e.lemma_triggered_by_lexeme_id === inflectedSource.id)?.id
         : undefined;
 
     const lemmaStr = await lemma(query, lang, pos);

@@ -266,8 +266,8 @@ export interface Lexeme {
 
   wikidata?: WikidataEnrichment;
   resolved_for_query?: string;
-  /** When this lemma was resolved for an inflected form, the entry id that triggered it */
-  lemma_triggered_by_entry_id?: string;
+  /** When this lemma lexeme was fetched after an inflected form, the `Lexeme.id` of that `INFLECTED_FORM` row. */
+  lemma_triggered_by_lexeme_id?: string;
   preferred?: boolean;
   source: {
     wiktionary: WiktionarySource;

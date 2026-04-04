@@ -403,7 +403,7 @@ export async function wiktionaryRecursive({
         if (r) {
             const triggeredBy = triggerMap.get(`${r.lang}:${r.lemma}`);
             if (triggeredBy) {
-                (r.lexeme as any).lemma_triggered_by_lexeme_id = triggeredBy;
+                r.lexeme.lemma_triggered_by_lexeme_id = triggeredBy;
             }
             resolvedLexemes.push(r.lexeme);
         }
