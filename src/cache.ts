@@ -8,6 +8,8 @@
  * The engine remains agnostic: consumers inject L2/L3 adapters at init time.
  */
 
+import { DEFAULT_CACHE_TTL_MS } from "./constants";
+
 export interface CacheEntry<T> {
   value: T;
   created: number;
@@ -21,7 +23,7 @@ export interface CacheAdapter {
   clear(): Promise<void>;
 }
 
-const DEFAULT_TTL = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_TTL = DEFAULT_CACHE_TTL_MS;
 
 export class MemoryCache implements CacheAdapter {
   private store = new Map<string, { value: string; expires: number }>();

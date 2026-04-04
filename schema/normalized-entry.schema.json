@@ -143,6 +143,10 @@
           "type": "array",
           "items": { "type": "string", "pattern": "^Q\\d+$" },
           "description": "Wikidata P279 'Subclass Of' claims."
+        },
+        "wikidata_error": {
+          "type": "string",
+          "description": "Optional diagnostic when Wikidata enrichment failed."
         }
       },
       "additionalProperties": false

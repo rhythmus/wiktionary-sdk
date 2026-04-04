@@ -59,6 +59,8 @@ export interface WikidataEnrichment {
   instance_of?: string[];
   /** Wikidata P279 'Subclass Of' claims (e.g. ['Q34770']). */
   subclass_of?: string[];
+  /** Present when enrichment failed after a QID was known (best-effort diagnostics). */
+  wikidata_error?: string;
 }
 
 export interface Example {

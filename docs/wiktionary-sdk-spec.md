@@ -819,9 +819,15 @@ execution within the Webapp's API Playground.
 ### 11.1 REST server surface (`server.ts`) vs full SDK options
 
 The minimal HTTP wrapper exposes **`GET /api/fetch`** with query parameters
-`query`, `lang` (defaults to `el`, unlike the library default `Auto`), optional
-`pos` (mapped to `preferredPos` in code), `enrich` (default true; set `enrich=false` to disable), and optional `format=yaml|json`.
-It does **not** currently expose **`matchMode`**, **`sort`**, **`debugDecoders`**, or direct **`pos`** filtering semantics identical to `wiktionary({ pos })` — extending the query string to mirror `cli/index.ts` / `webapp` parity is a straightforward future improvement.
+`query`, `lang` (defaults to `el`, unlike the library default `Auto`),
+`enrich` (default true; set `enrich=false` to disable), optional `format=yaml|json`,
+`matchMode` (`strict` \| `fuzzy`), `sort` (`source` \| `priority`),
+`debugDecoders` (`true` \| `1` \| `yes`),
+optional `lemmaFetchConcurrency` / `formOfParseConcurrency` (positive integers),
+**`filterPos`** for the same PoS filtering as `wiktionary({ pos })` (default `Auto`),
+and **`preferredPos`** for lemma disambiguation. For backwards compatibility,
+a bare **`pos=`** query argument still maps to **`preferredPos`** only (legacy
+behaviour); use **`filterPos=`** when you need strict PoS filtering.
 
 **Implementation note:** Response assembly lives in **`src/server-fetch.ts`** as **`buildApiFetchResponse(url, deps?)`**, which returns `{ status, headers, body }` so unit tests can inject **`deps.wiktionaryFn`** without listening on a port. **`server.ts`** delegates to that helper. YAML responses use **`Content-Type: text/yaml; charset=utf-8`** so clients treat the payload as UTF-8 explicitly.
 

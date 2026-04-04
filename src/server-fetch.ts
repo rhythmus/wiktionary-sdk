@@ -2,6 +2,7 @@
  * Pure HTTP response builder for GET /api/fetch — shared by `server.ts` and tests.
  */
 import { wiktionary as defaultWiktionary } from "./index";
+import { SERVER_DEFAULT_WIKI_LANG } from "./constants";
 import type { WikiLang } from "./types";
 
 export type WiktionaryFetchFn = typeof defaultWiktionary;
@@ -10,15 +11,57 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
 };
 
+function parseEnrichParam(raw: string | null): boolean {
+  if (raw === null) return true;
+  const x = raw.toLowerCase();
+  return x !== "false" && x !== "0" && x !== "no";
+}
+
+function parseDebugDecodersParam(raw: string | null): boolean {
+  if (raw === null) return false;
+  const x = raw.toLowerCase();
+  return x === "true" || x === "1" || x === "yes";
+}
+
+function parseMatchMode(raw: string | null): "strict" | "fuzzy" {
+  return raw?.toLowerCase() === "fuzzy" ? "fuzzy" : "strict";
+}
+
+function parseSort(raw: string | null): "source" | "priority" {
+  return raw?.toLowerCase() === "priority" ? "priority" : "source";
+}
+
+function parseOptionalPositiveInt(raw: string | null): number | undefined {
+  if (raw == null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return undefined;
+  return Math.floor(n);
+}
+
 export async function buildApiFetchResponse(
   url: URL,
-  deps?: { wiktionaryFn?: WiktionaryFetchFn }
+  deps?: { wiktionaryFn?: WiktionaryFetchFn },
 ): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   const wiktionary = deps?.wiktionaryFn ?? defaultWiktionary;
   const query = url.searchParams.get("query");
-  const lang = (url.searchParams.get("lang") || "el") as WikiLang;
-  const pos = url.searchParams.get("pos") || undefined;
-  const enrich = url.searchParams.get("enrich") !== "false";
+  const lang = (url.searchParams.get("lang") || SERVER_DEFAULT_WIKI_LANG) as WikiLang;
+  /**
+   * PoS block filter (`wiktionary({ pos })`). Prefer this for strict filtering.
+   * When omitted, defaults to `"Auto"`.
+   */
+  const pos = url.searchParams.get("filterPos") || "Auto";
+  /**
+   * Lemma disambiguation (`wiktionary({ preferredPos })`).
+   * For backwards compatibility, bare `pos=` maps here only (legacy server behaviour).
+   */
+  const preferredPos =
+    url.searchParams.get("preferredPos") ?? url.searchParams.get("pos") ?? undefined;
+  const enrich = parseEnrichParam(url.searchParams.get("enrich"));
+  const matchMode = parseMatchMode(url.searchParams.get("matchMode"));
+  const sort = parseSort(url.searchParams.get("sort"));
+  const debugDecoders = parseDebugDecodersParam(url.searchParams.get("debugDecoders"));
+  const lemmaFetchConcurrency = parseOptionalPositiveInt(url.searchParams.get("lemmaFetchConcurrency"));
+  const formOfParseConcurrency = parseOptionalPositiveInt(url.searchParams.get("formOfParseConcurrency"));
 
   if (!query) {
     return {
@@ -32,8 +75,14 @@ export async function buildApiFetchResponse(
     const result = await wiktionary({
       query,
       lang,
-      preferredPos: pos,
+      pos,
+      preferredPos,
       enrich,
+      matchMode,
+      sort,
+      debugDecoders,
+      ...(lemmaFetchConcurrency != null ? { lemmaFetchConcurrency } : {}),
+      ...(formOfParseConcurrency != null ? { formOfParseConcurrency } : {}),
     });
 
     const format = url.searchParams.get("format");

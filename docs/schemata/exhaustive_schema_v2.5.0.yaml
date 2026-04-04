@@ -116,6 +116,7 @@ wikidata:
   qid: "Q165170"
   instance_of: ["Q1084"]        # Wikidata P31: Verb
   subclass_of: ["Q34770"]       # Wikidata P279
+  # wikidata_error: "optional diagnostic when enrichment fails"
 
 # ── Page Metadata ────────────────────────────────────────────────────────
 metadata:

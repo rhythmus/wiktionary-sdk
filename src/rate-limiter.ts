@@ -8,7 +8,9 @@
  *   proxy support is implemented.
  */
 
-const DEFAULT_MIN_INTERVAL_MS = 100;
+import { DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS } from "./constants";
+
+const DEFAULT_MIN_INTERVAL_MS = DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS;
 const DEFAULT_USER_AGENT =
   "Wiktionary SDK/1.0 (https://github.com/woutersoudan/wiktionary-fetch; wiktionary-fetch@example.com)";
 

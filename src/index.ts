@@ -29,6 +29,7 @@ import {
 } from "./registry";
 import { deepMerge, commonsThumbUrl, parallelMap } from "./utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
+import { LANG_PRIORITY } from "./constants";
 
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
     if (!site || !title || !site.endsWith("wiki")) return undefined;
@@ -492,11 +493,6 @@ export async function wiktionaryRecursive({
     }
 
     if (sort === "priority") {
-        const LANG_PRIORITY: Record<string, number> = {
-            el: 1,
-            grc: 2,
-            en: 3,
-        };
         merged.sort((a, b) => {
             if (a.language !== b.language) {
                 const pA = LANG_PRIORITY[a.language] || 100;
@@ -548,6 +544,12 @@ function slug(s: string) {
 }
 
 // Consolidate exports to avoid duplicates and lint errors
+export {
+  LANG_PRIORITY,
+  SERVER_DEFAULT_WIKI_LANG,
+  DEFAULT_CACHE_TTL_MS,
+  DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS,
+} from "./constants";
 export * from "./library";
 export * from "./formatter";
 export * from "./lexeme-display-groups";
