@@ -180,7 +180,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 | **4.5.13** | **`register-inflection-stems.ts`.** | **Done** — `inflection-table-ref`, `el-verb-stems`, `el-noun-stems` in **`register-inflection-stems.ts`**; **`register-all-decoders.ts`** is orchestrator-only. | Order test. |
 | **4.5.14** | **Public **`registerAllDecoders`** re-export (optional).** | **Done** — **`src/registry.ts`** re-exports **`registerAllDecoders`**; spec §14.1 **`registry.ts`** row updated. | Typecheck; no default behaviour change. |
 | **4.5.15** | **Single source of truth for canonical decoder `id` list (optional).** | **Done** — **`src/registry/decoder-ids.ts`** exports **`EXPECTED_DECODER_IDS`**; **`registry-decoder-order.test.ts`** imports it; spec §14.1 row; **`docs/registry-inventory.md`** sync note. | Order test still passes; doc accuracy. |
-| **4.5.16** | **CI / release guard (optional).** | Small script: `npx tsx tools/assert-registry-order.ts` comparing live `registry.getDecoders().map(d => d.id)` to committed JSON or `decoder-ids.ts` — run in CI alongside Vitest. Duplicates **`registry-decoder-order.test.ts`** only if you want a non-Vitest gate (e.g. pre-publish). | CI green. |
+| **4.5.16** | **CI / release guard (optional).** | **Done** — **`tools/assert-registry-order.ts`** compares a fresh registry to **`decoder-ids.ts`**; **`npm run check:registry-order`**; **`test:ci`** runs the check before Vitest. | CI green. |
 
 ---
 
