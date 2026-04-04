@@ -510,7 +510,8 @@ export async function wiktionaryRecursive({
         }
     };
     if (debugDecoders && allDebugEvents.length > 0) {
-        out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
+        const padding = Array.from({ length: resolvedLexemes.length }, () => [] as DecoderDebugEvent[]);
+        out.debug = allDebugEvents.concat(padding);
     }
     return out;
 }

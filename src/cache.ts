@@ -72,22 +72,43 @@ export class TieredCache {
 
   async get<T>(key: string): Promise<T | null> {
     const l1Val = await this.l1.get(key);
-    if (l1Val !== null) return JSON.parse(l1Val) as T;
+    if (l1Val !== null) {
+      try {
+        return JSON.parse(l1Val) as T;
+      } catch {
+        await this.l1.delete(key);
+        return null;
+      }
+    }
 
     if (this.l2) {
       const l2Val = await this.l2.get(key);
       if (l2Val !== null) {
+        let parsed: T;
+        try {
+          parsed = JSON.parse(l2Val) as T;
+        } catch {
+          await this.l2.delete(key);
+          return null;
+        }
         await this.l1.set(key, l2Val, this.defaultTtl);
-        return JSON.parse(l2Val) as T;
+        return parsed;
       }
     }
 
     if (this.l3) {
       const l3Val = await this.l3.get(key);
       if (l3Val !== null) {
+        let parsed: T;
+        try {
+          parsed = JSON.parse(l3Val) as T;
+        } catch {
+          await this.l3.delete(key);
+          return null;
+        }
         await this.l1.set(key, l3Val, this.defaultTtl);
         if (this.l2) await this.l2.set(key, l3Val, this.defaultTtl);
-        return JSON.parse(l3Val) as T;
+        return parsed;
       }
     }
 
