@@ -1,6 +1,6 @@
 import { lemma, mapLexemes } from './library';
 import type { GroupedLexemeResults } from './library';
-import { wiktionary } from './index';
+import { wiktionary } from "./wiktionary-core";
 import type { WikiLang, Lexeme } from './types';
 
 export interface VerbStems {

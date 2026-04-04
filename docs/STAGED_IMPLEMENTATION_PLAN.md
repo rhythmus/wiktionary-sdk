@@ -101,12 +101,12 @@
 
 **Goal:** Remove fragile cycles; separate engine from barrel (`audit.md` §4, §12).
 
-| # | Todo | Notes |
-|---|------|--------|
-| 3.1 | Add **`src/wiktionary-core.ts`:** `wiktionary`, `wiktionaryRecursive`; **no** re-export of `library` / full `formatter`. | `library.ts`, `morphology.ts`, `stem.ts` import core, not `index.ts` |
-| 3.2 | Keep **`src/index.ts`** as **public barrel** only. | Stable import paths for package consumers |
-| 3.3 | Add **`src/form-of-display.ts`:** morph-line helpers shared by **`formatter.ts`** and **`form-of-parse-enrich.ts`** (`audit.md` §3.2). | No output change |
-| 3.4 | Move **`EtymologyStep`** (or equivalent) to **`types.ts`** or `types-etymology.ts`. | Type-only |
+| # | Todo | Status / notes |
+|---|------|----------------|
+| 3.1 | Add **`src/wiktionary-core.ts`:** `wiktionary`, `wiktionaryRecursive`; **no** re-export of `library` / full `formatter`. | **Done** — `library`, `morphology`, `stem`, `server-fetch` import core; tests that stub `wiktionary` mock **`wiktionary-core`**. |
+| 3.2 | Keep **`src/index.ts`** as **public barrel** only. | **Done** — barrel re-exports core + packages. |
+| 3.3 | Add **`src/form-of-display.ts`:** morph-line helpers shared by **`formatter.ts`** and **`form-of-parse-enrich.ts`** (`audit.md` §3.2). | **Todo** — no output change when done |
+| 3.4 | Move **`EtymologyStep`** (or equivalent) to **`types.ts`** or `types-etymology.ts`. | **Todo** — type-only |
 
 **Risk:** High (load order, Vitest mocks). **Depends on:** Phases 0–2 desirable.
 

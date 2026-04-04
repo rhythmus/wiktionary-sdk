@@ -1,4 +1,4 @@
-import { wiktionary } from "./index";
+import { wiktionary } from "./wiktionary-core";
 import { mwFetchJson } from "./api";
 import { stripWikiMarkup } from "./registry";
 import { morphology as getMorphology, conjugate as runConjugate, decline as runDecline } from "./morphology";

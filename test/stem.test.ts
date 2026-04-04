@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { stem, stemByLexeme } from "../src/stem";
-import * as indexModule from "../src/index";
+import * as coreModule from "../src/wiktionary-core";
 import * as api from "../src/api";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 
-vi.mock("../src/index", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/index")>();
+vi.mock("../src/wiktionary-core", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
     return {
         ...actual,
         wiktionary: vi.fn(),
@@ -90,7 +90,7 @@ describe("stem extraction", () => {
             }],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|augmented=1|present=γράφ|a-imperfect=έγραφ|a-dependent=γράψ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
         const results = await stemByLexeme("γράφω");
         expect(results.order).toHaveLength(1);
@@ -121,7 +121,7 @@ describe("stem extraction", () => {
             }],
             rawLanguageBlock: "==Greek==\n===Noun===\n{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
         const results = await stemByLexeme("άνθρωπος");
         const stems = results.lexemes[results.order[0]].value;
@@ -149,7 +149,7 @@ describe("stem extraction", () => {
             }],
             rawLanguageBlock: "==Greek==\n===Adjective===\n{{el-decl-adj|dec=ός-ή-ό|stem=καλ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
         const results = await stemByLexeme("καλός");
         const stems = results.lexemes[results.order[0]].value;
@@ -187,7 +187,7 @@ describe("stem extraction", () => {
             ],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ|a-dependent=γράψ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
         const grouped = await stem("γράφω");
         const greek = grouped.order

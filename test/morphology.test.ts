@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { conjugate, decline } from "../src/morphology";
-import * as indexModule from "../src/index";
+import * as coreModule from "../src/wiktionary-core";
 import * as apiModule from "../src/api";
 import { asLexemeRows } from "../src/library";
 
-vi.mock("../src/index", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/index")>();
+vi.mock("../src/wiktionary-core", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
     return {
         ...actual,
         wiktionary: vi.fn(),
@@ -35,7 +35,7 @@ describe("morphology conjugate", () => {
             }],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
         const mockApiHtml = `
 <table class="inflection-table">
@@ -83,7 +83,7 @@ describe("morphology conjugate", () => {
                 }
             ]
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
         const { morphology } = await import("../src/morphology");
         const results = await morphology("έγραψα");
@@ -117,7 +117,7 @@ describe("morphology conjugate", () => {
             ],
             rawLanguageBlock: "==Greek==\n===Verb===\n{{el-conjug-1st|present=γράφ|a-imperfect=έγραφ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
         
         const mockApiHtml = `
 <table class="inflection-table">
@@ -152,7 +152,7 @@ describe("morphology decline", () => {
             }],
             rawLanguageBlock: "==Greek==\n===Noun===\n{{el-nM-ος-οι-3b|άνθρωπ|ανθρώπ}}"
         };
-        vi.mocked(indexModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
         
         const mockApiHtml = `
 <table class="inflection-table">

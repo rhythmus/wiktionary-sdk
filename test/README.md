@@ -25,11 +25,13 @@ The engine reaches the network through **`fetchWikitextEnWiktionary`**, **`fetch
 
 Then call the **real** `wiktionary()` so the parser and registry run on real wikitext.
 
-### Partial `vi.mock("../src/index")` caveat
+### Stubbing `wiktionary` in library/morphology/stem tests
 
-Replacing only the exported `wiktionary` with `vi.fn()` updates imports from `index` in **that** module graph, but **`library.ts`** (and similar) also does `import { wiktionary } from "./index"`. Depending on load order, that binding can still be the **real** implementation, which will call the API unless **`api` is mocked**.
+**`library.ts`**, **`morphology.ts`**, and **`stem.ts`** import **`wiktionary`** from **`wiktionary-core.ts`**. To replace it with `vi.fn()`, use:
 
-So: either mock **`api`** as above, or avoid calling **`lemma`**, **`interwiki`**, **`pageMetadata`**, etc. unless you know the binding is safe.
+`vi.mock("../src/wiktionary-core", async (importOriginal) => ({ ...(await importOriginal()), wiktionary: vi.fn() }))`
+
+Tests that import **`wiktionary`** from **`index.ts`** can still **`vi.mock("../src/index", …)`** when they only use the barrel export (e.g. **`enrichment.test.ts`**). Prefer mocking **`api`** for orchestration tests that should run the **real** engine on fixtures.
 
 ## Golden snapshots
 

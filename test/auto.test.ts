@@ -1,21 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { wiktionary, lemma } from '../src/index';
+import { lemma } from '../src/index';
+import * as wc from '../src/wiktionary-core';
 import * as api from '../src/api';
 
 const FIXTURES_DIR = resolve(__dirname, 'fixtures');
 
-// Mock the main wiktionary function (direct imports from index)
-vi.mock("../src/index", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/index")>();
+vi.mock("../src/wiktionary-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
   return {
     ...actual,
     wiktionary: vi.fn(),
   };
 });
 
-// lemma() is implemented in library.ts and uses the real wiktionary binding; stub API.
+// lemma() uses the same wiktionary binding as wc; stub API for live fetches.
 vi.mock("../src/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/api")>();
   return {
@@ -123,9 +123,9 @@ describe('Auto-discovery and PoS Filtering', () => {
         { id: "da:bank", language: "da", type: "LEXEME" }
       ]
     };
-    vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
+    vi.mocked(wc.wiktionary).mockResolvedValue(mockResult as any);
 
-    const res = await wiktionary({ query: 'bank' });
+    const res = await wc.wiktionary({ query: 'bank' });
     expect(res.lexemes.length).toBeGreaterThan(0);
     const languages = res.lexemes.map(e => e.language);
     expect(languages).toContain('en');
@@ -138,9 +138,9 @@ describe('Auto-discovery and PoS Filtering', () => {
         { id: "en:bank#V", language: "en", part_of_speech: "verb" }
       ]
     };
-    vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
+    vi.mocked(wc.wiktionary).mockResolvedValue(mockResult as any);
 
-    const res = await wiktionary({ query: 'bank', pos: 'verb' });
+    const res = await wc.wiktionary({ query: 'bank', pos: 'verb' });
     expect(res.lexemes.length).toBeGreaterThan(0);
     for (const lex of res.lexemes) {
       expect(lex.part_of_speech).toBe('verb');
@@ -153,9 +153,9 @@ describe('Auto-discovery and PoS Filtering', () => {
         { id: "el:γράφω", language: "el" }
       ]
     };
-    vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
+    vi.mocked(wc.wiktionary).mockResolvedValue(mockResult as any);
 
-    const res = await wiktionary({ query: 'γράφω', lang: 'Auto' });
+    const res = await wc.wiktionary({ query: 'γράφω', lang: 'Auto' });
     expect(res.lexemes.some(e => e.language === 'el')).toBe(true);
   });
 
@@ -165,7 +165,7 @@ describe('Auto-discovery and PoS Filtering', () => {
         { id: "en:bank", language: "en", type: "LEXEME" }
       ]
     };
-    vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
+    vi.mocked(wc.wiktionary).mockResolvedValue(mockResult as any);
     const l = await lemma('bank');
     expect(l).toBe('bank');
   });
@@ -176,7 +176,7 @@ describe('Auto-discovery and PoS Filtering', () => {
         { id: "en:banks", language: "en", type: "INFLECTED_FORM", form_of: { lemma: "bank" } }
       ]
     };
-    vi.mocked(wiktionary).mockResolvedValue(mockResult as any);
+    vi.mocked(wc.wiktionary).mockResolvedValue(mockResult as any);
 
     const l = await lemma('banks');
     expect(l).toBe('bank');

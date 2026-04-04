@@ -1549,7 +1549,9 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 
 | Module | Responsibility |
 |--------|----------------|
-| **`index.ts`** | Public **`wiktionary()`**, fuzzy merge, **`wiktionaryRecursive()`**, lemma resolution queue, Wikidata enrichment loop, `sort`, `guessLexemeTypeFromTemplates()` (uses `isFormOfTemplateName` / `isVariantFormOfTemplateName`), re-exports library/formatter/stem/wrapper helpers. |
+| **`index.ts`** | Public package **barrel**: re-exports **`wiktionary()`**, **`wiktionaryRecursive()`**, **`stripCombiningMarksForPageTitle`** from `wiktionary-core.ts`, plus library/formatter/stem/wrapper helpers and shared constants. |
+| **`wiktionary-core.ts`** | **`wiktionary()`**, fuzzy merge, **`wiktionaryRecursive()`**, lemma resolution queue, Wikidata enrichment loop, `sort`, internal `guessLexemeTypeFromTemplates()` (via `isFormOfTemplateName` / `isVariantFormOfTemplateName`). Import from here inside the repo instead of `index.ts` to avoid cycles. |
+| **`constants.ts`** | Shared defaults: **`LANG_PRIORITY`**, **`SERVER_DEFAULT_WIKI_LANG`**, cache TTL, rate-limit interval. |
 | **`types.ts`** | `SCHEMA_VERSION`, `Lexeme`, `FetchResult`, `DecodeContext`, `TemplateDecoder`, `DecoderDebugEvent`, and all shared interfaces. |
 | **`api.ts`** | **`mwFetchJson()`** (rate limit + fetch), **`normalizeWiktionaryQueryPage()`**, **`fetchWikitextEnWiktionary()`**, **`fetchWikidataEntity()`**, Wikidata title lookups by site. |
 | **`parser.ts`** | Language sections (`extractLanguageSection`, `extractAllLanguageSections`), **`splitEtymologiesAndPOS()`** (PoS-boundary rule), **`parseTemplates()`** (brace-aware, optional positions), heading → PoS mapping, language name ↔ code helpers, sense-line parsing helpers used by the registry. |
