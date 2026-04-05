@@ -7,11 +7,11 @@ import {
   lexemeNeedsFormOfParseEnrichment,
   extractFormOfMorphLinesFromParsedHtml,
 } from "../src/form-of-parse-enrich";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 import type { Lexeme } from "../src/types";
 
-vi.mock("../src/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/ingress/api")>();
   return { ...actual, mwFetchJson: vi.fn() };
 });
 

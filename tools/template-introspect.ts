@@ -9,8 +9,8 @@
  *   npx tsx tools/template-introspect.ts --sample <N> [--json]  # sample N Greek entries, report top missing by frequency
  */
 
-import { mwFetchJson } from "../src/api";
-import { fetchWikitextEnWiktionary } from "../src/api";
+import { mwFetchJson } from "../src/ingress/api";
+import { fetchWikitextEnWiktionary } from "../src/ingress/api";
 import { registry } from "../src/registry";
 import { extractLanguageSection } from "../src/parser";
 import { parseTemplates } from "../src/parser";

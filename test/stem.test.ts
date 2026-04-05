@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { stem, stemByLexeme } from "../src/stem";
 import * as coreModule from "../src/wiktionary-core";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 
@@ -15,8 +15,8 @@ vi.mock("../src/wiktionary-core", async (importOriginal) => {
     };
 });
 
-vi.mock("../src/api", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/ingress/api")>();
     return {
         ...actual,
         fetchWikitextEnWiktionary: vi.fn(),

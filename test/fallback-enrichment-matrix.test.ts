@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { wiktionary } from "../src/index";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 
-vi.mock("../src/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/ingress/api")>();
   return {
     ...actual,
     fetchWikitextEnWiktionary: vi.fn(),

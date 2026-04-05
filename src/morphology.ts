@@ -2,7 +2,7 @@ import { parse } from 'node-html-parser';
 import { lemma, mapLexemes } from './library';
 import type { GroupedLexemeResults } from './library';
 import { wiktionary } from "./wiktionary-core";
-import { mwFetchJson } from './api';
+import { mwFetchJson } from "./ingress/api";
 import type { WikiLang, Lexeme } from './types';
 
 export interface ConjugateCriteria {

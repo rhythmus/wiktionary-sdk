@@ -16,7 +16,7 @@ import {
     fetchWikidataEntity,
     fetchWikidataEntityByWiktionaryTitle,
     fetchWikidataEntityByWikipediaTitle,
-} from "./api";
+} from "./ingress/api";
 import {
     extractLanguageSection,
     extractAllLanguageSections,

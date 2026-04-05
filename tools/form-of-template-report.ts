@@ -12,7 +12,7 @@ import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { mwFetchJson } from "../src/api";
+import { mwFetchJson } from "../src/ingress/api";
 import { FORM_OF_TEMPLATES, isFormOfTemplateName } from "../src/registry";
 
 /** In Category:Form-of templates but not a lemma-pointer "X of lemma" (handled as only_used_in on senses). */

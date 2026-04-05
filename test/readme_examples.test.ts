@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 import { 
     wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms,
     etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
@@ -27,8 +27,8 @@ function loadFixture(word: string): string {
     return "";
 }
 
-vi.mock("../src/api", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/ingress/api")>();
     return {
         ...actual,
         fetchWikitextEnWiktionary: vi.fn(),

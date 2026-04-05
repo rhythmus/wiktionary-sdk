@@ -26,7 +26,7 @@ import {
     usageNotes
 } from "../src/library";
 import * as coreModule from "../src/wiktionary-core";
-import * as apiModule from "../src/api";
+import * as apiModule from "../src/ingress/api";
 
 vi.mock("../src/wiktionary-core", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
@@ -36,8 +36,8 @@ vi.mock("../src/wiktionary-core", async (importOriginal) => {
     };
 });
 
-vi.mock("../src/api", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/ingress/api")>();
     return {
         ...actual,
         mwFetchJson: vi.fn(),

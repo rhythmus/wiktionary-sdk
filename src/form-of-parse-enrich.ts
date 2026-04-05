@@ -1,5 +1,5 @@
 import { parse } from "node-html-parser";
-import { mwFetchJson } from "./api";
+import { mwFetchJson } from "./ingress/api";
 import { isPerLangFormOfTemplate } from "./registry";
 import type { Lexeme } from "./types";
 import {

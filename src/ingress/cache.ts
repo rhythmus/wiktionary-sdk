@@ -8,7 +8,7 @@
  * The engine remains agnostic: consumers inject L2/L3 adapters at init time.
  */
 
-import { DEFAULT_CACHE_TTL_MS } from "./constants";
+import { DEFAULT_CACHE_TTL_MS } from "../constants";
 
 export interface CacheEntry<T> {
   value: T;

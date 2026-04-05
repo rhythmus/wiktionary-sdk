@@ -1,4 +1,4 @@
-import { fetchWikitextEnWiktionary } from "../src/api";
+import { fetchWikitextEnWiktionary } from "../src/ingress/api";
 
 async function dump(word: string) {
     const data = await fetchWikitextEnWiktionary(word);

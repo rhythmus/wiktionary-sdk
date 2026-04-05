@@ -35,9 +35,9 @@ import {
   asLexemeRows,
 } from "../src/index";
 import type { GroupedLexemeResults } from "../src/library";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 
-vi.mock("../src/api", async (importOriginal) => {
+vi.mock("../src/ingress/api", async (importOriginal) => {
   const actual = (await importOriginal()) as any;
   return {
     ...actual,

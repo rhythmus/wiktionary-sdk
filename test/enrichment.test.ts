@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { wiktionary, interwiki, pageMetadata, isCategory, asLexemeRows } from "../src/index";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 
@@ -14,8 +14,8 @@ vi.mock("../src/index", async (importOriginal) => {
   };
 });
 
-vi.mock("../src/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/ingress/api")>();
   return {
     ...actual,
     fetchWikitextEnWiktionary: vi.fn(),

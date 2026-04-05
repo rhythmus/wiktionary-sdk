@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, it, expect } from "vitest";
-import { normalizeWiktionaryQueryPage, mwFetchJson } from "../src/api";
+import { normalizeWiktionaryQueryPage, mwFetchJson } from "../src/ingress/api";
 
 const recordingPath = resolve(__dirname, "fixtures/api-recordings/minimal-query.json");
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { audioGallery, citations, richEntry, isSubclass, asLexemeRows } from "../src/index";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 
-vi.mock("../src/api", async (importOriginal) => {
+vi.mock("../src/ingress/api", async (importOriginal) => {
   const actual = await importOriginal() as any;
   return {
     ...actual,

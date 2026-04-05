@@ -9,7 +9,7 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import { buildApiFetchResponse } from "./src/server-fetch";
+import { buildApiFetchResponse } from "./src/ingress/server-fetch";
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 

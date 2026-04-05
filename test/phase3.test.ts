@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { MemoryCache, TieredCache, type CacheAdapter } from "../src/cache";
-import { RateLimiter } from "../src/rate-limiter";
+import { MemoryCache, TieredCache, type CacheAdapter } from "../src/ingress/cache";
+import { RateLimiter } from "../src/ingress/rate-limiter";
 
 describe("Phase 3.2: MemoryCache", () => {
   let cache: MemoryCache;

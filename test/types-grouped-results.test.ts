@@ -3,11 +3,11 @@
  */
 import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
 import { synonyms, mapLexemes, type GroupedLexemeResults } from "../src/library";
-import * as api from "../src/api";
+import * as api from "../src/ingress/api";
 import type { FetchResult, Lexeme } from "../src/types";
 
-vi.mock("../src/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/api")>();
+vi.mock("../src/ingress/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/ingress/api")>();
   return {
     ...actual,
     fetchWikitextEnWiktionary: vi.fn(),

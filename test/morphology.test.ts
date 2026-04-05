@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { conjugate, decline } from "../src/morphology";
 import * as coreModule from "../src/wiktionary-core";
-import * as apiModule from "../src/api";
+import * as apiModule from "../src/ingress/api";
 import { asLexemeRows } from "../src/library";
 
 vi.mock("../src/wiktionary-core", async (importOriginal) => {
@@ -12,7 +12,7 @@ vi.mock("../src/wiktionary-core", async (importOriginal) => {
     };
 });
 
-vi.mock("../src/api", async (importOriginal) => {
+vi.mock("../src/ingress/api", async (importOriginal) => {
     return {
         mwFetchJson: vi.fn(),
     };

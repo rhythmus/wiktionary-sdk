@@ -2,8 +2,8 @@
  * Audit §13.2 — mwFetchJson and normalizeWiktionaryQueryPage edge cases.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mwFetchJson, normalizeWiktionaryQueryPage } from "../src/api";
-import { RateLimiter } from "../src/rate-limiter";
+import { mwFetchJson, normalizeWiktionaryQueryPage } from "../src/ingress/api";
+import { RateLimiter } from "../src/ingress/rate-limiter";
 
 describe("api audit: normalizeWiktionaryQueryPage", () => {
   it("treats missing revision slots as empty wikitext", () => {

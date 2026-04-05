@@ -8,7 +8,7 @@
  *   proxy support is implemented.
  */
 
-import { DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS } from "./constants";
+import { DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS } from "../constants";
 
 const DEFAULT_MIN_INTERVAL_MS = DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS;
 const DEFAULT_USER_AGENT =

@@ -41,7 +41,7 @@
     "report:form-of": "tsx tools/form-of-template-report.ts",
     "report:lexicographic-taxonomy": "tsx tools/lexicographic-heading-taxonomy.ts",
     "serve": "node dist/cjs/server.js",
-    "docs": "typedoc --out docs/api --entryPoints src/index.ts src/types.ts src/cache.ts src/rate-limiter.ts --tsconfig tsconfig.json",
+    "docs": "typedoc --out docs/api --entryPoints src/index.ts src/types.ts src/ingress/cache.ts src/ingress/rate-limiter.ts --tsconfig tsconfig.json",
     "bench": "vitest bench"
   },
   "keywords": [

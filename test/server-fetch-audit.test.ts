@@ -2,7 +2,7 @@
  * Audit §13.13 — HTTP fetch handler behaviour (no listening server).
  */
 import { describe, it, expect, vi } from "vitest";
-import { buildApiFetchResponse } from "../src/server-fetch";
+import { buildApiFetchResponse } from "../src/ingress/server-fetch";
 import type { FetchResult } from "../src/types";
 
 describe("buildApiFetchResponse", () => {
