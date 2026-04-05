@@ -91,6 +91,28 @@ A custom parser handles nested `{{...}}` structures.
 4.  **Verbatim Storage**: All template calls must be stored verbatim in `entry.templates` for forensic verification.
 5.  **Terminology**: In docs and UI, say **wikitext** or **templates** when referring to source `{{…}}` markup. Reserve **Wikidata** for QID / `wikibase_item` enrichment from `src/ingress/api.ts`. Do not conflate the two.
 6.  **User-facing definitions**: Do not show raw `{{…}}` wikitext as the primary definition gloss in HTML or formatted output. Decode into structured fields and a plain `gloss` string; keep verbatim text on `gloss_raw` or structured `raw` fields for traceability (see `only_used_in` and similar patterns).
+7.  **Support transparency (all extractors, not only `stem`)**: For **every** **public** API that **extracts** structured dictionary data from wikitext / normalized lexemes for downstream or user-facing use—including **all** functions under `src/convenience/*` re-exported from the package, plus any other exported extractor that would return **empty, null, or false** when the **source could still plausibly hold** that kind of data but the SDK **does not yet implement** the relevant decoders, template families, or enrichment path—**do not treat silence as correct**. The caller must be able to distinguish:
+    - **Genuinely absent** in the source (no section, no templates, editor never added the data), vs  
+    - **Present or likely present in wikitext**, but **not extracted** because of **SDK coverage** (undecoded `{{…}}` families, unimplemented parameters, language-specific headword tables we do not parse, optional Wikidata not fetched, etc.).
+    **How to surface it:** Prefer an explicit machine-readable field (e.g. `support_warning`, `extraction_note`, or optional `LexemeResult.support_warning` alongside `value`) plus user-visible text in **`format()`** / CLI / playground where applicable. Page-level issues may continue to use `FetchResult.notes`. **Pure utilities** that do not represent “we tried to extract slot X” (e.g. `stripCombiningMarksForPageTitle`, heading taxonomy mappers, scalar `lemma()` resolution) are out of scope unless they explicitly claim extraction of a named slot.
+
+    **Living audit — do we honor this today?** **`LexemeResult.support_warning`** (optional, alongside `value`) is wired through **`mapLexemes`** via **`withExtractionSupport`** / **`src/convenience/extraction-support.ts`**. **`format()`** branch **3b** appends **`Support:`** for grouped wrapper arrays. **`stem`** lifts **`WordStems.support_warning`** onto the row so JSON does not duplicate it inside `value`. Remaining gaps: wrappers with no template-based signal yet (e.g. **`comeronyms` / `parasynonyms` / `collocations`**), **`partOfSpeech` / `lexicographicClass`**, **`audioGallery`**, many link/list helpers, **`wikidataQid` / `image`** when enrichment is off, **`etymologyText`**, and **`richEntry`**.
+
+    | Area | Public entrypoints (representative) | Transparency status |
+    |------|-------------------------------------|------------------------|
+    | Paradigms / stems | `stem`, `stemByLexeme` | **Implemented** (row `support_warning`; `WordStems` still carries it for direct `format(extractStemsFromLexeme(…))`) |
+    | Paradigms / tables | `conjugate`, `decline`, `principalParts`, `inflectionTableRef` | **Implemented** (row warnings where helpers apply) |
+    | Morphology traits | `morphology` | **Implemented** |
+    | Headword slots | `gender`, `transitivity` | **Implemented**; `partOfSpeech`, `lexicographicClass` — **Gap** |
+    | Semantic relations | `synonyms`, `antonyms`, `hypernyms`, `hyponyms` | **Implemented** (raw `{{syn}}` / `{{ant}}` / `{{hyper}}` / `{{hypo}}` vs empty list); `comeronyms`, `parasynonyms`, `collocations` — **Gap** |
+    | Pronunciation | `ipa`, `pronounce`, `hyphenate`, `syllableCount`, `rhymes`, `homophones` | **Implemented**; `audioGallery` — **Gap** |
+    | Senses / translations | `translate` (gloss + en senses + native-senses row), `exampleDetails`, `citations` | **Implemented**; `richEntry` — **Gap** |
+    | Etymology | `etymology`, `etymologyChain`, `etymologyCognates` | **Implemented**; `etymologyText` — **Gap** |
+    | Wikidata / media / links | `wikidataQid`, `image`, … | **Gap** (noisy / enrichment-dependent) |
+    | Section lists | `derivedTerms`, … | **Gap** (mostly section-driven; add warnings when a stable template signal exists) |
+    | Core fetch | `wiktionary`, `wiktionaryRecursive` | **Partial** — `notes` covers some page-level cases |
+
+    **Engineering direction:** When extending a wrapper, add detection analogous to `stem`: if the lexeme is **in scope** for that extraction and **templates / sections suggest** data the decoder does not consume, set a warning string. For wrappers whose `value` is a bare `string[]` or scalar, prefer evolving to a small envelope type or an optional **`support_warning`** on **`LexemeResult`** (additive, backward-compatible) so JSON/CLI consumers see the same story as formatted output.
 
 ---
 

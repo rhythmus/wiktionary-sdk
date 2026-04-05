@@ -439,7 +439,19 @@ An `InflectionTable` is a hierarchical representation of a grammatical paradigm 
 From v3.1, all lexeme-scoped wrappers return `GroupedLexemeResults<T>` — a
 grouped result envelope with:
 - `order: string[]`
-- `lexemes: Record<lexeme_id, { language, pos, etymology_index, value }>`
+- `lexemes: Record<lexeme_id, { language, pos, etymology_index, value, support_warning? }>`
+
+Optional **`support_warning`** (on each **`LexemeResult<T>`**) explains when an
+empty or partial **`value`** is likely due to **SDK extraction coverage** (undecoded
+template families, unsupported parameters, parse failures on expanded tables)
+rather than a guarantee that Wiktionary lacks the data. It is produced via
+**`mapLexemes`** and **`withExtractionSupport`** in **`src/convenience/extraction-support.ts`**.
+The generic **`format()`** path for grouped arrays (branch **3b**) appends a
+human-readable **Support:** line alongside the formatted **`value`**. **`stem()`**
+additionally keeps **`WordStems.support_warning`** on the pure extractor
+**`extractStemsFromLexeme()`** for direct formatting of a **`WordStems`** object;
+the async **`stem()`** wrapper **lifts** that string onto the row so JSON does not
+duplicate it inside **`value`**.
 
 Use `asLexemeRows()` when row-oriented iteration (`map/find/filter`) is
 preferred. Scalar exceptions are marked below.
@@ -465,8 +477,8 @@ preferred. Scalar exceptions are marked below.
 | `decline(q, l, c)` | `GroupedLexemeResults<string[]\|Record\|null>` | Declension per lexeme. |
 | `morphology(q, l)` | `GroupedLexemeResults<GrammarTraits>` | Grammar traits per lexeme. |
 | `richEntry(q, l)` | `GroupedLexemeResults<RichEntry\|null>` | Aggregate profile per lexeme. |
-| `stem(q, l)` | `GroupedLexemeResults<string[]>` | Stem aliases per lexeme (concise output). |
-| `stemByLexeme(q, l)` | `GroupedLexemeResults<WordStems>` | Full structured stems per lexeme. |
+| `stem(q, l)` | `GroupedLexemeResults<WordStems>` | Structured stems per lexeme (`aliases` plus optional `verb`/`nominals` / Ancient Greek slots); row **`support_warning`** when aliases are empty for coverage reasons (also on **`WordStems`** from **`extractStemsFromLexeme`**). |
+| `stemByLexeme(q, l)` | `GroupedLexemeResults<WordStems>` | Alias of `stem()`. |
 | `principalParts(q, l)` | `GroupedLexemeResults<Record\|null>` | Verb paradigm slots per lexeme. |
 | `gender(q, l)` | `GroupedLexemeResults<string\|null>` | Grammatical gender per lexeme. |
 | `transitivity(q, l)` | `GroupedLexemeResults<string\|null>` | Verb transitivity per lexeme. |
@@ -1085,12 +1097,15 @@ interface GroupedLexemeResults<T> extends Array<LexemeResult<T>> {
     pos: string;
     etymology_index: number;
     value: T;
+    support_warning?: string;
   }>;
 }
 ```
 
 The internal utility `mapLexemes<T>(result, extractor)` maps an extractor
-function over every lexeme and wraps each output in this envelope. For
+function over every lexeme and wraps each output in this envelope. Extractors
+may return either **`T`** or a branded envelope from **`withExtractionSupport(value, note)`**;
+**`unwrapExtraction`** merges optional **`support_warning`** into each row. For
 row-oriented iteration APIs (`map`, `find`, `filter`), callers can use
 `asLexemeRows(grouped)` to project the grouped object into ordered rows.
 
@@ -1131,8 +1146,14 @@ available).
 
 - `stem()` uses a pure `extractStemsFromLexeme(lexeme)` function that
   iterates over `lexeme.templates_all`, filtering for paradigm template
-  names (`el-conjug-*`, `el-noun-*`, `el-adj-*`, `el-decl-*`, etc.) and
-  extracting stems from their parameters.
+  names (`el-conjug-*`, `el-verb-*`, `el-noun-*`, `el-nM-*`, `el-nF-*`,
+  `el-nN-*`, `el-adj-*`, `el-decl-*`, `grc-conj`, `grc-decl`, etc.) and
+  extracting stems from their parameters. Ancient Greek **`{{grc-conj}}`**
+  tense codes map into **`VerbStems`** slots (present, imperfect, aorist,
+  future, perfect, pluperfect, future perfect, etc.); **`{{grc-decl}}`**
+  contributes nominal stems where applicable. Greek stem tokens are validated
+  with a Unicode Greek-block regex (including polytonic and breve variants),
+  not ASCII-only Greek letters.
 - `conjugate()` finds the conjugation template in `lexeme.templates_all`,
   sends it to the MediaWiki parse API for HTML expansion, then scrapes the
   inflection table — but now scoped per-lexeme.
@@ -1162,6 +1183,24 @@ relevant language first regardless of source order.
 priority map is minimal and intentionally limited; a future roadmap item
 (Stage 23) covers configurable priority maps and secondary sort keys.
 
+#### 12.28.1 Extraction support transparency (`support_warning`)
+
+**Problem:** An empty **`value`** from a convenience wrapper is ambiguous: the
+data may be missing from the entry, or present in wikitext but not extracted.
+
+**Design:** Each **`LexemeResult<T>`** may include **`support_warning?: string`**.
+**`src/convenience/extraction-support.ts`** provides **`withExtractionSupport`** /
+**`unwrapExtraction`**, shared template checks, and **`warn*`** helpers; **`mapLexemes`**
+merges warnings into rows. **`format()`** branch **3b** prints **Support:** beside
+the formatted value across text, Markdown, HTML, terminal-HTML, and ANSI modes.
+**`stem()`** lifts **`WordStems.support_warning`** from **`extractStemsFromLexeme`**
+onto the row so JSON does not duplicate the note inside **`value`**.
+
+**Rationale:** Additive typing; one optional string preserves JSON and formatted
+parity without new top-level result envelopes.
+
+**Coverage:** **`AGENTS.md`** lists which wrappers set warnings and known gaps.
+
 ### 12.29 Cross-interface invocation parity
 
 **Problem:** The same convenience wrapper could be routed with different
@@ -1173,6 +1212,11 @@ they often pass type checks but change runtime semantics.
 `src/wrapper-invoke.ts` via `invokeWrapperMethod()` and reused by:
 - `cli/index.ts` (`invokeExtractWrapper`)
 - `webapp/src/playground-api-execute.ts` (`runPlaygroundApiExecute`), called from **`App.tsx`**
+
+The Live API Playground also exposes **`wiktionary`** as a first-class method
+(direct **`wiktionary({ query, lang, pos, … })`** with **`enrich`**, **`matchMode`**,
+and **`debugDecoders`**) so the raw fetch path stays aligned with the wrapper
+matrix without a separate code path.
 
 The helper enforces canonical signatures for special families:
 - `translate(query, sourceLang, target, props, preferredPos)`

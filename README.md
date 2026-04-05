@@ -147,7 +147,9 @@ Beyond the low-level `wiktionary` engine, the library provides high-level conven
 
 **All lexeme-scoped wrappers return `GroupedLexemeResults<T>`** — a concise object with:
 - `order: string[]` (stable lexeme id order)
-- `lexemes: Record<lexeme_id, { language, pos, etymology_index, value }>`
+- `lexemes: Record<lexeme_id, { language, pos, etymology_index, value, support_warning? }>`
+
+Optional **`support_warning`** is set when an empty or partial **`value`** likely reflects **SDK template coverage** (undecoded `{{…}}`, unsupported parameters, parse failures) rather than a proof that Wiktionary lacks the data. Helpers live in **`src/convenience/extraction-support.ts`**; **`format(results)`** appends a **Support:** line per row when present.
 
 This gives direct per-lexeme access when `lang="Auto"` / `pos="Auto"` return multiple matches.
 
@@ -160,7 +162,7 @@ const results = await synonyms("γράφω");
 
 // Optional row view for map/filter/find ergonomics:
 const rows = asLexemeRows(results);
-// rows[0] = { lexeme_id, language, pos, etymology_index, value }
+// rows[0] = { lexeme_id, language, pos, etymology_index, value, support_warning? }
 ```
 
 **Exceptions** that stay scalar: `lemma()` (form resolution), `pageMetadata()` (page-level), and `getMainLexeme()` (single-lexeme shortcut utility).
@@ -220,12 +222,11 @@ await conjugate("έγραψες", { number: "plural" });
 await decline("άνθρωπος", { case: "genitive", number: "plural" });
 // [{ value: ["ανθρώπων"], ... }]
 
-// GroupedLexemeResults<string[]> — alias stems per lexeme
+// GroupedLexemeResults<WordStems> — structured stems per lexeme; see "Grouped results" below
 await stem("έγραψα");
-// grouped.lexemes[lexemeId].value -> ["γράφ", "γράψ", ...]
+// grouped.lexemes[id].value.aliases -> ["γράφ", "γράψ", ...]; optional grouped.lexemes[id].support_warning
 
-// GroupedLexemeResults<WordStems> — full structured stems per lexeme
-await stemByLexeme("έγραψα");
+await stemByLexeme("έγραψα"); // alias of stem()
 
 await gender("μήλο");         // [{ value: "neuter", ... }]
 await transitivity("γράφω");  // [{ value: "both", ... }]

@@ -8,6 +8,12 @@ for its output schema (see `VERSIONING.md`).
 
 ## [Unreleased]
 
+### Added
+
+- **Extraction support transparency:** optional **`LexemeResult.support_warning`** on grouped convenience output, merged by **`mapLexemes`** from **`withExtractionSupport`** (`src/convenience/extraction-support.ts`). Warnings explain empty/partial extractions when templates suggest a decoder or parse gap (relations, morphology, pronunciation, etymology, translations, examples, etc.). **`format()`** prints **Support:** for grouped wrapper arrays (branch 3b) across text, Markdown, HTML, terminal-HTML, and ANSI.
+- **`stem()` / `extractStemsFromLexeme`:** Ancient Greek **`{{grc-conj}}`** / **`{{grc-decl}}`** stem extraction; expanded Greek Unicode validation (polytonic, breve); structured **`WordStems.support_warning`** when aliases are empty for coverage reasons; **`stem()`** lifts that string to the row so JSON does not duplicate it inside **`value`**. **`STEM_PARADIGM_TEMPLATE_FAMILY_SUMMARY`** exported for messages and docs.
+- **Webapp:** **`wiktionary`** as a playground API method (full fetch with **`enrich`**, **`matchMode`**, **`debugDecoders`**); shared URL/query helpers for initial load and snippets.
+
 ### Changed
 
 - **Drop `src/types.ts` shim:** in-repo code imports **`./model`** / **`../model`** (or **`@engine/model`** in the webapp); **`package.json`** Typedoc entrypoint is **`src/model/index.ts`**. Public types remain available from **`wiktionary-sdk`** via **`src/index.ts`**.
