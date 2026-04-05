@@ -26,7 +26,7 @@ Collaborators must know **where the contract lives** and **what to edit**:
 
 | What | Authoritative location | Rule |
 |------|------------------------|------|
-| **TypeScript runtime types** | `src/types.ts` | Canonical interfaces (`Lexeme`, `FetchResult`, `SCHEMA_VERSION`, …). Engine and public API must match this file. |
+| **TypeScript runtime types** | `src/model/` (`src/types.ts` re-exports `./model`) | Canonical interfaces (`Lexeme`, `FetchResult`, `SCHEMA_VERSION`, …). Edit the appropriate `src/model/*.ts` slice; keep the barrel and public exports aligned. |
 | **JSON Schema (authoring)** | `schema/src/root.yaml` and `schema/src/defs/*.yaml` | **Only** these YAML files are edited to change the normalized-output schema. |
 | **JSON Schema (published)** | `schema/normalized-entry.schema.json` | **Generated — do not hand-edit.** After any YAML change run **`npm run build:schema`**, then commit the updated JSON alongside the YAML. |
 | **Which def lives in which file** | `tools/schema-def-modules.ts` | Each `$defs` name is listed in exactly one module; add new defs there when splitting or adding files. |
@@ -43,7 +43,7 @@ Collaborators must know **where the contract lives** and **what to edit**:
 The engine is a decentralized registry of pure functions (`TemplateDecoder`). **`registerAllDecoders(reg)`** (`register-all-decoders.ts`) orchestrates family **`register*(reg)`** modules under **`src/decode/registry/`**; the package entry **`decode/registry.ts`** builds the singleton, re-exports **`registerAllDecoders`**, predicates, and **`stripWikiMarkup`**.
 - **Pattern**: If a template exists in the wild, create a decoder for it.
 - **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in the registry layer (family **`register-*.ts`** modules and `src/decode/registry/*.ts` helpers).
-- **Per-language form-of templates** (en.wiktionary): Treat `{{xx-verb form of|…}}`, `{{xx-noun form of|…}}`, `{{xx-adj form of|…}}` as first-class. The lemma is often **only** in `|1=`; the language is implied by the template name. They must participate in the same `form_of` / `guessLexemeTypeFromTemplates` path as `inflection of` so **lemma resolution** (second `wiktionary()` fetch) runs when the definition line is template-only. **`only used in`** is *not* a lemma pointer; it is decoded on sense lines as structured `only_used_in` (see `types.ts`).
+- **Per-language form-of templates** (en.wiktionary): Treat `{{xx-verb form of|…}}`, `{{xx-noun form of|…}}`, `{{xx-adj form of|…}}` as first-class. The lemma is often **only** in `|1=`; the language is implied by the template name. They must participate in the same `form_of` / `guessLexemeTypeFromTemplates` path as `inflection of` so **lemma resolution** (second `wiktionary()` fetch) runs when the definition line is template-only. **`only used in`** is *not* a lemma pointer; it is decoded on sense lines as structured `only_used_in` (see `src/model/sense.ts`).
 - **Extended “Category:Form-of templates” family**: `isFormOfTemplateName()` (re-exported from `decode/registry.ts`, defined in `form-of-predicates.ts`) recognises the core `FORM_OF_TEMPLATES` set, per-lang templates above, names ending in ` … of`, and a few extras (e.g. `rfform`, `IUPAC-*`). **`isVariantFormOfTemplateName()`** decides `FORM_OF` vs `INFLECTED_FORM` when `guessLexemeTypeFromTemplates` runs. Run `npm run report:form-of` to compare the live Wiktionary category against this logic.
 - **Registration order**: Register decoders that depend on shared constants (`GENDER_MAP`, etc.) **after** those constants are defined in the registering module (no forward reference). **`src/decode/registry/decoder-ids.ts`** (`EXPECTED_DECODER_IDS`) and **`test/registry-decoder-order.test.ts`** lock the canonical `id` sequence; update them when appending a decoder.
 - **One registration per `id`**: Do not duplicate `reg.register({ id: "…" })` blocks (e.g. merge conflicts). Order of patches changes behaviour.
@@ -53,7 +53,7 @@ The engine is a decentralized registry of pure functions (`TemplateDecoder`). **
 A custom parser handles nested `{{...}}` structures. 
 - **Context**: Standard regex is insufficient for Wikitext. Always use the provided parser to extract `TemplateCall` objects.
 
-### 3. Entry Types (`src/types.ts`; may move under `src/model/` per refactor plan)
+### 3. Entry Types (`src/model/`; `src/types.ts` re-exports the model barrel)
 - `LEXEME`: A lemma (e.g., γράφω).
 - `INFLECTED_FORM`: A specific form (e.g., έγραψε) that maps to a lemma.
 
@@ -64,7 +64,7 @@ A custom parser handles nested `{{...}}` structures.
 - **Reason**: To ensure that the Web API Playground and the terminal CLI are always on par with the underlying NPM package.
 
 ### 4b. Lexeme classification (PoS vs lexicographic section)
-- **`part_of_speech`**: strict grammatical part of speech only (`PartOfSpeech` in `src/types.ts`). Headword templates and recognized PoS headings may set it; morpheme/symbol/phraseology sections leave it `null`.
+- **`part_of_speech`**: strict grammatical part of speech only (`PartOfSpeech` in `src/model/part-of-speech.ts`). Headword templates and recognized PoS headings may set it; morpheme/symbol/phraseology sections leave it `null`.
 - **`lexicographic_section` / `lexicographic_family`**: always set from the section heading via `src/parse/lexicographic-headings.ts` (expanded taxonomy, comparable to [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) headings).
 - **`Lexeme.type`** (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`): still determined only by **form-of templates** in wikitext, not by whether the heading says “Abbreviation” or “Noun”.
 
@@ -75,7 +75,7 @@ A custom parser handles nested `{{...}}` structures.
 
 ### 6. Schema Synchronization (High-Fidelity Parity)
 - **Reminder:** The **source-of-truth table** for types vs YAML vs generated JSON is in **§ Source of truth: domain data model** above; read it first.
-- **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
+- **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/model/` MUST be reflected in:
     - **JSON Schema (author-time YAML):** Edit `schema/src/root.yaml` and/or `schema/src/defs/*.yaml` (see `tools/schema-def-modules.ts`), then run **`npm run build:schema`** and commit the generated **`schema/normalized-entry.schema.json`** (do not hand-edit the JSON). See `schema/README.md`.
     - `docs/schemata/*.yaml`: Update the reference YAML models (e.g., `DictionaryEntry.yaml`) to ensure documentation parity.
 - **Sense-only or presentation fields**: If you add structured sense data (e.g. decoded definition templates), also update **Handlebars + CSS** and regenerate **`src/present/templates/templates.ts`** so HTML output stays in sync with the package API.
@@ -112,7 +112,7 @@ When modifying templates, ensure you maintain the "Gold Standard" typographic de
 ## 🛠️ How to Add Support for a New Template
 
 1.  **Identify**: Find the template on Wiktionary (e.g., `{{el-noun-m-ος-2}}`).
-2.  **Define**: Update `types.ts` if a new PoS-specific interface is needed.
+2.  **Define**: Update the relevant `src/model/*.ts` file if a new PoS-specific interface is needed.
 3.  **Implement**: Add a new `reg.register({ … })` block in the appropriate **`src/decode/registry/register-*.ts`** family module (preserve order; extend **`decoder-ids.ts`** and `registry-decoder-order.test.ts`).
 4.  **Form-of family**: If the template is a language-prefixed inflection line (`xx-verb form of`, etc.), wire it into `FORM_OF_TEMPLATES` / `isPerLangFormOfTemplate` (or equivalent) and ensure `guessLexemeTypeFromTemplates` returns `INFLECTED_FORM` when appropriate so nested lemma UX works.
 5.  **Verify**: Run the verification script: `npx tsx tools/verify_templates.ts`.
