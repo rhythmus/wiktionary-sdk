@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json",
   "title": "Wiktionary SDK Normalized Output",
-  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Lexeme types). v3.0.0.",
+  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Lexeme types). v3.1.0.",
   "type": "object",
   "$defs": {
     "schemaVersion": {
@@ -19,6 +19,41 @@
       "type": "string",
       "enum": ["LEXEME", "INFLECTED_FORM", "FORM_OF"],
       "description": "Discriminator for the kind of lexeme."
+    },
+    "LexicographicFamily": {
+      "type": "string",
+      "description": "Taxonomic bucket for the lexeme-class section (see `src/lexicographic-headings.ts`).",
+      "enum": [
+        "pos",
+        "morpheme",
+        "symbol",
+        "character",
+        "phraseology",
+        "numeral_kind",
+        "other",
+        "disallowed_attested"
+      ]
+    },
+    "PartOfSpeech": {
+      "type": "string",
+      "description": "Strict grammatical part of speech only (from heading or headword templates). Non-PoS sections use `lexicographic_section` instead. Canonical list: `PART_OF_SPEECH_VALUES` in `src/types.ts`.",
+      "enum": [
+        "adjective",
+        "adverb",
+        "article",
+        "conjunction",
+        "contraction",
+        "determiner",
+        "interjection",
+        "noun",
+        "numeral",
+        "particle",
+        "participle",
+        "preposition",
+        "pronoun",
+        "proper_noun",
+        "verb"
+      ]
     },
     "Pronunciation": {
       "type": "object",
@@ -473,7 +508,9 @@
       "type": "object",
       "required": [
         "id", "language", "query", "type", "form",
-        "etymology_index", "part_of_speech_heading", "templates", "source"
+        "etymology_index", "part_of_speech_heading",
+        "lexicographic_section", "lexicographic_family",
+        "templates", "source"
       ],
       "properties": {
         "id": { "type": "string" },
@@ -483,7 +520,15 @@
         "form": { "type": "string" },
         "etymology_index": { "type": "integer", "minimum": 0 },
         "part_of_speech_heading": { "type": "string" },
-        "part_of_speech": { "type": ["string", "null"] },
+        "lexicographic_section": {
+          "type": "string",
+          "description": "Stable slug for the section kind (verb, suffix, han_character, …)."
+        },
+        "lexicographic_family": { "$ref": "#/$defs/LexicographicFamily" },
+        "part_of_speech": {
+          "description": "Strict grammatical PoS when applicable; null for morphemes, symbols, phraseology, etc.",
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/PartOfSpeech" }]
+        },
         "pronunciation": { "$ref": "#/$defs/Pronunciation" },
         "hyphenation": { "$ref": "#/$defs/Hyphenation" },
         "form_of": { "$ref": "#/$defs/FormOf" },

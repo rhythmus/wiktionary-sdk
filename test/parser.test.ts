@@ -276,8 +276,29 @@ describe("mapHeadingToPos", () => {
     expect(mapHeadingToPos("Proper noun")).toBe("proper_noun");
   });
 
-  it("returns null for unknown headings", () => {
+  it("returns null for unknown headings and for non-strict lexeme sections", () => {
     expect(mapHeadingToPos("Random Heading")).toBeNull();
+    expect(mapHeadingToPos("Suffix")).toBeNull();
+  });
+});
+
+describe("splitEtymologiesAndPOS lexeme-class headings", () => {
+  it("opens a pos block for Suffix (morpheme family)", () => {
+    const block = [
+      "==English==",
+      "===Etymology===",
+      "text",
+      "===Suffix===",
+      "-foo",
+      "===Noun===",
+      "{{en-noun}}",
+    ].join("\n");
+    const etyms = splitEtymologiesAndPOS(block);
+    const headings = etyms.flatMap((e: { posBlocks: { posHeading: string }[] }) =>
+      e.posBlocks.map((p) => p.posHeading),
+    );
+    expect(headings).toContain("Suffix");
+    expect(headings).toContain("Noun");
   });
 });
 

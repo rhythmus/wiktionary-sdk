@@ -24,6 +24,8 @@ function validBaseResult() {
         form: "dog",
         etymology_index: 1,
         part_of_speech_heading: "Noun",
+        lexicographic_section: "noun",
+        lexicographic_family: "pos",
         templates: {
           "en-noun": [{ params: { positional: [], named: {} }, raw: "{{en-noun}}" }],
         },
@@ -92,6 +94,20 @@ describe("negative schema hardening", () => {
           x.lexemes[0].source.wiktionary.extra = "nope";
         },
         expectKeyword: "additionalProperties",
+      },
+      {
+        name: "invalid part_of_speech enum rejected",
+        mutate: (x) => {
+          x.lexemes[0].part_of_speech = "not-a-pos";
+        },
+        expectKeyword: "enum",
+      },
+      {
+        name: "invalid lexicographic_family enum rejected",
+        mutate: (x) => {
+          x.lexemes[0].lexicographic_family = "not-a-family";
+        },
+        expectKeyword: "enum",
       },
     ];
 

@@ -2,8 +2,54 @@
  * The canonical version of the normalized output schema.
  * Follows Semantic Versioning (SemVer) principles.
  */
-export const SCHEMA_VERSION = "3.0.0";
+export const SCHEMA_VERSION = "3.1.0";
 
+/**
+ * High-level bucket for a lexeme-class section (see `src/lexicographic-headings.ts`).
+ * Mirrored in `schema/normalized-entry.schema.json` `$defs.LexicographicFamily`.
+ */
+export type LexicographicFamily =
+  | "pos"
+  | "morpheme"
+  | "symbol"
+  | "character"
+  | "phraseology"
+  | "numeral_kind"
+  | "other"
+  | "disallowed_attested";
+
+/**
+ * Narrow grammatical part of speech only (`Lexeme.part_of_speech`).
+ * Section headings for morphemes, symbols, phraseology, etc. use `lexicographic_section` instead.
+ * Canonical list mirrored in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`
+ * (see `test/schema-pos-parity.test.ts`).
+ */
+export const PART_OF_SPEECH_VALUES = [
+  "adjective",
+  "adverb",
+  "article",
+  "conjunction",
+  "contraction",
+  "determiner",
+  "interjection",
+  "noun",
+  "numeral",
+  "particle",
+  "participle",
+  "preposition",
+  "pronoun",
+  "proper_noun",
+  "verb",
+] as const;
+
+/** Strict grammatical PoS slug; optional on `Lexeme` when the section is non-PoS. */
+export type PartOfSpeech = (typeof PART_OF_SPEECH_VALUES)[number];
+
+const PART_OF_SPEECH_SET = new Set<string>(PART_OF_SPEECH_VALUES);
+
+export function isPartOfSpeech(s: string): s is PartOfSpeech {
+  return PART_OF_SPEECH_SET.has(s);
+}
 
 /** BCP-47-style language code. Common values: `el`, `grc`, `en`, `nl`, `de`, `fr`. */
 export type WikiLang = "el" | "grc" | "en" | "nl" | "de" | "fr" | string;
@@ -181,7 +227,12 @@ export interface Lexeme {
   form: string;
   etymology_index: number;
   part_of_speech_heading: string;
-  part_of_speech?: string | null;
+  /** Stable slug for the section kind (PoS, morpheme, symbol, …). */
+  lexicographic_section: string;
+  /** Taxonomic bucket for `lexicographic_section`. */
+  lexicographic_family: LexicographicFamily;
+  /** Set only for strict grammatical PoS (from heading or headword templates). */
+  part_of_speech?: PartOfSpeech | null;
   pronunciation?: Pronunciation;
   hyphenation?: Hyphenation;
   form_of?: {

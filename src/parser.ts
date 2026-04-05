@@ -1,4 +1,5 @@
-import type { TemplateCall, WikiLang } from "./types";
+import type { PartOfSpeech, TemplateCall, WikiLang } from "./types";
+import { isLexemeSectionHeading, mapHeadingToStrictPartOfSpeech } from "./lexicographic-headings";
 
 /** -------------------- Wikitext Sectioning -------------------- **/
 
@@ -63,8 +64,7 @@ export function splitEtymologiesAndPOS(langBlock: string) {
             }
 
             if (level >= 3 && level <= 5) {
-                const mappedPos = mapHeadingToPos(heading);
-                if (mappedPos !== null) {
+                if (isLexemeSectionHeading(heading)) {
                     flushPOS();
                     if (pendingNonPosLines.length > 0) {
                         currentPOS = { posHeading: heading, lines: [...pendingNonPosLines] };
@@ -236,38 +236,9 @@ export function parseTemplateInner(inner: string) {
     return { name, params: { positional, named } };
 }
 
-export function mapHeadingToPos(heading: string) {
-    const h = (heading || "").toLowerCase();
-    const map: Record<string, string> = {
-        verb: "verb",
-        noun: "noun",
-        adjective: "adjective",
-        pronoun: "pronoun",
-        numeral: "numeral",
-        adverb: "adverb",
-        article: "article",
-        participle: "participle",
-        preposition: "preposition",
-        conjunction: "conjunction",
-        interjection: "interjection",
-        particle: "particle",
-        "proper noun": "proper_noun",
-        symbol: "symbol",
-        abbreviation: "abbreviation",
-        initialism: "initialism",
-        acronym: "acronym",
-        letter: "letter",
-        determiner: "determiner",
-        contraction: "contraction",
-        idiom: "idiom",
-        proverb: "proverb",
-        phrasebook: "phrasebook",
-        suffix: "suffix",
-        prefix: "prefix",
-        interfix: "interfix",
-        phrase: "phrase",
-    };
-    return map[h] || null;
+/** Strict grammatical PoS only; see {@link mapHeadingToLexicographic} for full taxonomy. */
+export function mapHeadingToPos(heading: string): PartOfSpeech | null {
+    return mapHeadingToStrictPartOfSpeech(heading);
 }
 
 export function langToLanguageName(lang: WikiLang): string | null {

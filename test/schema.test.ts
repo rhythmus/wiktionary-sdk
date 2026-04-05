@@ -21,6 +21,8 @@ function makeLexemeEntry(overrides?: Partial<Lexeme>): Lexeme {
     form: "γράφω",
     etymology_index: 1,
     part_of_speech_heading: "Verb",
+    lexicographic_section: "verb",
+    lexicographic_family: "pos",
     part_of_speech: "verb",
     templates: {
       "el-verb": [{
