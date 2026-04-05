@@ -148,7 +148,7 @@ We do **not** parse-expand **every** form-of template on the wiki (would spam th
 
 So **all** language codes (2–3 letters) for **verb / noun / adjective** per-lang form-of names on en.wiktionary.
 
-**Further gate:** enrichment runs only when, **before** parse, we would show **no** morph lines from `##` subsenses, **no** abbrev-only inline phrase, and **no** tag-derived lines (`lexemeNeedsFormOfParseEnrichment` in `form-of-parse-enrich.ts`).
+**Further gate:** enrichment runs only when, **before** parse, we would show **no** morph lines from `##` subsenses, **no** abbrev-only inline phrase, and **no** tag-derived lines (`lexemeNeedsFormOfParseEnrichment` in `pipeline/form-of-parse-enrich.ts`).
 
 ---
 
@@ -182,7 +182,7 @@ Lemma vs PoS spacing uses CSS adjacent-sibling rules because Handlebars `~` ofte
 
 | Piece | Role |
 |--------|------|
-| `src/form-of-parse-enrich.ts` | Gate, `action=parse`, `ol ol > li` extraction, merge into `form_of.display_morph_lines` |
+| `src/pipeline/form-of-parse-enrich.ts` | Gate, `action=parse`, `ol ol > li` extraction, merge into `form_of.display_morph_lines` |
 | `src/index.ts` | Runs batch enrichment when `enrich` is true, after lexemes built, before lemma resolution |
 | `src/formatter.ts` | `inflectionMorphDisplayLines`, bullets vs inline, abbrev phrase, `expandDualPersonInflectionLine` |
 | `src/decode/registry.ts` | `form_of` decoder, `isPerLangFormOfTemplate`, `##` subsenses |

@@ -27,9 +27,9 @@ Then call the **real** `wiktionary()` so the parser and registry run on real wik
 
 ### Stubbing `wiktionary` in library/morphology/stem tests
 
-**`library.ts`**, **`morphology.ts`**, and **`stem.ts`** import **`wiktionary`** from **`wiktionary-core.ts`**. To replace it with `vi.fn()`, use:
+**`library.ts`**, **`morphology.ts`**, and **`stem.ts`** import **`wiktionary`** from **`pipeline/wiktionary-core.ts`**. To replace it with `vi.fn()`, use:
 
-`vi.mock("../src/wiktionary-core", async (importOriginal) => ({ ...(await importOriginal()), wiktionary: vi.fn() }))`
+`vi.mock("../src/pipeline/wiktionary-core", async (importOriginal) => ({ ...(await importOriginal()), wiktionary: vi.fn() }))`
 
 Tests that import **`wiktionary`** from **`index.ts`** can still **`vi.mock("../src/index", …)`** when they only use the barrel export (e.g. **`enrichment.test.ts`**). Prefer mocking **`api`** for orchestration tests that should run the **real** engine on fixtures.
 

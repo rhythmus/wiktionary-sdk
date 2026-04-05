@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { lemma } from '../src/index';
-import * as wc from '../src/wiktionary-core';
+import * as wc from '../src/pipeline/wiktionary-core';
 import * as api from '../src/ingress/api';
 
 const FIXTURES_DIR = resolve(__dirname, 'fixtures');
 
-vi.mock("../src/wiktionary-core", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
+vi.mock("../src/pipeline/wiktionary-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/pipeline/wiktionary-core")>();
   return {
     ...actual,
     wiktionary: vi.fn(),

@@ -85,7 +85,7 @@ A custom parser handles nested `{{...}}` structures.
 
 ## ⚖️ Rigid Constraints & "No Heuristics" Policy
 
-1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `src/ingress/api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/morphology.ts`, and per-lang form-of nested inflection lines in `src/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals).
+1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `src/ingress/api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/morphology.ts`, and per-lang form-of nested inflection lines in `src/pipeline/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals).
 2.  **No linguistic "Guessing"**: If a stem or gender is missing from a headword template, do not attempt to calculate it. Leave the field undefined.
 3.  **Traceability**: Every field added to a `NormalizedEntry` must be traceable to a source line or template parameter.
 4.  **Verbatim Storage**: All template calls must be stored verbatim in `entry.templates` for forensic verification.

@@ -25,11 +25,11 @@ import {
     partOfSpeech,
     usageNotes
 } from "../src/library";
-import * as coreModule from "../src/wiktionary-core";
+import * as coreModule from "../src/pipeline/wiktionary-core";
 import * as apiModule from "../src/ingress/api";
 
-vi.mock("../src/wiktionary-core", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
+vi.mock("../src/pipeline/wiktionary-core", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/pipeline/wiktionary-core")>();
     return {
         ...actual,
         wiktionary: vi.fn(),

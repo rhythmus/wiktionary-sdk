@@ -1,13 +1,13 @@
 import { parse } from "node-html-parser";
-import { mwFetchJson } from "./ingress/api";
-import { isPerLangFormOfTemplate } from "./decode/registry";
-import type { Lexeme } from "./types";
+import { mwFetchJson } from "../ingress/api";
+import { isPerLangFormOfTemplate } from "../decode/registry";
+import type { Lexeme } from "../types";
 import {
     expandDualPersonInflectionLine,
     formOfMorphLinesAreAbbrevTokensOnly,
     inflectionMorphDisplayLines,
-} from "./form-of-display";
-import { parallelMap } from "./utils";
+} from "../form-of-display";
+import { parallelMap } from "../utils";
 
 /**
  * Per-language form-of templates (`{{xx-verb form of}}`, `{{xx-noun form of}}`, `{{xx-adj form of}}`

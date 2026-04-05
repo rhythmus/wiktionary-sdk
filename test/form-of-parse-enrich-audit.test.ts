@@ -6,7 +6,7 @@ import {
   enrichLexemeFormOfMorphLinesFromParse,
   lexemeNeedsFormOfParseEnrichment,
   extractFormOfMorphLinesFromParsedHtml,
-} from "../src/form-of-parse-enrich";
+} from "../src/pipeline/form-of-parse-enrich";
 import * as api from "../src/ingress/api";
 import type { Lexeme } from "../src/types";
 

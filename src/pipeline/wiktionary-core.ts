@@ -8,15 +8,15 @@ import type {
     Lexeme,
     DecodeContext,
     DecoderDebugEvent,
-} from "./types";
-import { SCHEMA_VERSION } from "./types";
+} from "../types";
+import { SCHEMA_VERSION } from "../types";
 
 import {
     fetchWikitextEnWiktionary,
     fetchWikidataEntity,
     fetchWikidataEntityByWiktionaryTitle,
     fetchWikidataEntityByWikipediaTitle,
-} from "./ingress/api";
+} from "../ingress/api";
 import {
     extractLanguageSection,
     extractAllLanguageSections,
@@ -24,21 +24,21 @@ import {
     parseTemplates,
     langToLanguageName,
     languageNameToLang,
-} from "./parse/parser";
+} from "../parse/parser";
 import {
     fallbackLexicographicFromHeading,
     lexemeMatchesPosQuery,
     lexemePosSortKey,
     mapHeadingToLexicographic,
-} from "./parse/lexicographic-headings";
+} from "../parse/lexicographic-headings";
 import {
     registry,
     isFormOfTemplateName,
     isVariantFormOfTemplateName,
-} from "./decode/registry";
-import { deepMerge, commonsThumbUrl, parallelMap } from "./utils";
+} from "../decode/registry";
+import { deepMerge, commonsThumbUrl, parallelMap } from "../utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
-import { LANG_PRIORITY } from "./constants";
+import { LANG_PRIORITY } from "../constants";
 
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
     if (!site || !title || !site.endsWith("wiki")) return undefined;

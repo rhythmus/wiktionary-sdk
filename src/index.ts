@@ -1,4 +1,4 @@
-export { wiktionary, wiktionaryRecursive, stripCombiningMarksForPageTitle } from "./wiktionary-core";
+export { wiktionary, wiktionaryRecursive, stripCombiningMarksForPageTitle } from "./pipeline/wiktionary-core";
 
 export {
     LANG_PRIORITY,

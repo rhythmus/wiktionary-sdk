@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   extractFormOfMorphLinesFromParsedHtml,
   formOfTemplateUsesMwParseInflectionTree,
-} from "../src/form-of-parse-enrich";
+} from "../src/pipeline/form-of-parse-enrich";
 
 describe("form-of-parse-enrich", () => {
   it("extracts nested ol li gloss lines from MW parser HTML", () => {

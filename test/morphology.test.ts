@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { conjugate, decline } from "../src/morphology";
-import * as coreModule from "../src/wiktionary-core";
+import * as coreModule from "../src/pipeline/wiktionary-core";
 import * as apiModule from "../src/ingress/api";
 import { asLexemeRows } from "../src/library";
 
-vi.mock("../src/wiktionary-core", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../src/wiktionary-core")>();
+vi.mock("../src/pipeline/wiktionary-core", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../src/pipeline/wiktionary-core")>();
     return {
         ...actual,
         wiktionary: vi.fn(),
