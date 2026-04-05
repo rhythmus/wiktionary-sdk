@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { parallelMap } from "../src/utils";
+import { parallelMap } from "../src/infra/utils";
 
 describe("parallelMap", () => {
   it("runs all items when concurrency is Infinity", async () => {

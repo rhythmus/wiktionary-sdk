@@ -1,4 +1,4 @@
-import { commonsThumbUrl } from "../utils";
+import { commonsThumbUrl } from "../infra/utils";
 import { wiktionary } from "../pipeline/wiktionary-core";
 import type { EtymologyStep, Lexeme, WikiLang } from "../types";
 import { lemma } from "./lemma-translate";

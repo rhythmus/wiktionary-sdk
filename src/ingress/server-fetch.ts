@@ -2,7 +2,7 @@
  * Pure HTTP response builder for GET /api/fetch — shared by `server.ts` and tests.
  */
 import { wiktionary as defaultWiktionary } from "../pipeline/wiktionary-core";
-import { SERVER_DEFAULT_WIKI_LANG } from "../constants";
+import { SERVER_DEFAULT_WIKI_LANG } from "../infra/constants";
 import type { WikiLang } from "../types";
 
 export type WiktionaryFetchFn = typeof defaultWiktionary;

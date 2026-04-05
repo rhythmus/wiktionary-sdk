@@ -7,7 +7,7 @@ import {
     formOfMorphLinesAreAbbrevTokensOnly,
     inflectionMorphDisplayLines,
 } from "../form-of-display";
-import { parallelMap } from "../utils";
+import { parallelMap } from "../infra/utils";
 
 /**
  * Per-language form-of templates (`{{xx-verb form of}}`, `{{xx-noun form of}}`, `{{xx-adj form of}}`

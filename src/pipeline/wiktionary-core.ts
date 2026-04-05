@@ -36,9 +36,9 @@ import {
     isFormOfTemplateName,
     isVariantFormOfTemplateName,
 } from "../decode/registry";
-import { deepMerge, commonsThumbUrl, parallelMap } from "../utils";
+import { deepMerge, commonsThumbUrl, parallelMap } from "../infra/utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
-import { LANG_PRIORITY } from "../constants";
+import { LANG_PRIORITY } from "../infra/constants";
 
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
     if (!site || !title || !site.endsWith("wiki")) return undefined;

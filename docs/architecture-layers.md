@@ -37,7 +37,7 @@ flowchart TB
     F[formatter + templates]
   end
   subgraph convenience [convenience]
-    L[library + morphology + stem]
+    L[wrappers + morphology + stem]
   end
   subgraph infra [infra]
     U[utils + constants]
@@ -58,4 +58,4 @@ flowchart TB
   L -.->|no import| F
 ```
 
-**Note:** `morphology` ↔ `library` cycles are resolved in Phase 8 of the refactor plan (shared helper or inversion).
+**Note:** The former `morphology` ↔ `library` cycle is broken: `morphology` uses in-module helpers (`lemma`, `mapLexemes`) instead of importing the old monolithic library.

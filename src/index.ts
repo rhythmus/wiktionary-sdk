@@ -5,7 +5,7 @@ export {
     SERVER_DEFAULT_WIKI_LANG,
     DEFAULT_CACHE_TTL_MS,
     DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS,
-} from "./constants";
+} from "./infra/constants";
 export * from "./convenience";
 export * from "./present/formatter";
 export * from "./present/lexeme-display-groups";
