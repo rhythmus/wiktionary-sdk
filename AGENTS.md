@@ -1,6 +1,6 @@
 # AI Agent Onboarding & Technical Constraints
 
-This document provides specialized context for AI coding assistants working on the `wiktionary-fetch` project.
+This document provides specialized context for AI coding assistants working on the `wiktionary-sdk` project.
 
 ---
 

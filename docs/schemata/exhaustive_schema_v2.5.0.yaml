@@ -43,10 +43,11 @@ headword_morphology:
     present_passive: "γράφομαι"
     perfect_passive: "γεγραμμένος"
     aorist_passive: "γράφτηκα"
+    # Declension stem from el-nN-/el-nM-/el-F- templates lives under principal_parts.stem (not a top-level headword_morphology field):
+    # stem: "γραφ-"
 
   # For nouns/adjectives (from {{el-noun}}, {{el-adj}})
   gender: null                  # "masculine" | "feminine" | "neuter"
-  stem: "γραφ-"                 # Logical stem for paradigm generation
 
 # ── Hyphenation ───────────────────────────────────────────────────────────
 hyphenation:

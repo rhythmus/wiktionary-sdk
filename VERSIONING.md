@@ -6,7 +6,7 @@ The runtime string **`schema_version`** on each `FetchResult` is defined as **`S
 
 ## Current Version
 
-**`3.0.0`** — formalized in [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json), aligned with `Lexeme` / `FetchResult` in `src/types.ts`.
+**`3.3.0`** — formalized in [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json), aligned with `Lexeme` / `FetchResult` in `src/types.ts`.
 
 ## Version Semantics
 
@@ -23,6 +23,11 @@ The runtime string **`schema_version`** on each `FetchResult` is defined as **`S
 - Optional fields (`pronunciation`, `hyphenation`, `form_of`, `translations`, `wikidata`, `senses`, `semantic_relations`, `etymology`, `usage_notes`, …) appear **only** when the source wikitext (or API enrichment) supplies the corresponding data.
 
 ## Changelog
+
+### 3.3.0 (schema documentation + required `schema_version`)
+
+- **`schema_version`** is **required** on `FetchResult` in JSON Schema (it was always emitted at runtime).
+- New `$defs`: `LexicographicSectionSlug`, `WiktionaryLanglink`, `PageMetadataInfo`, `MatchedTemplateRef`, `DecoderDebugEvent`, morphology criteria (`ConjugateCriteria`, `DeclineCriteria`, `GrammarTraits`), `LexemeResult`, `GroupedLexemeMapValue`; `EtymologyData.links` (deprecated alias of `chain`); `AlternativeForm.type` / `labels`; corrected **`RichEntry`** (`etymology`, `headword_morphology`, `images`, `translations` items); tighter `debug`, `metadata`, and `TranslationItem.params`.
 
 ### 3.0.0 (Lexeme model)
 

@@ -2,13 +2,13 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json",
   "title": "Wiktionary SDK Normalized Output",
-  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Lexeme types). v3.2.0.",
+  "description": "JSON Schema for the wiktionary-sdk engine output (FetchResult and Lexeme types). v3.3.0.",
   "type": "object",
   "$defs": {
     "schemaVersion": {
       "type": "string",
       "description": "Semantic version of this output schema. Bump MAJOR for breaking shape changes, MINOR for additive fields, PATCH for documentation-only corrections.",
-      "examples": ["3.0.0", "2.0.0"]
+      "examples": ["3.3.0", "3.2.0", "3.0.0"]
     },
     "WikiLang": {
       "type": "string",
@@ -33,6 +33,192 @@
         "other",
         "disallowed_attested"
       ]
+    },
+    "LexicographicSectionSlug": {
+      "type": "string",
+      "description": "Known `section_slug` values from `src/lexicographic-headings.ts`. `Lexeme.lexicographic_section` may also be any other string when `fallbackLexicographicFromHeading` derives a slug from an unregistered heading.",
+      "enum": [
+        "abbreviation",
+        "acronym",
+        "adjective",
+        "adposition",
+        "adverb",
+        "affix",
+        "ambiposition",
+        "article",
+        "cardinal_numeral",
+        "cardinal_number",
+        "character",
+        "circumfix",
+        "circumposition",
+        "classifier",
+        "clitic",
+        "combining_form",
+        "conjunction",
+        "contraction",
+        "counter",
+        "determinative",
+        "determiner",
+        "diacritical_mark",
+        "gerund",
+        "han_character",
+        "hanja",
+        "hanzi",
+        "idiom",
+        "ideophone",
+        "infix",
+        "initialism",
+        "interfix",
+        "interjection",
+        "kanji",
+        "letter",
+        "ligature",
+        "logogram",
+        "noun",
+        "numeral",
+        "number",
+        "ordinal_numeral",
+        "ordinal_number",
+        "particle",
+        "participle",
+        "phrase",
+        "phrasebook",
+        "postposition",
+        "preposition",
+        "prepositional_phrase",
+        "prefix",
+        "pronoun",
+        "proper_noun",
+        "proverb",
+        "punctuation_mark",
+        "root",
+        "romanization",
+        "suffix",
+        "syllable",
+        "symbol",
+        "verb"
+      ]
+    },
+    "WiktionaryLanglink": {
+      "type": "object",
+      "required": ["lang", "title"],
+      "properties": {
+        "lang": { "type": "string" },
+        "title": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "PageMetadataInfo": {
+      "type": "object",
+      "description": "Subset of MediaWiki `prop=info` fields mirrored on `Lexeme.metadata` and `FetchResult.metadata.info`.",
+      "properties": {
+        "last_modified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 when provided by the API; some MediaWiki configurations use slightly non-RFC3339 forms."
+        },
+        "length": { "type": "integer" },
+        "pageid": { "type": ["integer", "null"] },
+        "lastrevid": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "MatchedTemplateRef": {
+      "type": "object",
+      "required": ["raw", "name"],
+      "properties": {
+        "raw": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "DecoderDebugEvent": {
+      "type": "object",
+      "required": ["decoderId", "matchedTemplates", "fieldsProduced"],
+      "properties": {
+        "decoderId": { "type": "string" },
+        "matchedTemplates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MatchedTemplateRef" }
+        },
+        "fieldsProduced": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "ConjugateCriteria": {
+      "type": "object",
+      "description": "Optional verb conjugation filters (`src/morphology.ts`).",
+      "properties": {
+        "person": { "type": "string", "enum": ["1", "2", "3"] },
+        "number": { "type": "string", "enum": ["singular", "plural"] },
+        "voice": { "type": "string", "enum": ["active", "passive"] },
+        "mood": { "type": "string", "enum": ["indicative", "subjunctive", "imperative"] },
+        "tense": {
+          "type": "string",
+          "enum": ["present", "past", "future", "perfect", "pluperfect", "future perfect"]
+        },
+        "aspect": { "type": "string", "enum": ["imperfective", "perfective"] }
+      },
+      "additionalProperties": false
+    },
+    "DeclineCriteria": {
+      "type": "object",
+      "description": "Optional nominal declension filters (`src/morphology.ts`).",
+      "properties": {
+        "case": {
+          "type": "string",
+          "enum": ["nominative", "genitive", "accusative", "vocative"]
+        },
+        "number": { "type": "string", "enum": ["singular", "plural"] },
+        "gender": { "type": "string", "enum": ["masculine", "feminine", "neuter"] }
+      },
+      "additionalProperties": false
+    },
+    "GrammarTraits": {
+      "type": "object",
+      "description": "Merged conjugation + declension criteria (`GrammarTraits` in `src/morphology.ts`).",
+      "properties": {
+        "person": { "type": "string", "enum": ["1", "2", "3"] },
+        "number": { "type": "string", "enum": ["singular", "plural"] },
+        "voice": { "type": "string", "enum": ["active", "passive"] },
+        "mood": { "type": "string", "enum": ["indicative", "subjunctive", "imperative"] },
+        "tense": {
+          "type": "string",
+          "enum": ["present", "past", "future", "perfect", "pluperfect", "future perfect"]
+        },
+        "aspect": { "type": "string", "enum": ["imperfective", "perfective"] },
+        "case": {
+          "type": "string",
+          "enum": ["nominative", "genitive", "accusative", "vocative"]
+        },
+        "gender": { "type": "string", "enum": ["masculine", "feminine", "neuter"] }
+      },
+      "additionalProperties": false
+    },
+    "LexemeResult": {
+      "type": "object",
+      "description": "Tagged per-lexeme row from `mapLexemes` and other `library.ts` helpers.",
+      "required": ["lexeme_id", "language", "pos", "value"],
+      "properties": {
+        "lexeme_id": { "type": "string" },
+        "language": { "type": "string" },
+        "pos": { "type": "string" },
+        "etymology_index": { "type": "integer", "minimum": 0 },
+        "value": {}
+      },
+      "additionalProperties": false
+    },
+    "GroupedLexemeMapValue": {
+      "type": "object",
+      "description": "Value shape stored under `GroupedLexemeResults.lexemes[lexeme_id]` (`library.ts`).",
+      "required": ["language", "pos", "etymology_index", "value"],
+      "properties": {
+        "language": { "type": "string" },
+        "pos": { "type": "string" },
+        "etymology_index": { "type": "integer", "minimum": 0 },
+        "value": {}
+      },
+      "additionalProperties": false
     },
     "PartOfSpeech": {
       "type": "string",
@@ -225,7 +411,8 @@
         "last_modified": {
           "type": "string",
           "format": "date-time",
-          "description": "ISO 8601 timestamp of the last page edit."
+          "description": "ISO 8601 timestamp of the last page edit from the MediaWiki API when available; some sites return timestamps that are not strict RFC 3339.",
+          "examples": ["2026-03-28T17:18:53Z"]
         },
         "pageid": {
           "type": ["integer", "null"],
@@ -339,7 +526,11 @@
         "template": { "type": "string" },
         "lemma": { "type": ["string", "null"] },
         "lang": { "type": "string" },
-        "tags": { "type": "array", "items": { "type": "string" } },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Abbreviated inflection / variant tags from form-of templates (e.g. person, number, tense); see `parseMorphologyTags` in `src/morphology.ts` for common tag vocabulary."
+        },
         "subclass": {
           "type": "string",
           "description": "The specific subclass of form-of (e.g. 'misspelling', 'abbreviation', 'plural')."
@@ -373,7 +564,13 @@
         "sense": { "type": ["string", "null"] },
         "template": { "type": "string" },
         "raw": { "type": "string" },
-        "params": {}
+        "params": {
+          "description": "Template parameters verbatim; usually `TemplateParams`, occasionally a generic object from edge-case decoders.",
+          "oneOf": [
+            { "$ref": "#/$defs/TemplateParams" },
+            { "type": "object", "additionalProperties": true }
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -393,7 +590,7 @@
         },
         "principal_parts": {
           "type": "object",
-          "description": "For verbs: key paradigm forms keyed by slot name (simple_past, future_active, present_passive, …).",
+          "description": "Paradigm slots from headword / inflection-stem decoders (e.g. `present`, `aorist_active`, `simple_past`, `stem` from Greek `el-noun-stems` / `el-verb-stems`). Keys are template-driven, not a closed set.",
           "additionalProperties": { "type": "string" }
         },
         "aspect": {
@@ -415,7 +612,16 @@
       "properties": {
         "term": { "type": "string" },
         "qualifier": { "type": "string", "description": "Optional label, e.g. 'colloquial', 'archaic'." },
-        "raw": { "type": "string", "description": "Verbatim wikitext line." }
+        "raw": { "type": "string", "description": "Verbatim wikitext line." },
+        "type": {
+          "type": "string",
+          "description": "Variant kind when decoded, e.g. 'polytonic', 'archaic'."
+        },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Register/style labels for the variant, e.g. ['rare', 'poetic']."
+        }
       },
       "additionalProperties": false
     },
@@ -550,6 +756,11 @@
           "items": { "$ref": "#/$defs/EtymologyLink" },
           "description": "Ordered ancestry chain: inherited (inh), derived (der), borrowed (bor) links."
         },
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EtymologyLink" },
+          "description": "Deprecated alias for `chain`. Prefer `chain` for new data."
+        },
         "cognates": {
           "type": "array",
           "items": { "$ref": "#/$defs/EtymologyLink" },
@@ -604,9 +815,10 @@
         "type": { "$ref": "#/$defs/LexemeType" },
         "form_of": { "$ref": "#/$defs/FormOf" },
         "morphology": { "type": "object", "additionalProperties": true },
+        "headword_morphology": { "$ref": "#/$defs/HeadwordMorphology" },
         "pronunciation": { "$ref": "#/$defs/Pronunciation" },
         "hyphenation": { "$ref": "#/$defs/Hyphenation" },
-        "etymology": { "type": "array", "items": { "type": "object" } },
+        "etymology": { "$ref": "#/$defs/EtymologyData" },
         "senses": { "type": "array", "items": { "$ref": "#/$defs/Sense" } },
         "relations": { "$ref": "#/$defs/SemanticRelations" },
         "derived_terms": { "$ref": "#/$defs/SectionWithLinks" },
@@ -615,8 +827,16 @@
         "usage_notes": { "type": "array", "items": { "type": "string" } },
         "references": { "type": "array", "items": { "type": "string" } },
         "inflection_table": { "$ref": "#/$defs/InflectionTable" },
-        "translations": { "type": "object", "additionalProperties": { "type": "array", "items": {} } },
+        "translations": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/TranslationItem" } }
+        },
         "wikidata": { "$ref": "#/$defs/WikidataEnrichment" },
+        "images": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Image filenames/URLs from the source lexeme (`library.richEntry`)."
+        },
         "source": { "$ref": "#/$defs/WiktionarySource" }
       },
       "additionalProperties": true
@@ -630,7 +850,11 @@
         "templates", "source"
       ],
       "properties": {
-        "id": { "type": "string" },
+        "id": {
+          "type": "string",
+          "description": "Stable lexeme id, typically `{lang}:{pageTitle}#E{etymology_index}#{section_slug}#{LexemeType}` (see engine output).",
+          "examples": ["el:γράφω#E1#verb#LEXEME"]
+        },
         "language": { "$ref": "#/$defs/WikiLang" },
         "query": { "type": "string" },
         "type": { "$ref": "#/$defs/LexemeType" },
@@ -639,7 +863,7 @@
         "part_of_speech_heading": { "type": "string" },
         "lexicographic_section": {
           "type": "string",
-          "description": "Stable slug for the section kind (verb, suffix, han_character, …)."
+          "description": "Stable slug for the section kind. Registered headings use slugs listed in `$defs.LexicographicSectionSlug`; unregistered headings use a derived slug from `fallbackLexicographicFromHeading`."
         },
         "lexicographic_family": { "$ref": "#/$defs/LexicographicFamily" },
         "part_of_speech": {
@@ -736,28 +960,10 @@
         },
         "langlinks": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["lang", "title"],
-            "properties": {
-              "lang": { "type": "string" },
-              "title": { "type": "string" }
-            },
-            "additionalProperties": false
-          },
+          "items": { "$ref": "#/$defs/WiktionaryLanglink" },
           "description": "Links to the same term in other Wiktionary language editions."
         },
-        "metadata": {
-          "type": "object",
-          "description": "Page-level metadata from the MediaWiki API.",
-          "properties": {
-            "last_modified": { "type": "string", "format": "date-time" },
-            "length": { "type": "integer" },
-            "pageid": { "type": ["integer", "null"] },
-            "lastrevid": { "type": "integer" }
-          },
-          "additionalProperties": true
-        }
+        "metadata": { "$ref": "#/$defs/PageMetadataInfo" }
       },
       "additionalProperties": true
     }
@@ -777,27 +983,20 @@
       "type": "array",
       "items": {
         "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "decoderId": { "type": "string" },
-            "matchedTemplates": { "type": "array", "items": { "type": "object" } },
-            "fieldsProduced": { "type": "array", "items": { "type": "string" } }
-          }
-        }
+        "items": { "$ref": "#/$defs/DecoderDebugEvent" }
       },
-      "description": "Detailed trace of decoder matches per lexeme. Primarily for engine developers."
+      "description": "Detailed trace of decoder matches per lexeme (`debugDecoders: true`). Outer array aligns with `lexemes` order."
     },
     "metadata": {
       "type": "object",
-      "description": "Page-level metadata attached to the FetchResult.",
+      "description": "Page-level metadata attached to the FetchResult (whole page, not per lexeme).",
       "properties": {
         "categories": { "type": "array", "items": { "type": "string" } },
-        "langlinks": { "type": "array", "items": {} },
-        "info": { "type": "object", "additionalProperties": true }
+        "langlinks": { "type": "array", "items": { "$ref": "#/$defs/WiktionaryLanglink" } },
+        "info": { "$ref": "#/$defs/PageMetadataInfo" }
       },
       "additionalProperties": true
     }
   },
-  "required": ["rawLanguageBlock", "lexemes", "notes"]
+  "required": ["schema_version", "rawLanguageBlock", "lexemes", "notes"]
 }

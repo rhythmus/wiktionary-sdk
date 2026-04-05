@@ -454,7 +454,7 @@ function resolveLangCode(code: string): string {
 
 function extractEtymologySteps(lexeme: Lexeme): EtymologyStep[] | null {
     if (!lexeme.etymology) return null;
-    const links = (lexeme.etymology as any).chain || (lexeme.etymology as any).links;
+    const links = lexeme.etymology.chain ?? lexeme.etymology.links;
     if (!links || links.length === 0) return null;
     const output: EtymologyStep[] = [];
     for (const link of links) {

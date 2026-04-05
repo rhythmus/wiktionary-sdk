@@ -1,5 +1,6 @@
 # DictionaryEntry — Proposed v2 Schema
 # Full example: γράφω (Greek verb)
+# Canonical JSON Schema: ../../schema/normalized-entry.schema.json (package SCHEMA_VERSION, currently 3.3.0).
 
 schema_version: "2.5.0"
 

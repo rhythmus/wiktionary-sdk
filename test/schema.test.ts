@@ -96,4 +96,13 @@ describe("JSON Schema validation", () => {
     };
     expect(validate(bad)).toBe(false);
   });
+
+  it("rejects FetchResult without schema_version", () => {
+    const bad = {
+      rawLanguageBlock: "",
+      lexemes: [makeLexemeEntry()],
+      notes: [],
+    };
+    expect(validate(bad)).toBe(false);
+  });
 });

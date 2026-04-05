@@ -2,7 +2,7 @@
  * The canonical version of the normalized output schema.
  * Follows Semantic Versioning (SemVer) principles.
  */
-export const SCHEMA_VERSION = "3.2.0";
+export const SCHEMA_VERSION = "3.3.0";
 
 /**
  * High-level bucket for a lexeme-class section (see `src/lexicographic-headings.ts`).
@@ -302,6 +302,11 @@ export interface EtymologyLink {
 export interface EtymologyData {
   /** A structured chain of ancestor/cognate links parsed from etymology templates. */
   chain?: EtymologyLink[];
+  /**
+   * @deprecated Legacy alias for `chain`. Prefer `chain`; kept for compatibility with
+   * older payloads and defensive reads in `extractEtymologySteps` (`library.ts`).
+   */
+  links?: EtymologyLink[];
   /** Separately extracted cognates ({{cog}} templates). */
   cognates?: EtymologyLink[];
   /** The full human-readable prose text of the etymology section. */

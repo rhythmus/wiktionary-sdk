@@ -37,7 +37,7 @@ Return:
 3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
 4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
-The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.2.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
+The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
 **Roadmap note (non-normative):** For **outstanding** phased work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 
@@ -120,7 +120,7 @@ All API requests are subject to:
 Top-level (`FetchResult`):
 
 ```yaml
-schema_version: "3.0.0"
+schema_version: "3.3.0"
 rawLanguageBlock: "==Greek==..."
 lexemes: [...]
 notes: [...]
@@ -132,7 +132,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.2.0"`.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.3.0"`.
 - `debug` (optional): When `wiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `lexemes[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -1555,6 +1555,10 @@ This section is informational only. For the **backlog** of staged engineering an
 - **Hyphenation**: Leading language tokens on `{{hyphenation|…}}` use an explicit allowlist and script-aware rules so Greek syllables are never dropped as if they were language codes.
 - **Tooling**: `npm run report:form-of` runs `tools/form-of-template-report.ts` against the live API to list category members vs `isFormOfTemplateName()` (with a short section for `only used in` as same-category, different semantics).
 - **Tests**: `test/registry-ids.test.ts` guards against duplicate decoder `id` registrations; registry and integration tests cover new decoders and gloss behaviour.
+
+### v3.3.0 — JSON Schema parity and documentation `$defs`
+
+- **`SCHEMA_VERSION` / JSON Schema**: `schema_version` is **required** on `FetchResult` in the schema (always emitted by `wiktionary()`). New `$defs` document `LexicographicSectionSlug`, langlinks, page `info`, decoder debug events, library row shapes (`LexemeResult`, `GroupedLexemeMapValue`), morphology API criteria, `EtymologyData.links` (deprecated alias of `chain`), `AlternativeForm.type` / `labels`, and corrected **`RichEntry`** (`etymology` as `EtymologyData`, `headword_morphology`, `images`, typed `translations` items). `TranslationItem.params` accepts `TemplateParams` or a generic object.
 
 ### v3.2.0 — PartOfSpeech vocabulary (ODict alignment)
 

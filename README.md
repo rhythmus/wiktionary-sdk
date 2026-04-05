@@ -15,7 +15,7 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 | Axis | Current value | Where it lives |
 |------|----------------|----------------|
 | **npm package** | `1.2.0` (see `package.json` `version`) | Release tagging / consumers |
-| **Output `schema_version`** | `3.0.0` | `SCHEMA_VERSION` in `src/types.ts`, emitted on every `FetchResult` |
+| **Output `schema_version`** | `3.3.0` | `SCHEMA_VERSION` in `src/types.ts`, emitted on every `FetchResult` |
 | **Formal spec revision** | v3.4 | Title line in `docs/wiktionary-sdk-spec.md` |
 
 Bump rules for schema vs code: see `VERSIONING.md`. The spec revision and `SCHEMA_VERSION` can move at different cadences; the table above is the support checklist from `audit.md` §2.2.
@@ -88,7 +88,7 @@ wiktionary-sdk έγραψες --extract conjugate --props '{"number":"plural", "
 **Out** (normalized entries):
 
 ```yaml
-schema_version: "3.0.0"
+schema_version: "3.3.0"
 lexemes:
     - id: "el:γράφω#E1#verb#LEXEME"
     language: el
