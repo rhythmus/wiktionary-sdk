@@ -22,10 +22,15 @@ import {
     extractAllLanguageSections,
     splitEtymologiesAndPOS,
     parseTemplates,
-    mapHeadingToPos,
     langToLanguageName,
     languageNameToLang,
 } from "./parser";
+import {
+    fallbackLexicographicFromHeading,
+    lexemeMatchesPosQuery,
+    lexemePosSortKey,
+    mapHeadingToLexicographic,
+} from "./lexicographic-headings";
 import {
     registry,
     isFormOfTemplateName,
@@ -275,10 +280,16 @@ export async function wiktionaryRecursive({
         const etyms = splitEtymologiesAndPOS(section.block);
         for (const e of etyms) {
             for (const pb of e.posBlocks) {
-                const mappedPos = mapHeadingToPos(pb.posHeading);
+                const mappedLex = mapHeadingToLexicographic(pb.posHeading);
+                const fb = fallbackLexicographicFromHeading(pb.posHeading);
+                const lexProbe = {
+                    part_of_speech: mappedLex?.strict_pos ?? null,
+                    lexicographic_section: fb.section_slug,
+                    part_of_speech_heading: pb.posHeading,
+                };
 
                 if (pos !== "Auto") {
-                    if (mappedPos !== pos && pb.posHeading.toLowerCase() !== pos.toLowerCase()) {
+                    if (!lexemeMatchesPosQuery(lexProbe, pos)) {
                         continue;
                     }
                 }
@@ -311,6 +322,8 @@ export async function wiktionaryRecursive({
                     form: qPage.title,
                     etymology_index: e.idx,
                     part_of_speech_heading: pb.posHeading,
+                    lexicographic_section: fb.section_slug,
+                    lexicographic_family: fb.family,
                     templates: {},
                     source: {
                         wiktionary: {
@@ -338,8 +351,8 @@ export async function wiktionaryRecursive({
                     ...(t.start != null && { start: t.start, end: t.end, line: t.line }),
                 }));
 
-                if (!base.part_of_speech && mappedPos) {
-                    base.part_of_speech = mappedPos;
+                if (base.part_of_speech == null && mappedLex?.strict_pos) {
+                    base.part_of_speech = mappedLex.strict_pos;
                 }
 
                 base.form = qPage.title;
@@ -411,8 +424,8 @@ export async function wiktionaryRecursive({
         let cands = res.lexemes.filter((l) => l.type === "LEXEME");
         cands.sort(
             (a, b) =>
-                preferredPosSortKey(a.part_of_speech || "", preferredPos) -
-                preferredPosSortKey(b.part_of_speech || "", preferredPos),
+                preferredPosSortKey(lexemePosSortKey(a), preferredPos) -
+                preferredPosSortKey(lexemePosSortKey(b), preferredPos),
         );
         return cands[0] ? { lemma, lang: lLang, lexeme: cands[0] } : null;
     });
@@ -493,7 +506,7 @@ export async function wiktionaryRecursive({
 
     if (preferredPos) {
         for (const lex of merged) {
-            if (lex.type === "LEXEME" && lex.part_of_speech === preferredPos) lex.preferred = true;
+            if (lex.type === "LEXEME" && lexemeMatchesPosQuery(lex, preferredPos)) lex.preferred = true;
         }
     }
 
