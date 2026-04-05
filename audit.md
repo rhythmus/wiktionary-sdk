@@ -235,7 +235,7 @@ Existing coverage (goldens, decoder coverage, registry ids, parser invariants, w
 - **Combining-mark retry:** mock missing page then hit for stripped title; assert single visit behaviour and optional note when `debugDecoders`.
 - **Fuzzy merge:** two variants return overlapping `id`s; merged length and notes; **debug array length** matches merged `lexemes`.
 - **`sort: "priority"`:** ordering for synthetic multi-language fixtures.
-- **`pos` filter:** blocks with non-matching `mapHeadingToPos` are skipped.
+- **`pos` filter:** blocks with non-matching `lexemeMatchesPosQuery` (strict PoS, section slug, or heading) are skipped.
 - **Lemma batch deduplication:** two `INFLECTED_FORM` rows same lemma/lang ⇒ one recursive fetch.
 - **`debugDecoders` padding:** assert resolved lemma rows have **independent** `debug` arrays (after fixing `fill([])` bug, regression test for aliasing).
 

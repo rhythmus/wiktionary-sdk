@@ -7,6 +7,9 @@ language: "es"
 query: "sense"
 type: "INFLECTED_FORM"
 form: "sense"
+part_of_speech_heading: "Verb"
+lexicographic_section: "verb"
+lexicographic_family: "pos"
 part_of_speech: "verb"
 
 senses:

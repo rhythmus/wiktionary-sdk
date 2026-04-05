@@ -16,7 +16,7 @@ Each **lexeme** in `FetchResult.lexemes` is keyed in the pipeline by the Cartesi
 | **B. Match mode** | `matchMode: "strict" \| "fuzzy"` | Strict: one title fetch. Fuzzy: several normalized variants merged with dedup + `notes`. |
 | **C. Language filter** | `lang: WikiLang \| "Auto"` | `Auto`: every `==Section==` from `extractAllLanguageSections`. Else: one `extractLanguageSection`. |
 | **D. Etymology slice** | `splitEtymologiesAndPOS` → `e.idx`, `source.wiktionary.etymology_index` | `===Etymology===`, `===Etymology 2===`, … or implicit single slice (see parser). |
-| **E. Part of speech** | `posBlock.posHeading`, `mapHeadingToPos`, `pos` filter | Noun, Verb, …; `pos: "Auto"` keeps all mapped PoS blocks; else filter drops non-matching blocks (**0 lexemes** possible for that section). |
+| **E. Part of speech / lexeme class** | `posBlock.posHeading`, `isLexemeSectionHeading`, `lexemeMatchesPosQuery`, `pos` filter | Verb, Suffix, Symbol, …; `pos: "Auto"` keeps all lexeme-class blocks; else filter drops non-matching blocks (**0 lexemes** possible). Strict `part_of_speech` is only set for grammatical PoS; other sections use `lexicographic_section` + `lexicographic_family`. |
 | **F. Lexeme type** | `guessLexemeTypeFromTemplates` + `isFormOfTemplateName` / `isVariantFormOfTemplateName` | `LEXEME` \| `INFLECTED_FORM` \| `FORM_OF`. |
 | **G. Surface string** | `lexeme.form` / page `title` | Usually equals page title; inflected entries still use page title as surface form string. |
 | **H. Form-of / morph richness** | `form_of`, `senses[].subsenses`, `display_morph_lines` | Plain lemma card vs template-only stub vs multi-line morph (wikitext `##`, tags, abbrev, or `mediawiki_parse`). |

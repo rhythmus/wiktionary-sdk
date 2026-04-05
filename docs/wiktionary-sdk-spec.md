@@ -51,8 +51,8 @@ The **canonical** async function for full extraction is **`wiktionary()`**, expo
 |--------|------|---------|------|
 | `query` | `string` | (required) | Page title on **en.wiktionary.org** (after redirects). Normalized to **NFC** before fetch. |
 | `lang` | `WikiLang` \| `"Auto"` | `"Auto"` | Language section filter, or scan all mapped `==Language==` sections. |
-| `pos` | `string` \| `"Auto"` | `"Auto"` | Restrict to PoS blocks whose normalized heading matches (see `mapHeadingToPos()` / heading text). |
-| `preferredPos` | `string?` | — | When resolving lemma pages with multiple `LEXEME` rows, prefer matching `part_of_speech` for ordering; sets `preferred: true` on matches. |
+| `pos` | `string` \| `"Auto"` | `"Auto"` | Restrict to lexeme-class blocks whose strict PoS, `lexicographic_section` slug, or verbatim heading matches (`lexemeMatchesPosQuery()` in `src/lexicographic-headings.ts`). |
+| `preferredPos` | `string?` | — | When resolving lemma pages with multiple `LEXEME` rows, prefer rows matching the same query (strict `part_of_speech` or section slug); sets `preferred: true` on matches. |
 | `enrich` | `boolean` | `true` | If `true`: Wikidata enrichment for lemma lexemes **and** optional **form-of** `display_morph_lines` via `action=parse` (see §3.5d, `src/form-of-parse-enrich.ts`). If `false`, both paths are skipped. |
 | `debugDecoders` | `boolean` | `false` | Populate `FetchResult.debug` with per-lexeme `DecoderDebugEvent[]` from the registry. |
 | `sort` | `"source"` \| `"priority"` | `"source"` | Lexeme ordering after merge (see §12.28). |
@@ -156,8 +156,10 @@ Each `Lexeme` contains:
 | `type` | `LEXEME \| INFLECTED_FORM \| FORM_OF` | Determined by presence of form-of templates |
 | `form` | string | Page title |
 | `etymology_index` | integer | Parsed from `===Etymology N===` headings |
-| `part_of_speech_heading` | string | Verbatim POS section heading |
-| `part_of_speech` | string? | From headword templates (`el-verb`, etc.) or heading mapping |
+| `part_of_speech_heading` | string | Verbatim section heading that opened the lexeme block |
+| `lexicographic_section` | string | Stable slug (e.g. `verb`, `suffix`, `han_character`); from `src/lexicographic-headings.ts` |
+| `lexicographic_family` | `LexicographicFamily` | Taxonomic bucket: `pos`, `morpheme`, `symbol`, `character`, `phraseology`, `numeral_kind`, `other`, `disallowed_attested` |
+| `part_of_speech` | `PartOfSpeech \| null` (optional) | Strict grammatical PoS only, from heading (`mapHeadingToPos`) or headword templates; `null` for morphemes, symbols, phraseology, etc. |
 | `pronunciation` | `Pronunciation` | From `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, `{{rhymes}}`, `{{homophones}}` |
 | `hyphenation` | `{syllables?, raw}` | From `{{hyphenation}}` |
 | `senses` | `Sense[]` | From `#` / `##` / `#:` lines; includes `qualifier`, `labels`, `topics`, optional structured `only_used_in` |
@@ -186,6 +188,8 @@ Each `Lexeme` contains:
 | `metadata` | `{last_modified?, length?, pageid?, lastrevid?}` | Per-lexeme copy of page `info` (same values for all lexemes from one fetch) |
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media; includes **`instance_of`** (P31) and **`subclass_of`** (P279) QID arrays when claims exist |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
+
+**Implementation note (lexicographic taxonomy):** Full heading coverage lives in `src/lexicographic-headings.ts` (see also [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) README for a comparable checklist). Strict grammatical `PartOfSpeech` values are listed in `PART_OF_SPEECH_VALUES` in `src/types.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
 
 **Mandatory traceability** (`WiktionarySource`):
 
@@ -446,7 +450,8 @@ preferred. Scalar exceptions are marked below.
 | `hyponyms(q, l)` | `GroupedLexemeResults<string[]>` | Hyponyms per lexeme. |
 | `translate(q, l, t)` | `GroupedLexemeResults<string[]>` | Translations per lexeme. |
 | `etymology(q, l)` | `GroupedLexemeResults<EtymologyStep[]\|null>` | Structured lineage per lexeme. |
-| `partOfSpeech(q, l)` | `GroupedLexemeResults<string\|null>` | Normalized POS tag per lexeme. |
+| `partOfSpeech(q, l)` | `GroupedLexemeResults<PartOfSpeech\|null>` | Strict grammatical PoS per lexeme; null when the section is non-PoS. |
+| `lexicographicClass(q, l)` | `GroupedLexemeResults<LexicographicClass>` | `lexicographic_section`, `lexicographic_family`, and strict `part_of_speech` per lexeme. |
 | `conjugate(q, l, c)` | `GroupedLexemeResults<string[]\|Record\|null>` | Paradigm per lexeme. |
 | `decline(q, l, c)` | `GroupedLexemeResults<string[]\|Record\|null>` | Declension per lexeme. |
 | `morphology(q, l)` | `GroupedLexemeResults<GrammarTraits>` | Grammar traits per lexeme. |
@@ -608,22 +613,18 @@ lexemes, resulting in:
 The SDK's parsing rule, implemented in `splitEtymologiesAndPOS()` in
 `src/parser.ts`, is:
 
-> **Only headings that `mapHeadingToPos()` recognizes as actual
-> parts-of-speech create lexeme boundaries.** All other headings
-> (Etymology, Pronunciation, Conjugation, References, Antonyms, etc.)
-> are treated as content _within_ the nearest PoS block.
-
-The known parts-of-speech are maintained in `mapHeadingToPos()` and include:
-Verb, Noun, Adjective, Adverb, Pronoun, Numeral, Article, Participle,
-Proper noun, Interjection, Conjunction, Preposition, Determiner, Suffix,
-Prefix, Letter, Symbol, Phrase, Proverb, Idiom, etc.
+> **Only headings that `isLexemeSectionHeading()` recognizes (see
+> `src/lexicographic-headings.ts`) create lexeme boundaries.** That set
+> includes core PoS, morphemes, symbols, CJK character sections, phraseology,
+> and commonly attested “disallowed” headings. Other headings (Etymology,
+> Pronunciation, Conjugation, References, Antonyms, etc.) stay content
+> _within_ the nearest lexeme block.
 
 **Algorithm:**
 
 1. Walk the lines of the language block sequentially.
 2. When an H3–H5 heading is encountered:
-   - If `mapHeadingToPos(heading)` returns a recognized PoS → start a new
-     `posBlock` (i.e., a new lexeme boundary).
+   - If `isLexemeSectionHeading(heading)` → start a new `posBlock` (lexeme boundary).
    - Otherwise → include the heading and its content as part of the current
      `posBlock`, preserving the heading marker so downstream decoders can
      still locate subsections by name.
@@ -662,9 +663,10 @@ not one. The `etymology_index` field disambiguates between the two Noun
 lexemes sharing the same language + PoS but arising from different
 etymologies.
 
-**General rule:** Lexeme identity is the tuple
-`(language, part_of_speech, etymology_index)`. This triple uniquely
-identifies a lexeme within a page.
+**General rule:** Lexeme identity within a page is the tuple
+`(language, lexicographic_section, etymology_index)` together with the
+verbatim `part_of_speech_heading` when multiple blocks share the same section slug.
+Display grouping may use strict `part_of_speech` when present, else `lexicographic_section`.
 
 ### 4.3 Template extraction
 
@@ -908,7 +910,7 @@ Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang 
 
 - **Query notes:** `FetchResult.notes` are emitted as a `wiktionary-fetch-notes` block (redirect, fuzzy variant, errors). **Rationale:** surfaces META-axis cases from `docs/query-result-dimensional-matrix.md` without requiring consumers to wrap JSON manually.
 - **Empty results:** `lexemes.length === 0` yields a visible empty-state fragment. **Rationale:** L-15 / META-A2 in template coverage mocks.
-- **Homonym merge:** `groupLexemesForIntegratedHomonyms()` groups **consecutive** lexemes that share `language`, `form`, and normalized PoS (`part_of_speech` or `part_of_speech_heading`) and have **distinct** `etymology_index`, all with `type === "LEXEME"`. Each group is rendered with **`HTML_LEXEME_HOMONYM_GROUP_TEMPLATE`** (one shared headline, then one block per etymology). **Rationale:** the API still returns one lexeme per etymology slice (source-faithful); merge is **display-only**, documented in `docs/query-result-dimensional-matrix.md` §11 and `docs/mockups/template-coverage-mock-entries.md` (L-02).
+- **Homonym merge:** `groupLexemesForIntegratedHomonyms()` groups **consecutive** lexemes that share `language`, `form`, and normalized class key (`part_of_speech`, else `lexicographic_section`, else `part_of_speech_heading`) and have **distinct** `etymology_index`, all with `type === "LEXEME"`. Each group is rendered with **`HTML_LEXEME_HOMONYM_GROUP_TEMPLATE`** (one shared headline, then one block per etymology). **Rationale:** the API still returns one lexeme per etymology slice (source-faithful); merge is **display-only**, documented in `docs/query-result-dimensional-matrix.md` §11 and `docs/mockups/template-coverage-mock-entries.md` (L-02).
 - **Non-HTML modes:** Markdown joins per-lexeme markdown without homonym merge (same data, simpler text pipeline). Text/ANSI modes concatenate per-lexeme `format(lexeme)`.
 
 **Single-lexeme `HTML_ENTRY_TEMPLATE` choices (see `docs/mockups/template-coverage-mock-entries.md`):**

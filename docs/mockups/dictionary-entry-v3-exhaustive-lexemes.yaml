@@ -1,5 +1,5 @@
 # =============================================================================
-# Wiktionary SDK — Exhaustive synthetic Lexeme examples (schema v3.0.0)
+# Wiktionary SDK — Exhaustive synthetic Lexeme examples (schema v3.1.0)
 # =============================================================================
 # This file is documentation / fixture inspiration: not guaranteed to match any
 # single live en.wiktionary.org page. It exercises every major Lexeme branch in
@@ -16,6 +16,8 @@ type: "LEXEME"
 form: "γράφω"
 etymology_index: 1
 part_of_speech_heading: "Verb"
+lexicographic_section: "verb"
+lexicographic_family: "pos"
 part_of_speech: "verb"
 preferred: true
 
@@ -282,6 +284,8 @@ type: "INFLECTED_FORM"
 form: "έγραψα"
 etymology_index: 1
 part_of_speech_heading: "Verb"
+lexicographic_section: "verb"
+lexicographic_family: "pos"
 part_of_speech: "verb"
 
 form_of:
@@ -333,6 +337,8 @@ type: "FORM_OF"
 form: "writen"
 etymology_index: 1
 part_of_speech_heading: "Verb"
+lexicographic_section: "verb"
+lexicographic_family: "pos"
 part_of_speech: "verb"
 
 form_of:

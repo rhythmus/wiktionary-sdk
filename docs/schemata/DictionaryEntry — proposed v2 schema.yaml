@@ -1,7 +1,7 @@
 # DictionaryEntry — Proposed v2 Schema
 # Full example: γράφω (Greek verb)
 
-schema_version: "2.4.0"
+schema_version: "2.5.0"
 
 # ── Identity ───────────────────────────────────────────────────────────────
 id: "el:γράφω#E0#verb#LEXEME"
@@ -10,9 +10,12 @@ language: "el"                  # BCP-47 code
 form: "γράφω"                   # Canonical Wiktionary page title (NFC)
 query: "γράφω"                  # Original user query
 
-# ── Part of Speech ─────────────────────────────────────────────────────────
-part_of_speech_heading: "Verb"  # Raw H3/H4 heading from wikitext
-part_of_speech: "verb"          # Normalized (lowercase, consistent)
+# ── Part of Speech / lexeme class ──────────────────────────────────────────
+part_of_speech_heading: "Verb"  # Raw heading that opened this lexeme block
+lexicographic_section: "verb"   # Stable slug; see src/lexicographic-headings.ts
+lexicographic_family: "pos"      # pos | morpheme | symbol | character | phraseology | …
+# Strict grammatical PoS only (null for suffix, symbol, idiom, …)
+part_of_speech: "verb"
 etymology_index: 0              # Which etymology block (0-indexed)
 
 # ── Pronunciation ──────────────────────────────────────────────────────────

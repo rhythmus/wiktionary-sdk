@@ -11,8 +11,10 @@ form: "γράφω"                   # Canonical Wiktionary page title (NFC)
 query: "γράφω"                  # Original user query
 
 # ── Part of Speech ─────────────────────────────────────────────────────────
-part_of_speech_heading: "Verb"  # Raw H3/H4 heading from wikitext
-part_of_speech: "verb"          # Normalized (lowercase, consistent)
+part_of_speech_heading: "Verb"
+lexicographic_section: "verb"
+lexicographic_family: "pos"
+part_of_speech: "verb"
 etymology_index: 0              # @[0-indexed] Which etymology block
 
 # ── Pronunciation ──────────────────────────────────────────────────────────

@@ -36,6 +36,11 @@ A custom parser handles nested `{{...}}` structures.
     - `cli/index.ts`: Added to the `extract` router in `main()`.
 - **Reason**: To ensure that the Web API Playground and the terminal CLI are always on par with the underlying NPM package.
 
+### 4b. Lexeme classification (PoS vs lexicographic section)
+- **`part_of_speech`**: strict grammatical part of speech only (`PartOfSpeech` in `src/types.ts`). Headword templates and recognized PoS headings may set it; morpheme/symbol/phraseology sections leave it `null`.
+- **`lexicographic_section` / `lexicographic_family`**: always set from the section heading via `src/lexicographic-headings.ts` (expanded taxonomy, comparable to [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) headings).
+- **`Lexeme.type`** (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`): still determined only by **form-of templates** in wikitext, not by whether the heading says “Abbreviation” or “Noun”.
+
 ### 5. Environment-Agnostic Assets (Cross-Platform Parity)
 - **Strict Rule**: Templates and static assets MUST be bundled as imported TypeScript strings (see `src/templates/templates.ts`) rather than loaded via Node-specific filesystem APIs (`fs`, `path`).
 - **Reason**: To ensure the SDK remains fully functional in both Node.js (CLI/Server) and Browser (Webapp) environments without a runtime filesystem.
