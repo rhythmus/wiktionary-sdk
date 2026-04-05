@@ -8,7 +8,7 @@
  * `strict_pos: null` and are classified via `lexicographic_family` + `lexicographic_section`.
  */
 
-import type { Lexeme, LexicographicFamily, PartOfSpeech } from "./types";
+import type { Lexeme, LexicographicFamily, PartOfSpeech } from "../types";
 
 export interface LexicographicHeadingResult {
   family: LexicographicFamily;

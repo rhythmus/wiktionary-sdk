@@ -1,4 +1,4 @@
-import { parseTemplates } from "../parser";
+import { parseTemplates } from "../parse/parser";
 import type { SectionLinkItem } from "../types";
 
 export function extractSectionByLevelHeaders(wikitext: string, headerName: string): { raw: string } | null {

@@ -1,4 +1,4 @@
-import { parseTemplates } from "../parser";
+import { parseTemplates } from "../parse/parser";
 import type { SectionWithLinks } from "../types";
 import type { DecoderRegistry } from "./decoder-registry";
 import { formatUsageNoteLine } from "./format-usage-note-line";

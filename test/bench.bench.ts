@@ -1,5 +1,5 @@
 import { bench, describe } from "vitest";
-import { parseTemplates, extractLanguageSection, splitEtymologiesAndPOS } from "../src/parser";
+import { parseTemplates, extractLanguageSection, splitEtymologiesAndPOS } from "../src/parse/parser";
 
 const LARGE_WIKITEXT = `==Greek==
 

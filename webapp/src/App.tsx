@@ -16,7 +16,7 @@ import {
 import { ENTRY_CSS } from '@engine/templates/templates';
 import { SHARED_COPY } from './shared-copy.generated';
 import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/types';
-import { langToLanguageName, languageNameToLang } from '@engine/parser';
+import { langToLanguageName, languageNameToLang } from '@engine/parse/parser';
 import { format } from '@engine/formatter';
 import { FormOfLexemeBlock } from './FormOfLexemeBlock';
 import { runPlaygroundApiExecute } from './playground-api-execute';

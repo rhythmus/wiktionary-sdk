@@ -24,13 +24,13 @@ import {
     parseTemplates,
     langToLanguageName,
     languageNameToLang,
-} from "./parser";
+} from "./parse/parser";
 import {
     fallbackLexicographicFromHeading,
     lexemeMatchesPosQuery,
     lexemePosSortKey,
     mapHeadingToLexicographic,
-} from "./lexicographic-headings";
+} from "./parse/lexicographic-headings";
 import {
     registry,
     isFormOfTemplateName,

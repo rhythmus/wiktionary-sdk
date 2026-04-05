@@ -37,8 +37,8 @@ export {
   lexemeMatchesPosQuery,
   lexemePosSortKey,
   getLexicographicTaxonomyStats,
-} from "./lexicographic-headings";
-export type { LexicographicHeadingResult } from "./lexicographic-headings";
+} from "./parse/lexicographic-headings";
+export type { LexicographicHeadingResult } from "./parse/lexicographic-headings";
 export {
     registerAllDecoders,
     isFormOfTemplateName,

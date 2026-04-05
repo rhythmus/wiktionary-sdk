@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, type FC } from 'react';
 import { Loader2 } from 'lucide-react';
 import { wiktionary } from '@engine/index';
 import type { Lexeme } from '@engine/types';
-import { normalizeWikiLangArg } from '@engine/parser';
+import { normalizeWikiLangArg } from '@engine/parse/parser';
 import { format, formatInflectedFormHeadline } from '@engine/formatter';
 import { parseMorphologyTags } from '@engine/morphology';
 import { pickLemmaLexemeFromSecondFetch } from './pick-lemma-lexeme';

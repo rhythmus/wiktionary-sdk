@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { mapHeadingToPos } from "../src/parser";
-import { mapHeadingToLexicographic } from "../src/lexicographic-headings";
+import { mapHeadingToPos } from "../src/parse/parser";
+import { mapHeadingToLexicographic } from "../src/parse/lexicographic-headings";
 import {
   expandDualPersonInflectionLine,
   format,

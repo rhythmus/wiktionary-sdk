@@ -5,7 +5,7 @@ import {
   isFormOfTemplateName,
   isVariantFormOfTemplateName,
 } from "../src/registry";
-import { parseTemplates } from "../src/parser";
+import { parseTemplates } from "../src/parse/parser";
 import type { DecodeContext } from "../src/types";
 
 function makeCtx(wikitext: string, overrides?: Partial<DecodeContext>): DecodeContext {

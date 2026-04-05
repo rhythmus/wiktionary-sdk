@@ -2,7 +2,7 @@
  * Audit §13.5 — parser edge cases (implicit etymology, heading tolerance).
  */
 import { describe, it, expect } from "vitest";
-import { splitEtymologiesAndPOS, extractLanguageSection } from "../src/parser";
+import { splitEtymologiesAndPOS, extractLanguageSection } from "../src/parse/parser";
 
 describe("parser audit (§13.5)", () => {
   it("builds implicit etymology slice when no ===Etymology=== heading precedes PoS", () => {

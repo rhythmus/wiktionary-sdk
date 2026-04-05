@@ -1,4 +1,4 @@
-import { parseTemplates } from "../parser";
+import { parseTemplates } from "../parse/parser";
 import type { OnlyUsedIn, Sense, TemplateCall } from "../types";
 import { buildFormOfDisplayLabel } from "./form-of-display-label";
 import { isFormOfTemplateName, isPerLangFormOfTemplate } from "./form-of-predicates";

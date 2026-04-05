@@ -5,8 +5,8 @@ import {
   isLexemeSectionHeading,
   lexemeMatchesPosQuery,
   getLexicographicTaxonomyStats,
-} from "../src/lexicographic-headings";
-import { mapHeadingToPos } from "../src/parser";
+} from "../src/parse/lexicographic-headings";
+import { mapHeadingToPos } from "../src/parse/parser";
 
 describe("lexicographic headings", () => {
   it("maps strict PoS headings with strict_pos set", () => {

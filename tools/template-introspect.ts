@@ -12,8 +12,8 @@
 import { mwFetchJson } from "../src/ingress/api";
 import { fetchWikitextEnWiktionary } from "../src/ingress/api";
 import { registry } from "../src/registry";
-import { extractLanguageSection } from "../src/parser";
-import { parseTemplates } from "../src/parser";
+import { extractLanguageSection } from "../src/parse/parser";
+import { parseTemplates } from "../src/parse/parser";
 
 const DEFAULT_CATEGORIES = [
   "Category:Greek headword-line templates",

@@ -1,5 +1,5 @@
 import { stripCombiningMarksForPageTitle } from '@engine/index';
-import { lexemeMatchesPosQuery } from '@engine/lexicographic-headings';
+import { lexemeMatchesPosQuery } from '@engine/parse/lexicographic-headings';
 import type { FetchResult, Lexeme } from '@engine/types';
 
 /**

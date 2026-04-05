@@ -9,7 +9,7 @@ import {
   langToLanguageName,
   etymSourceLangDisplayName,
   splitPipesPreservingLinks,
-} from "../src/parser";
+} from "../src/parse/parser";
 
 describe("parseTemplates", () => {
   it("parses a simple template", () => {

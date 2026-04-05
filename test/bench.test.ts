@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseTemplates, extractLanguageSection } from "../src/parser";
+import { parseTemplates, extractLanguageSection } from "../src/parse/parser";
 
 const LARGE_WIKITEXT = `==Greek==
 

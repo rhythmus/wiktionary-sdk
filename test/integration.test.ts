@@ -10,7 +10,7 @@ import {
   extractLanguageSection,
   splitEtymologiesAndPOS,
   parseTemplates,
-} from "../src/parser";
+} from "../src/parse/parser";
 import { registry } from "../src/registry";
 import type { DecodeContext } from "../src/types";
 

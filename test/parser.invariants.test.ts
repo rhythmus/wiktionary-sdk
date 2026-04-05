@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseTemplates, type TemplateCallWithLocation } from "../src/parser";
+import { parseTemplates, type TemplateCallWithLocation } from "../src/parse/parser";
 
 function tplsWithLoc(w: string) {
   return parseTemplates(w, true) as TemplateCallWithLocation[];

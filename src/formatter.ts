@@ -4,7 +4,7 @@ import { formOfMorphInlinePhrase, inflectionMorphDisplayLines } from "./form-of-
 import { SCHEMA_VERSION } from "./types";
 import type { Sense, RichEntry, InflectionTable, EtymologyData, EtymologyStep, Lexeme, FetchResult } from "./types";
 import Handlebars from "handlebars";
-import { etymSourceLangDisplayName } from "./parser";
+import { etymSourceLangDisplayName } from "./parse/parser";
 import { groupLexemesForIntegratedHomonyms } from "./lexeme-display-groups";
 import { HTML_ENTRY_TEMPLATE, MD_ENTRY_TEMPLATE, ENTRY_CSS, HTML_LEXEME_HOMONYM_GROUP_TEMPLATE } from "./templates/templates";
 
