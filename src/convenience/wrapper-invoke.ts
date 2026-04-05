@@ -1,4 +1,4 @@
-import type { WikiLang } from "../types";
+import type { WikiLang } from "../model";
 
 export interface InvokeWrapperOptions {
   sourceLang: WikiLang;

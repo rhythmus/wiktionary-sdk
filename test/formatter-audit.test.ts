@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { expandDualPersonInflectionLine, formatFetchResult, format } from "../src/present/formatter";
 import { groupLexemesForIntegratedHomonyms } from "../src/present/lexeme-display-groups";
-import type { FetchResult, Lexeme } from "../src/types";
+import type { FetchResult, Lexeme } from "../src/model";
 
 function minimalLexeme(over: Partial<Lexeme>): Lexeme {
   return {

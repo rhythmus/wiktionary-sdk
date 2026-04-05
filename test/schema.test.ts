@@ -3,7 +3,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import type { Lexeme, FetchResult } from "../src/types";
+import type { Lexeme, FetchResult } from "../src/model";
 
 const schemaPath = resolve(__dirname, "../schema/normalized-entry.schema.json");
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));

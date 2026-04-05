@@ -1,6 +1,6 @@
 # Staged plan: modular `src/` layout
 
-**Status:** Forward-only engineering backlog (alpha). Not tied to npm semver until you choose to tag. **Phases 0–10** of this plan are implemented on `master` (convenience split, `infra/`, `model/` + `types.ts` shim, README/spec/schema path sweep, **`audit.md`** / **`docs/ROADMAP.md`** / **`CHANGELOG.md`** refresh). **Optional later:** remove the `types.ts` shim after migrating in-repo imports to `./model` (large churn).
+**Status:** Forward-only engineering backlog (alpha). Not tied to npm semver until you choose to tag. **Phases 0–10** of this plan are implemented on `master` (convenience split, `infra/`, **`model/`** without `types.ts` shim, README/spec/schema path sweep, **`audit.md`** / **`docs/ROADMAP.md`** / **`CHANGELOG.md`** refresh).
 
 **Companion policy:** See **§ Project stage: alpha** in [`AGENTS.md`](../AGENTS.md): no backward-compatibility burden for internal paths or incidental APIs; the bar is **green tests**, **schema/types parity**, and **updated docs**.
 
@@ -184,9 +184,9 @@ Names are normative for *intent*; adjust if a clearer term emerges (e.g. `fetch/
 
 ---
 
-## Phase 9 — `model/` (split `types.ts`)
+## Phase 9 — `model/` (split former `types.ts`)
 
-**Moves:** Replace monolithic **`src/types.ts`** with **`src/model/*.ts`** + **`src/model/index.ts`**, and a **temporary** `src/types.ts` that re-exports everything (so churn is localized), then delete the shim once all imports use `model/` or the public barrel.
+**Moves:** Monolithic **`types.ts`** was replaced by **`src/model/*.ts`** + **`src/model/index.ts`**; the compatibility shim **`src/types.ts`** was removed after migrating in-repo imports to **`./model`** / **`../model`** (and `@engine/model` in the webapp).
 
 **Suggested slices:**
 
@@ -207,7 +207,7 @@ Names are normative for *intent*; adjust if a clearer term emerges (e.g. `fetch/
 3. **`AGENTS.md`** — Replace stale paths. **Done** (ongoing as new files land).
 4. **`docs/wiktionary-sdk-spec.md`** §14 / implementation map — Update file paths. **Done** (key rows).
 5. **`audit.md`**, **`docs/ROADMAP.md`**, **`CHANGELOG.md`** — Align with modular layout. **Done** (2026-04-05 pass).
-6. Remove **temporary** `types.ts` shim if still present. **Deferred** — shim retained for stable deep imports; see status note at top of this doc.
+6. Remove **temporary** `types.ts` shim if still present. **Done** — shim removed; Typedoc entrypoint uses `src/model/index.ts`.
 7. Optional: **`eslint-plugin-import`** boundaries or a simple **`dependency-cruiser`** config encoding the layer table.
 
 **Exit:** Full doc sweep; `npm run test:ci` green.

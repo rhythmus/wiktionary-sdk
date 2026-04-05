@@ -1,4 +1,4 @@
-import type { EtymologyLink, TemplateCall } from "../../types";
+import type { EtymologyLink, TemplateCall } from "../../model";
 import type { DecoderRegistry } from "./decoder-registry";
 import { stripWikiMarkup } from "./strip-wiki-markup";
 

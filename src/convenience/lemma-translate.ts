@@ -1,7 +1,7 @@
 import { mwFetchJson } from "../ingress/api";
 import { stripWikiMarkup } from "../decode/registry";
 import { wiktionary } from "../pipeline/wiktionary-core";
-import type { FetchResult, Lexeme, WikiLang } from "../types";
+import type { FetchResult, Lexeme, WikiLang } from "../model";
 import { groupRows, mapLexemes, type GroupedLexemeResults } from "./grouped-results";
 
 /**

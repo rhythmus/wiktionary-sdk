@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, resolve } from "path";
 import { describe, it, expect } from "vitest";
-import type { TemplateDecoder } from "../src/types";
+import type { TemplateDecoder } from "../src/model";
 import { registry } from "../src/decode/registry";
 
 const TEST_ROOT = resolve(__dirname, "..");

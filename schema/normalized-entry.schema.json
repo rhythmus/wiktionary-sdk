@@ -1003,7 +1003,7 @@
     },
     "PartOfSpeech": {
       "type": "string",
-      "description": "Part-of-speech slug (`Lexeme.part_of_speech`): en.wiktionary strict headings plus ODict-aligned tags (https://www.odict.org/docs/reference/pos), snake_case; Japanese ODict codes use underscores for hyphens. Non-PoS sections may use `lexicographic_section` with null `part_of_speech`. Canonical list: `PART_OF_SPEECH_VALUES` in `src/types.ts`.",
+      "description": "Part-of-speech slug (`Lexeme.part_of_speech`): en.wiktionary strict headings plus ODict-aligned tags (https://www.odict.org/docs/reference/pos), snake_case; Japanese ODict codes use underscores for hyphens. Non-PoS sections may use `lexicographic_section` with null `part_of_speech`. Canonical list: `PART_OF_SPEECH_VALUES` in `src/model/part-of-speech.ts`.",
       "enum": [
         "abbreviation",
         "adfix",

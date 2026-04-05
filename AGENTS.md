@@ -26,7 +26,7 @@ Collaborators must know **where the contract lives** and **what to edit**:
 
 | What | Authoritative location | Rule |
 |------|------------------------|------|
-| **TypeScript runtime types** | `src/model/` (`src/types.ts` re-exports `./model`) | Canonical interfaces (`Lexeme`, `FetchResult`, `SCHEMA_VERSION`, …). Edit the appropriate `src/model/*.ts` slice; keep the barrel and public exports aligned. |
+| **TypeScript runtime types** | `src/model/` (`src/model/index.ts` barrel) | Canonical interfaces (`Lexeme`, `FetchResult`, `SCHEMA_VERSION`, …). Edit the appropriate `src/model/*.ts` slice; keep `model/index.ts` and `src/index.ts` public re-exports aligned. |
 | **JSON Schema (authoring)** | `schema/src/root.yaml` and `schema/src/defs/*.yaml` | **Only** these YAML files are edited to change the normalized-output schema. |
 | **JSON Schema (published)** | `schema/normalized-entry.schema.json` | **Generated — do not hand-edit.** After any YAML change run **`npm run build:schema`**, then commit the updated JSON alongside the YAML. |
 | **Which def lives in which file** | `tools/schema-def-modules.ts` | Each `$defs` name is listed in exactly one module; add new defs there when splitting or adding files. |
@@ -53,7 +53,7 @@ The engine is a decentralized registry of pure functions (`TemplateDecoder`). **
 A custom parser handles nested `{{...}}` structures. 
 - **Context**: Standard regex is insufficient for Wikitext. Always use the provided parser to extract `TemplateCall` objects.
 
-### 3. Entry Types (`src/model/`; `src/types.ts` re-exports the model barrel)
+### 3. Entry Types (`src/model/`)
 - `LEXEME`: A lemma (e.g., γράφω).
 - `INFLECTED_FORM`: A specific form (e.g., έγραψε) that maps to a lemma.
 

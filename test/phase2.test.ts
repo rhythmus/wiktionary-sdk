@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { registry } from "../src/decode/registry";
 import { parseTemplates } from "../src/parse/parser";
-import type { DecodeContext } from "../src/types";
+import type { DecodeContext } from "../src/model";
 
 function makeCtx(wikitext: string, overrides?: Partial<DecodeContext>): DecodeContext {
   const templates = parseTemplates(wikitext);

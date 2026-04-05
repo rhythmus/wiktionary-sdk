@@ -7,7 +7,7 @@
 
 import { wiktionary } from "../src/index";
 import * as SDK from "../src/index";
-import type { FetchResult, Lexeme, LexemeResult, RichEntry } from "../src/types";
+import type { FetchResult, Lexeme, LexemeResult, RichEntry } from "../src/model";
 import { writeFileSync } from "fs";
 
 // ─── Test Query Matrix ───────────────────────────────────────────────────────

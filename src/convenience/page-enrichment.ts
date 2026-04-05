@@ -1,6 +1,6 @@
 import { commonsThumbUrl } from "../infra/utils";
 import { wiktionary } from "../pipeline/wiktionary-core";
-import type { EtymologyStep, Lexeme, WikiLang } from "../types";
+import type { EtymologyStep, Lexeme, WikiLang } from "../model";
 import { lemma } from "./lemma-translate";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
 

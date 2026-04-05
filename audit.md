@@ -9,7 +9,7 @@
 
 ## 1. Executive summary
 
-The project delivers a **source-faithful** Wiktionary extraction pipeline with a layered `src/` layout: **public barrel** (`src/index.ts`), **domain model** (`src/model/` + `src/types.ts` shim), **ingress** (`src/ingress/` — API, cache, rate limiter, server fetch), **parse** (`src/parse/`), **decode** (`src/decode/registry/` tree), **pipeline** (`src/pipeline/` — `wiktionary-core`, `form-of-parse-enrich`), **present** (`src/present/` — formatter, templates, display groups), **convenience** (`src/convenience/` — wrappers, morphology, stem), and **infra** (`src/infra/` — utils, constants), plus **consumers** (CLI, webapp, HTTP server). The written specification (`docs/wiktionary-sdk-spec.md` v3.4+) is unusually well aligned with the implementation and explicitly calls out known edges (lemma cycles, fuzzy merge, form-of Lua vs wikitext, REST parity gaps).
+The project delivers a **source-faithful** Wiktionary extraction pipeline with a layered `src/` layout: **public barrel** (`src/index.ts`), **domain model** (`src/model/`), **ingress** (`src/ingress/` — API, cache, rate limiter, server fetch), **parse** (`src/parse/`), **decode** (`src/decode/registry/` tree), **pipeline** (`src/pipeline/` — `wiktionary-core`, `form-of-parse-enrich`), **present** (`src/present/` — formatter, templates, display groups), **convenience** (`src/convenience/` — wrappers, morphology, stem), and **infra** (`src/infra/` — utils, constants), plus **consumers** (CLI, webapp, HTTP server). The written specification (`docs/wiktionary-sdk-spec.md` v3.4+) is unusually well aligned with the implementation and explicitly calls out known edges (lemma cycles, fuzzy merge, form-of Lua vs wikitext, REST parity gaps).
 
 Main risks for maintainability and robustness:
 
@@ -41,7 +41,7 @@ The existing test story (goldens, decoder coverage, parser invariants, cross-int
 ### 2.2 Alignment notes
 
 - **REST server** (`server.ts`): Spec §11.1 correctly states limited query surface vs CLI/webapp (`matchMode`, `sort`, `debugDecoders`, true `pos` filter). Default `lang` is `el` on the server vs `"Auto"` in `wiktionary()` — intentional mismatch worth centralizing in one “defaults” module when refactoring.
-- **Schema version:** `SCHEMA_VERSION` lives in `src/model/schema-version.ts` (re-exported via `src/types.ts`); it tracks the **output** schema (currently `3.3.0`), while the **spec document** carries its own revision label — both are called out in the README version table; keep them in sync when bumping (`VERSIONING.md`).
+- **Schema version:** `SCHEMA_VERSION` lives in `src/model/schema-version.ts` (re-exported via `src/index.ts`); it tracks the **output** schema (currently `3.3.0`), while the **spec document** carries its own revision label — both are called out in the README version table; keep them in sync when bumping (`VERSIONING.md`).
 - **Chat exports under `docs/AI agents chat history/`:** Historical; not treated as product requirements.
 
 ---
@@ -78,7 +78,7 @@ index.ts → convenience/* (re-export), pipeline/wiktionary-core, present/*, dec
 convenience/* → pipeline/wiktionary-core (wiktionary), ingress/* as needed
 convenience/morphology.ts → grouped-results, lemma-translate, ingress/api, pipeline/wiktionary-core
 convenience/stem.ts → pipeline/wiktionary-core
-present/format-core.ts → ../types (model), ../convenience/morphology|stem (types), ../form-of-display
+present/format-core.ts → ../model, ../convenience/morphology|stem (types), ../form-of-display
 pipeline/form-of-parse-enrich.ts → ingress/api, decode/registry, form-of-display, infra/utils
 ```
 
@@ -302,7 +302,7 @@ Existing coverage (goldens, decoder coverage, registry ids, parser invariants, w
 
 ### 13.14 Schema
 
-- Whenever **`src/model/`** (or the `types.ts` shim) changes, keep **JSON Schema + docs/schemata** in lockstep (`AGENTS.md`); CI runs **`check:schema-artifact`** after YAML edits.
+- Whenever **`src/model/`** changes, keep **JSON Schema + docs/schemata** in lockstep (`AGENTS.md`); CI runs **`check:schema-artifact`** after YAML edits.
 
 ---
 

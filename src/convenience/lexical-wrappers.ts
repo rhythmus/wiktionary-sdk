@@ -7,7 +7,7 @@ import {
     type GrammarTraits,
 } from "./morphology";
 import { wiktionary } from "../pipeline/wiktionary-core";
-import type { LexicographicFamily, PartOfSpeech, WikiLang } from "../types";
+import type { LexicographicFamily, PartOfSpeech, WikiLang } from "../model";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
 
 /**

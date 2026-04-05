@@ -3,7 +3,7 @@
 # =============================================================================
 # This file is documentation / fixture inspiration: not guaranteed to match any
 # single live en.wiktionary.org page. It exercises every major Lexeme branch in
-# src/types.ts (Lexeme, WiktionarySource, EtymologyData, SemanticRelations, …).
+# src/model/ (Lexeme, WiktionarySource, EtymologyData, SemanticRelations, …).
 #
 # Three YAML documents (---): (1) maximal LEXEME, (2) INFLECTED_FORM, (3) FORM_OF.
 # =============================================================================

@@ -1,5 +1,5 @@
 import { parseTemplates } from "../../parse/parser";
-import type { SectionWithLinks } from "../../types";
+import type { SectionWithLinks } from "../../model";
 import type { DecoderRegistry } from "./decoder-registry";
 import { formatUsageNoteLine } from "./format-usage-note-line";
 import { extractSectionByLevelHeaders, parseSectionLinkTemplates } from "./section-extract";

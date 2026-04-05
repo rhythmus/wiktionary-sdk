@@ -1,5 +1,5 @@
 import { wiktionary } from "../pipeline/wiktionary-core";
-import type { WikiLang } from "../types";
+import type { WikiLang } from "../model";
 import { lemma } from "./lemma-translate";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
 

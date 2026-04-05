@@ -12,7 +12,7 @@ import {
   parseTemplates,
 } from "../src/parse/parser";
 import { registry } from "../src/decode/registry";
-import type { DecodeContext } from "../src/types";
+import type { DecodeContext } from "../src/model";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 

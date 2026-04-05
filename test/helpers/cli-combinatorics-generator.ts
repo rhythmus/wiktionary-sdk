@@ -1,4 +1,4 @@
-import type { WikiLang } from "../../src/types";
+import type { WikiLang } from "../../src/model";
 
 export type WrapperRoutingKind =
   | "default"

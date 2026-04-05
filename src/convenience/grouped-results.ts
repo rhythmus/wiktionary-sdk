@@ -1,4 +1,4 @@
-import type { FetchResult, Lexeme, LexemeResult } from "../types";
+import type { FetchResult, Lexeme, LexemeResult } from "../model";
 
 export interface GroupedLexemeResults<T> extends Array<LexemeResult<T>> {
     order: string[];

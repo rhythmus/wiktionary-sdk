@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { PART_OF_SPEECH_VALUES } from "../src/types";
+import { PART_OF_SPEECH_VALUES } from "../src/model";
 
 const schemaPath = resolve(__dirname, "../schema/normalized-entry.schema.json");
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8")) as {

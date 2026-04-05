@@ -3,12 +3,12 @@
  * `{ family, section_slug, strict_pos }` triple. Inspired by the taxonomy in
  * https://github.com/LearnRomanian/wiktionary-scraper (README “Recognised parts of speech”).
  *
- * `strict_pos` is set only for grammatical parts of speech (narrow `PartOfSpeech` in types.ts).
+ * `strict_pos` is set only for grammatical parts of speech (narrow `PartOfSpeech` in `model/part-of-speech.ts`).
  * Morphological units, symbols, phraseology, CJK, policy-violating headings, etc. get
  * `strict_pos: null` and are classified via `lexicographic_family` + `lexicographic_section`.
  */
 
-import type { Lexeme, LexicographicFamily, PartOfSpeech } from "../types";
+import type { Lexeme, LexicographicFamily, PartOfSpeech } from "../model";
 
 export interface LexicographicHeadingResult {
   family: LexicographicFamily;

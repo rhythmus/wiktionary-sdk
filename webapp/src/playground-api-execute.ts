@@ -1,6 +1,6 @@
 import { format } from '@engine/present/formatter';
 import { invokeWrapperMethod as defaultInvoke } from '@engine/index';
-import type { WikiLang } from '@engine/types';
+import type { WikiLang } from '@engine/model';
 
 export type PlaygroundApiExecuteDeps = {
   apiMethod: string;

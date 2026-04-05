@@ -331,6 +331,6 @@ When you add a new axis value in the matrix, add a new **ID** + prose block here
 
 ## See also
 
-- `docs/mockups/dictionary-entry-v3-exhaustive-lexemes.yaml` — structured field-level examples aligned with `types.ts`
+- `docs/mockups/dictionary-entry-v3-exhaustive-lexemes.yaml` — structured field-level examples aligned with `src/model/`
 - `docs/query-result-dimensional-matrix.md` — axis definitions
 - **Library:** `format(fetchResult, { mode: 'html-fragment' })` and `formatFetchResult()` render **homonym-merged** cards (L-02), query **notes** (META), and empty states (L-15 / META-A2). Single-lexeme cases use `entry.html.hbs` helpers (`formOfMorphMergedProseLine`, `formOfUltraCompactEligible`, subsenses, etymology placeholder).

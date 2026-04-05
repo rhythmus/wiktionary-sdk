@@ -2,11 +2,11 @@
 
 Wiktionary SDK output follows **Semantic Versioning 2.0.0** for its normalized JSON/YAML schema.
 
-The runtime string **`schema_version`** on each `FetchResult` is defined as **`SCHEMA_VERSION`** in [`src/types.ts`](src/types.ts). It must match the **current** row in this file for the same release.
+The runtime string **`schema_version`** on each `FetchResult` is defined as **`SCHEMA_VERSION`** in [`src/model/schema-version.ts`](src/model/schema-version.ts). It must match the **current** row in this file for the same release.
 
 ## Current Version
 
-**`3.3.0`** — formalized in [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json) (built from [`schema/src/`](schema/src/) YAML via `npm run build:schema`), aligned with `Lexeme` / `FetchResult` in `src/types.ts`.
+**`3.3.0`** — formalized in [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json) (built from [`schema/src/`](schema/src/) YAML via `npm run build:schema`), aligned with `Lexeme` / `FetchResult` in `src/model/`.
 
 ## Version Semantics
 

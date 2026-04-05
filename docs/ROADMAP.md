@@ -107,7 +107,7 @@
 | 3.1 | Add **`src/pipeline/wiktionary-core.ts`:** `wiktionary`, `wiktionaryRecursive`; **no** re-export of convenience / full formatter. | **Done** — `convenience/*`, `server-fetch` import core; tests that stub `wiktionary` target **`pipeline/wiktionary-core`** (or `ingress/api`). |
 | 3.2 | Keep **`src/index.ts`** as **public barrel** only. | **Done** — barrel re-exports core + packages. |
 | 3.3 | Add **`src/form-of-display.ts`:** morph-line helpers shared by **`present/formatter`** and **`pipeline/form-of-parse-enrich.ts`** (`audit.md` §3.2). | **Done** — `present/formatter` re-exports for API parity; enrich imports `form-of-display` directly. |
-| 3.4 | Move **`EtymologyStep`** (or equivalent) into the domain model. | **Done** — `EtymologyStep` in `src/model/etymology.ts` (re-exported via `src/types.ts` shim); `present/format-core` / `convenience` import from `../types` or package barrel. |
+| 3.4 | Move **`EtymologyStep`** (or equivalent) into the domain model. | **Done** — `EtymologyStep` in `src/model/etymology.ts`; `present/format-core` / `convenience` import from `../model` or package barrel. |
 
 **Risk:** High (load order, Vitest mocks). **Depends on:** Phases 0–2 desirable.
 

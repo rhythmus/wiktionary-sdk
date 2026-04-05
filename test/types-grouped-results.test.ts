@@ -4,7 +4,7 @@
 import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
 import { synonyms, mapLexemes, type GroupedLexemeResults } from "../src/convenience";
 import * as api from "../src/ingress/api";
-import type { FetchResult, Lexeme } from "../src/types";
+import type { FetchResult, Lexeme } from "../src/model";
 
 vi.mock("../src/ingress/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/ingress/api")>();

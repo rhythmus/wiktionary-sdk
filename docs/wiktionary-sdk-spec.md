@@ -37,7 +37,7 @@ Return:
 3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
 4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
-The output conforms to a formal JSON Schema published as `schema/normalized-entry.schema.json` (generated from modular author-time YAML under `schema/src/` via `npm run build:schema`; see `schema/README.md`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/types.ts`; currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
+The output conforms to a formal JSON Schema published as `schema/normalized-entry.schema.json` (generated from modular author-time YAML under `schema/src/` via `npm run build:schema`; see `schema/README.md`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/index.ts`; currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
 **Roadmap note (non-normative):** For **outstanding** phased work, see `docs/ROADMAP.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 
@@ -132,7 +132,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/types.ts`). Current value is `"3.3.0"`.
+  `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/index.ts`). Current value is `"3.3.0"`.
 - `debug` (optional): When `wiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `lexemes[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -1261,7 +1261,7 @@ playground error paths that are easy to break inside a large `App.tsx`.
 
 **Artifacts:**
 - `src/index.ts`: Orchestration entry point.
-- `src/model/`: Canonical type definitions (`src/types.ts` re-exports the barrel).
+- `src/model/`: Canonical type definitions (`src/model/index.ts` barrel).
 - `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`: The typographic gold standard.
 - `docs/TEXT_TO_DICTIONARY_PLAN.md`: Future architecture for text analysis.
 - `schema/normalized-entry.schema.json`: Formal output schema (v3.0.0).
@@ -1577,7 +1577,7 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 | **`index.ts`** | Public package **barrel**: re-exports **`wiktionary()`**, **`wiktionaryRecursive()`**, **`stripCombiningMarksForPageTitle`** from `wiktionary-core.ts`, plus library/formatter/stem/wrapper helpers and shared constants. |
 | **`wiktionary-core.ts`** | **`wiktionary()`**, fuzzy merge, **`wiktionaryRecursive()`**, lemma resolution queue, Wikidata enrichment loop, `sort`, internal `guessLexemeTypeFromTemplates()` (via `isFormOfTemplateName` / `isVariantFormOfTemplateName`). Import from here inside the repo instead of `index.ts` to avoid cycles. |
 | **`constants.ts`** | Shared defaults: **`LANG_PRIORITY`**, **`SERVER_DEFAULT_WIKI_LANG`**, cache TTL, rate-limit interval. |
-| **`types.ts`** | `SCHEMA_VERSION`, `Lexeme`, `FetchResult`, `EtymologyStep`, `DecodeContext`, `TemplateDecoder`, `DecoderDebugEvent`, and all shared interfaces. |
+| **`src/model/`** | `SCHEMA_VERSION`, `Lexeme`, `FetchResult`, `EtymologyStep`, `DecodeContext`, `TemplateDecoder`, `DecoderDebugEvent`, and all shared interfaces (see `model/index.ts`). |
 | **`api.ts`** | **`mwFetchJson()`** (rate limit + fetch), **`normalizeWiktionaryQueryPage()`**, **`fetchWikitextEnWiktionary()`**, **`fetchWikidataEntity()`**, Wikidata title lookups by site. |
 | **`parser.ts`** | Language sections (`extractLanguageSection`, `extractAllLanguageSections`), **`splitEtymologiesAndPOS()`** (PoS-boundary rule), **`parseTemplates()`** (brace-aware, optional positions), heading → PoS mapping, language name ↔ code helpers, sense-line parsing helpers used by the registry. |
 | **`registry.ts`** | Public entry: singleton **`registry`**, **`registerAllDecoders(registry)`**, re-exports **`registerAllDecoders`**, **`DecoderRegistry`**, **`stripWikiMarkup`**, form-of predicates. Ordered decoder list: **`docs/registry-inventory.md`**. |

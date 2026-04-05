@@ -13,7 +13,7 @@ import {
   inflectionMorphBulletItems,
   inflectionMorphDisplayLines,
 } from "../src/present/formatter";
-import type { Lexeme } from "../src/types";
+import type { Lexeme } from "../src/model";
 
 describe("hardening: heading taxonomy (strict PoS vs lexicographic section)", () => {
   it("maps strict grammatical headings via mapHeadingToPos", () => {

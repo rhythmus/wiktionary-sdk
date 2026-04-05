@@ -21,12 +21,12 @@ export type {
   EtymologyStep,
   PartOfSpeech,
   LexicographicFamily,
-} from "./types";
+} from "./model";
 export {
   PART_OF_SPEECH_VALUES,
   isPartOfSpeech,
   SCHEMA_VERSION,
-} from "./types";
+} from "./model";
 export {
   mapHeadingToLexicographic,
   mapHeadingToStrictPartOfSpeech,

@@ -1,8 +1,8 @@
 import type { GrammarTraits } from "../convenience/morphology";
 import type { WordStems } from "../convenience/stem";
 import Handlebars from "handlebars";
-import { SCHEMA_VERSION } from "../types";
-import type { Sense, RichEntry, InflectionTable, EtymologyData, EtymologyStep, Lexeme, FetchResult } from "../types";
+import { SCHEMA_VERSION } from "../model";
+import type { Sense, RichEntry, InflectionTable, EtymologyData, EtymologyStep, Lexeme, FetchResult } from "../model";
 import { groupLexemesForIntegratedHomonyms } from "./lexeme-display-groups";
 import {
     htmlEntryTemplate,

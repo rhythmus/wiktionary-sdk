@@ -8,8 +8,8 @@ import type {
     Lexeme,
     DecodeContext,
     DecoderDebugEvent,
-} from "../types";
-import { SCHEMA_VERSION } from "../types";
+} from "../model";
+import { SCHEMA_VERSION } from "../model";
 
 import {
     fetchWikitextEnWiktionary,

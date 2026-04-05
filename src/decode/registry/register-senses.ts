@@ -1,5 +1,5 @@
 import { parseTemplates } from "../../parse/parser";
-import type { OnlyUsedIn, Sense, TemplateCall } from "../../types";
+import type { OnlyUsedIn, Sense, TemplateCall } from "../../model";
 import { buildFormOfDisplayLabel } from "./form-of-display-label";
 import { isFormOfTemplateName, isPerLangFormOfTemplate } from "./form-of-predicates";
 import type { DecoderRegistry } from "./decoder-registry";

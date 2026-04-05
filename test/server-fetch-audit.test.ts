@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { buildApiFetchResponse } from "../src/ingress/server-fetch";
-import type { FetchResult } from "../src/types";
+import type { FetchResult } from "../src/model";
 
 describe("buildApiFetchResponse", () => {
   it("returns 400 JSON when query is missing", async () => {

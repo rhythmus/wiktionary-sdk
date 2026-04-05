@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, type FC } from 'react';
 import { Loader2 } from 'lucide-react';
 import { wiktionary } from '@engine/index';
-import type { Lexeme } from '@engine/types';
+import type { Lexeme } from '@engine/model';
 import { normalizeWikiLangArg } from '@engine/parse/parser';
 import { format, formatInflectedFormHeadline } from '@engine/present/formatter';
 import { parseMorphologyTags } from '@engine/convenience/morphology';
@@ -21,7 +21,7 @@ export const FormOfLexemeBlock: FC<{
     const lemmaQuery = lexeme.form_of!.lemma!.trim();
     const lang = normalizeWikiLangArg(lexeme.language);
     const preferredPos =
-      lexeme.part_of_speech && lexeme.part_of_speech !== 'Auto'
+      lexeme.part_of_speech
         ? lexeme.part_of_speech
         : lexeme.lexicographic_section && lexeme.lexicographic_section !== 'unknown'
           ? lexeme.lexicographic_section

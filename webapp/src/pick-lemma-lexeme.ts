@@ -1,6 +1,6 @@
 import { stripCombiningMarksForPageTitle } from '@engine/index';
 import { lexemeMatchesPosQuery } from '@engine/parse/lexicographic-headings';
-import type { FetchResult, Lexeme } from '@engine/types';
+import type { FetchResult, Lexeme } from '@engine/model';
 
 /**
  * Pick the lemma LEXEME from a second wiktionary() response. Uses only API fields:

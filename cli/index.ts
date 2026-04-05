@@ -23,7 +23,7 @@
 
 import { wiktionary } from "../src/index";
 import * as SDK from "../src/index";
-import type { WikiLang, FetchResult } from "../src/types";
+import type { WikiLang, FetchResult } from "../src/model";
 import { invokeWrapperMethod } from "../src/convenience/wrapper-invoke";
 import { readFileSync, writeFileSync } from "fs";
 

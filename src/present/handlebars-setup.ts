@@ -1,4 +1,4 @@
-import type { Lexeme } from "../types";
+import type { Lexeme } from "../model";
 import Handlebars from "handlebars";
 import { etymSourceLangDisplayName } from "../parse/parser";
 import { formOfMorphInlinePhrase, inflectionMorphDisplayLines } from "../form-of-display";

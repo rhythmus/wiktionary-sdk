@@ -8,7 +8,7 @@ import {
   extractFormOfMorphLinesFromParsedHtml,
 } from "../src/pipeline/form-of-parse-enrich";
 import * as api from "../src/ingress/api";
-import type { Lexeme } from "../src/types";
+import type { Lexeme } from "../src/model";
 
 vi.mock("../src/ingress/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/ingress/api")>();

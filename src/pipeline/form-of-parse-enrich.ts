@@ -1,7 +1,7 @@
 import { parse } from "node-html-parser";
 import { mwFetchJson } from "../ingress/api";
 import { isPerLangFormOfTemplate } from "../decode/registry";
-import type { Lexeme } from "../types";
+import type { Lexeme } from "../model";
 import {
     expandDualPersonInflectionLine,
     formOfMorphLinesAreAbbrevTokensOnly,

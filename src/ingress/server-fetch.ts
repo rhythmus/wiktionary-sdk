@@ -3,7 +3,7 @@
  */
 import { wiktionary as defaultWiktionary } from "../pipeline/wiktionary-core";
 import { SERVER_DEFAULT_WIKI_LANG } from "../infra/constants";
-import type { WikiLang } from "../types";
+import type { WikiLang } from "../model";
 
 export type WiktionaryFetchFn = typeof defaultWiktionary;
 

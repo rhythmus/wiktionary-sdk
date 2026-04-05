@@ -1,5 +1,5 @@
 import { parseMorphologyTags } from "./convenience/morphology";
-import type { Lexeme } from "./types";
+import type { Lexeme } from "./model";
 
 /**
  * Expand en.wiktionary "first/third-person singular …" style lines into two explicit lines.

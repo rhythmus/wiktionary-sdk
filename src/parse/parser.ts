@@ -1,4 +1,4 @@
-import type { PartOfSpeech, TemplateCall, WikiLang } from "../types";
+import type { PartOfSpeech, TemplateCall, WikiLang } from "../model";
 import { isLexemeSectionHeading, mapHeadingToStrictPartOfSpeech } from "./lexicographic-headings";
 
 /** -------------------- Wikitext Sectioning -------------------- **/
