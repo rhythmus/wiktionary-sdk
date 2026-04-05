@@ -160,8 +160,8 @@ describe("README Usage Examples Compliance", () => {
 
     it("12. Stems extraction", async () => {
         const grouped = await stem("έγραψα", "el");
-        const aliases = rows<string[]>(grouped).find(r => r.language === "el")?.value || [];
-        expect(aliases).toContain("γράψ");
-        expect(format({ aliases }, { mode: "text" })).toContain("Stems:");
+        const row = rows<{ aliases: string[] }>(grouped).find((r) => r.language === "el");
+        expect(row?.value.aliases).toContain("γράψ");
+        expect(format(row!.value, { mode: "text" })).toContain("Stems:");
     });
 });

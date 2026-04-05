@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { stem, stemByLexeme } from "../src/convenience/stem";
+import { stem, stemByLexeme, extractStemsFromLexeme } from "../src/convenience/stem";
 import * as coreModule from "../src/pipeline/wiktionary-core";
 import * as api from "../src/ingress/api";
 
@@ -193,6 +193,89 @@ describe("stem extraction", () => {
         const greek = grouped.order
             .map((id) => ({ id, ...grouped.lexemes[id] }))
             .find((r) => r.language === "el");
-        expect(greek?.value).toEqual(expect.arrayContaining(["γράφ", "έγραφ", "γράψ"]));
+        expect(greek?.value.aliases).toEqual(expect.arrayContaining(["γράφ", "έγραφ", "γράψ"]));
+
+        const grc = grouped.order.map((id) => ({ id, ...grouped.lexemes[id] })).find((r) => r.language === "grc");
+        expect(grc?.value.aliases).toEqual([]);
+        expect(grc?.support_warning).toMatch(/No wikitext templates were captured|explicit paradigm templates/i);
+    });
+});
+
+describe("extractStemsFromLexeme (Ancient Greek grc-conj / grc-decl)", () => {
+    it("maps grc-conj tense codes to verb stem slots (en.wikt γράφω conjugation)", () => {
+        const stems = extractStemsFromLexeme({
+            templates_all: [
+                { name: "grc-conj", params: { positional: ["pres", "γρᾰφ"], named: {} } },
+                { name: "grc-conj", params: { positional: ["imperf", "ἐγρᾰφ"], named: {} } },
+                { name: "grc-conj", params: { positional: ["fut", "γρᾰψ", "γρᾰφ"], named: {} } },
+                {
+                    name: "grc-conj",
+                    params: { positional: ["aor-1", "ἐγρᾰψ", "γρᾰψ", "ἐγρᾰφ", "γρᾰφ"], named: {} },
+                },
+                { name: "grc-conj", params: { positional: ["perf", "γεγρᾰφ", "γεγρᾰφ"], named: {} } },
+                { name: "grc-conj", params: { positional: ["plup", "ἐγεγρᾰφ", "ἐγεγρᾰφ"], named: {} } },
+            ],
+        } as any);
+        expect(stems.verb?.present).toEqual(["γρᾰφ"]);
+        expect(stems.verb?.imperfect).toEqual(["ἐγρᾰφ"]);
+        expect(stems.verb?.future).toEqual(["γρᾰψ", "γρᾰφ"]);
+        expect(stems.verb?.simple_past).toEqual(["ἐγρᾰψ", "γρᾰψ"]);
+        expect(stems.verb?.passive_simple_past).toEqual(["ἐγρᾰφ", "γρᾰφ"]);
+        expect(stems.verb?.perfect).toEqual(["γεγρᾰφ", "γεγρᾰφ"]);
+        expect(stems.verb?.pluperfect).toEqual(["ἐγεγρᾰφ", "ἐγεγρᾰφ"]);
+        expect(stems.aliases).toEqual(
+            expect.arrayContaining([
+                "γρᾰφ",
+                "ἐγρᾰφ",
+                "γρᾰψ",
+                "ἐγρᾰψ",
+                "γεγρᾰφ",
+                "ἐγεγρᾰφ",
+            ]),
+        );
+    });
+
+    it("collects grc-decl principal parts into nominals", () => {
+        const stems = extractStemsFromLexeme({
+            templates_all: [{ name: "grc-decl", params: { positional: ["λόγος", "λόγου"], named: {} } }],
+        } as any);
+        expect(stems.nominals).toEqual(["λόγος", "λόγου"]);
+        expect(stems.aliases).toEqual(expect.arrayContaining(["λόγος", "λόγου"]));
+    });
+
+    it("handles grc-decl indecl second parameter as the sole surface form", () => {
+        const stems = extractStemsFromLexeme({
+            templates_all: [{ name: "grc-decl", params: { positional: ["indecl", "Ἰσραήλ"], named: {} } }],
+        } as any);
+        expect(stems.nominals).toEqual(["Ἰσραήλ"]);
+    });
+
+    it("sets support_warning when verb lexeme has only unsupported paradigm templates", () => {
+        const stems = extractStemsFromLexeme({
+            part_of_speech: "verb",
+            part_of_speech_heading: "Verb",
+            templates_all: [{ name: "grk-ita-head", params: { positional: ["verb", "latn=grafo"], named: {} } }],
+        } as any);
+        expect(stems.aliases).toEqual([]);
+        expect(stems.support_warning).toMatch(/does not read yet/);
+    });
+
+    it("does not set support_warning for non-paradigm sections", () => {
+        const stems = extractStemsFromLexeme({
+            part_of_speech: "interjection",
+            part_of_speech_heading: "Interjection",
+            templates_all: [],
+        } as any);
+        expect(stems.support_warning).toBeUndefined();
+    });
+
+    it("sets support_warning when paradigm templates match but no stems pass filters", () => {
+        const stems = extractStemsFromLexeme({
+            part_of_speech: "verb",
+            part_of_speech_heading: "Verb",
+            templates_all: [{ name: "grc-conj", params: { positional: ["pres", "write"], named: {} } }],
+        } as any);
+        expect(stems.aliases).toEqual([]);
+        expect(stems.support_warning).toMatch(/Recognized paradigm template/);
     });
 });

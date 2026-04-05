@@ -8,6 +8,7 @@ export function registerInflectionStems(reg: DecoderRegistry): void {
         matches: (ctx) =>
             ctx.templates.some(
                 (t) =>
+                    t.name === "grc-conj" ||
                     t.name.startsWith("el-conj-") ||
                     t.name.startsWith("el-decl-") ||
                     t.name.startsWith("el-conjug-") ||
@@ -18,6 +19,7 @@ export function registerInflectionStems(reg: DecoderRegistry): void {
         decode: (ctx) => {
             const t = ctx.templates.find(
                 (x) =>
+                    x.name === "grc-conj" ||
                     x.name.startsWith("el-conj-") ||
                     x.name.startsWith("el-decl-") ||
                     x.name.startsWith("el-conjug-") ||
