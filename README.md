@@ -15,7 +15,7 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 | Axis | Current value | Where it lives |
 |------|----------------|----------------|
 | **npm package** | `1.2.0` (see `package.json` `version`) | Release tagging / consumers |
-| **Output `schema_version`** | `3.3.0` | `SCHEMA_VERSION` in `src/types.ts`, emitted on every `FetchResult` |
+| **Output `schema_version`** | `3.3.0` | `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/types.ts`), emitted on every `FetchResult` |
 | **Formal spec revision** | v3.4 | Title line in `docs/wiktionary-sdk-spec.md` |
 
 Bump rules for schema vs code: see `VERSIONING.md`. The spec revision and `SCHEMA_VERSION` can move at different cadences; the table above is the support checklist from `audit.md` §2.2.
@@ -26,7 +26,7 @@ Changes to **normalized output shape** must stay consistent across three layers:
 
 | Layer | Location | What you do |
 |-------|----------|-------------|
-| **TypeScript** | [`src/types.ts`](src/types.ts) | Update interfaces (`Lexeme`, `FetchResult`, …) and `SCHEMA_VERSION` when the runtime payload changes. |
+| **TypeScript** | [`src/model/`](src/model/) ([`src/types.ts`](src/types.ts) re-exports the barrel) | Update the relevant `src/model/*.ts` slice and `SCHEMA_VERSION` when the runtime payload changes. |
 | **JSON Schema (edit here)** | [`schema/src/root.yaml`](schema/src/root.yaml) + [`schema/src/defs/`](schema/src/defs/) | **Author-time YAML only** — this is the single place to edit the schema structure. |
 | **JSON Schema (shipped / validated)** | [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json) | **Generated.** Run **`npm run build:schema`** after YAML edits and **commit** this file. Do not edit it by hand. |
 
@@ -417,13 +417,17 @@ format(lineage, { mode: "markdown" }); // "grk-pro ***grépʰō** ← el **γρ�
 ```
 wiktionary-sdk/
 ├── src/                      # Core engine (TypeScript library)
-│   ├── types.ts              # Formal schema, interfaces, SCHEMA_VERSION
-│   ├── registry.ts           # DecoderRegistry + all template decoders
-│   ├── parser.ts             # Brace-aware wikitext & template parser
-│   ├── api.ts                # MediaWiki & Wikidata API client (cached, rate-limited)
-│   ├── cache.ts              # Multi-tier cache (L1 memory, L2/L3 pluggable)
-│   ├── rate-limiter.ts       # Request throttling & User-Agent management
-│   └── utils.ts              # Shared utilities (MD5, deep merge, etc.)
+│   ├── index.ts              # Public package entry (barrel)
+│   ├── types.ts              # Re-exports ./model (stable path for deep imports)
+│   ├── model/                # Domain types, SCHEMA_VERSION, decode context
+│   ├── ingress/              # MediaWiki API, cache, rate limiter, server fetch
+│   ├── parse/                # Brace-aware parser, lexicographic headings
+│   ├── decode/               # Decoder registry + template decoders
+│   ├── pipeline/             # wiktionary-core, form-of-parse-enrich
+│   ├── present/              # Formatter, Handlebars templates, lexeme display groups
+│   ├── convenience/          # High-level wrappers, morphology, stem
+│   ├── infra/                # Shared utils, central defaults (constants)
+│   └── form-of-display.ts    # Headline morph display helpers (uses convenience/morphology)
 ├── schema/                   # JSON Schema for normalized output
 │   ├── src/                  # AUTHOR-TIME YAML (source of truth for schema shape)
 │   │   ├── root.yaml         # FetchResult root (no $defs)
@@ -472,8 +476,8 @@ npm install
 npm run dev
 ```
 
-While Vite is running, edits to `src/templates/entry.html.hbs`, `entry.md.hbs`, or
-`entry.css` (at the repo root) are written into `src/templates/templates.ts`
+While Vite is running, edits to `src/present/templates/entry.html.hbs`, `entry.md.hbs`, or
+`entry.css` are written into `src/present/templates/templates.ts`
 automatically so the demo and hot reload stay aligned with the bundled SDK
 strings. Commit `templates.ts` after template changes so CLI and package users
 see the same output without the webapp.
@@ -564,7 +568,7 @@ The project distinguishes between two primary entry types:
 1.  **LEXEME**: Represents a dictionary lemma (e.g., *γράφω*). Includes POS, morphology stems, translations, senses, semantic relations, etymology, pronunciation, and usage notes.
 2.  **INFLECTED_FORM**: Represents a specific form (e.g., *έγραψε*). Links back to a lemma via `form_of` and includes inflectional tags.
 
-**Contract:** Runtime shapes are defined in **`src/types.ts`**. The machine-readable JSON Schema is **authored** as modular YAML under **`schema/src/`** and **emitted** to **`schema/normalized-entry.schema.json`** via **`npm run build:schema`** (see **[Where the domain model lives](#where-the-domain-model-lives-source-of-truth)** and **`schema/README.md`**). The emitted `schema_version` matches **`SCHEMA_VERSION`** in `types.ts` (see the [Version axes](#version-axes) table). Versioning policy: **`VERSIONING.md`**.
+**Contract:** Runtime shapes are defined under **`src/model/`** (re-exported from **`src/types.ts`**). The machine-readable JSON Schema is **authored** as modular YAML under **`schema/src/`** and **emitted** to **`schema/normalized-entry.schema.json`** via **`npm run build:schema`** (see **[Where the domain model lives](#where-the-domain-model-lives-source-of-truth)** and **`schema/README.md`**). The emitted `schema_version` matches **`SCHEMA_VERSION`** (see the [Version axes](#version-axes) table). Versioning policy: **`VERSIONING.md`**.
 
 ## 🧩 Decoder Coverage
 

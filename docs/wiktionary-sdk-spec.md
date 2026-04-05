@@ -37,7 +37,7 @@ Return:
 3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
 4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
-The output conforms to a formal JSON Schema published as `schema/normalized-entry.schema.json` (generated from modular author-time YAML under `schema/src/` via `npm run build:schema`; see `schema/README.md`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
+The output conforms to a formal JSON Schema published as `schema/normalized-entry.schema.json` (generated from modular author-time YAML under `schema/src/` via `npm run build:schema`; see `schema/README.md`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/types.ts`; currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
 **Roadmap note (non-normative):** For **outstanding** phased work, see `docs/ROADMAP.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 
@@ -132,7 +132,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.3.0"`.
+  `SCHEMA_VERSION` in `src/model/schema-version.ts` (re-exported via `src/types.ts`). Current value is `"3.3.0"`.
 - `debug` (optional): When `wiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `lexemes[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -189,7 +189,7 @@ Each `Lexeme` contains:
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media; includes **`instance_of`** (P31) and **`subclass_of`** (P279) QID arrays when claims exist |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
 
-**Implementation note (lexicographic taxonomy):** Full heading coverage for **lexeme-opening** PoS and morpheme headings lives in `src/lexicographic-headings.ts`. For a **MoS-style checklist** of common *content* sections (synonyms, derived terms, collocations, etc.) and how they map to `Lexeme` fields, see [section-inventory.md](section-inventory.md) (aligned with [wiktionary-scraper’s `english.ts`](https://github.com/LearnRomanian/wiktionary-scraper/blob/main/src/constants/sections/english.ts)). `PartOfSpeech` values (en.wiktionary strict headings plus [ODict-aligned](https://www.odict.org/docs/reference/pos) tags for interchange, including Japanese classes) are listed in `PART_OF_SPEECH_VALUES` in `src/types.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
+**Implementation note (lexicographic taxonomy):** Full heading coverage for **lexeme-opening** PoS and morpheme headings lives in `src/parse/lexicographic-headings.ts`. For a **MoS-style checklist** of common *content* sections (synonyms, derived terms, collocations, etc.) and how they map to `Lexeme` fields, see [section-inventory.md](section-inventory.md) (aligned with [wiktionary-scraper’s `english.ts`](https://github.com/LearnRomanian/wiktionary-scraper/blob/main/src/constants/sections/english.ts)). `PartOfSpeech` values (en.wiktionary strict headings plus [ODict-aligned](https://www.odict.org/docs/reference/pos) tags for interchange, including Japanese classes) are listed in `PART_OF_SPEECH_VALUES` in `src/model/part-of-speech.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
 
 **Mandatory traceability** (`WiktionarySource`):
 
@@ -211,7 +211,7 @@ source:
 block, enabling exact reproducibility (e.g. cache-busting by revision ID) and
 audit trails.
 
-**Implementation note (lemma resolution metadata):** Resolved lemma lexemes (merged into `FetchResult.lexemes` after an inflected-form fetch) carry `resolved_for_query` (original query) and **`lemma_triggered_by_lexeme_id`** (the `Lexeme.id` of the `INFLECTED_FORM` row that triggered the lemma fetch). `src/types.ts`, JSON Schema, and runtime output all use this single field name.
+**Implementation note (lemma resolution metadata):** Resolved lemma lexemes (merged into `FetchResult.lexemes` after an inflected-form fetch) carry `resolved_for_query` (original query) and **`lemma_triggered_by_lexeme_id`** (the `Lexeme.id` of the `INFLECTED_FORM` row that triggered the lemma fetch). `src/model/lexeme.ts`, JSON Schema, and runtime output all use this single field name.
 
 ### 3.3 Sense structure
 
@@ -499,7 +499,7 @@ preferred. Scalar exceptions are marked below.
 | `rhymes(q, l)` | `LexemeResult<string[]>[]` | Rhyming words per lexeme. |
 | `homophones(q, l)` | `LexemeResult<string[]>[]` | Homophones per lexeme. |
 
-#### 3.9.3 `translate()` modes (`library.ts`)
+#### 3.9.3 `translate()` modes (`src/convenience/lemma-translate.ts`)
 
 - **`mode: "gloss"` (default):** After **`lemma()`** resolution, reads **`lexeme.translations[targetLang]`** from the **English** Wiktionary entry (translation table templates only; no extra inference).
 - **`mode: "senses"` + `targetLang === "en"`:** Reuses the same lemma fetch on en.wiktionary and maps **`Sense.gloss`** strings per lexeme.
@@ -790,7 +790,7 @@ Wikidata attachment runs only when `enrich !== false` in `wiktionary()`. It appl
 **Entity fetch:** `fetchWikidataEntity(qid)` loads `labels`, `descriptions`, `claims`, `sitelinks`. The SDK:
 
 - Builds `sitelinks[].url` when the API omits it, using `https://${lang}.wikipedia.org/wiki/…` for `*wiki` sites.
-- Maps **`P18`** to `wikidata.media` with Commons filename, `commons_file`, and **`commonsThumbUrl()`** thumbnail (default width 420) from `src/utils.ts`.
+- Maps **`P18`** to `wikidata.media` with Commons filename, `commons_file`, and **`commonsThumbUrl()`** thumbnail (default width 420) from `src/infra/utils.ts`.
 - Maps **`P31`** → `wikidata.instance_of` and **`P279`** → `wikidata.subclass_of` as arrays of QID strings.
 
 Failures are recorded on the lexeme as **`wikidata_error`** (string message) in the catch path — this field is runtime-only and not part of the formal JSON Schema; consumers should treat it as diagnostic.
@@ -990,7 +990,7 @@ The tag arrays produced by form-of templates (`["1", "s", "perf", "past", "actv"
 ### 12.17 Unit-test harness: stub `src/api`, not the network
 Default `npm test` must remain **offline**. Tests should prefer **`vi.mock("../src/api")`** with `fetchWikitextEnWiktionary` / `fetchWikidataEntity` (and `mwFetchJson` when exercising foreign wikis) returning fixture wikitext or minimal pages, then call the **real** `wiktionary()` so the parser and registry run on real wikitext.
 
-**Partial `vi.mock("../src/index")` caveat:** replacing only the exported `wiktionary` with `vi.fn()` does not reliably replace the `wiktionary` binding inside `library.ts` (circular module graph with `importOriginal`). Helpers such as `lemma()`, `interwiki()`, `pageMetadata()`, and `stem()` may still invoke the **real** fetch path unless `api` is stubbed. **Design choice:** document this in `test/README.md` and `AGENTS.md` so new tests do not reintroduce live `en.wiktionary.org` calls or reliance on the in-memory cache to mask them.
+**Partial `vi.mock("../src/index")` caveat:** replacing only the exported `wiktionary` with `vi.fn()` does not reliably replace the `wiktionary` binding inside `src/convenience/*.ts` modules (circular module graph with `importOriginal`). Helpers such as `lemma()`, `interwiki()`, `pageMetadata()`, and `stem()` may still invoke the **real** fetch path unless `api` is stubbed. **Design choice:** document this in `test/README.md` and `AGENTS.md` so new tests do not reintroduce live `en.wiktionary.org` calls or reliance on the in-memory cache to mask them.
 
 ### 12.18 Quality gates: goldens, decoder coverage, parser invariants
 These are **verification artifacts**, not part of the runtime contract:
@@ -1001,7 +1001,7 @@ These are **verification artifacts**, not part of the runtime contract:
 
 ### 12.19 Convenience aliases (`phonetic`, `derivations`, `audioDetails`, `interwiki`)
 
-- **`phonetic`**: In `src/library.ts`, exported as an alias for **`ipa()`** (primary IPA string per lexeme), not for `pronounce()` (audio-first). Prefer importing `ipa` or `pronounce` explicitly if the distinction matters.
+- **`phonetic`**: In `src/convenience/lexical-wrappers.ts`, exported as an alias for **`ipa()`** (primary IPA string per lexeme), not for `pronounce()` (audio-first). Prefer importing `ipa` or `pronounce` explicitly if the distinction matters.
 - **`derivations`**: Alias for **`derivedTerms()`** only — returns `derived_terms.items` per lexeme. It does **not** merge `etymologyChain()`; use `etymologyChain()` / `etymology()` separately.
 - **`audioDetails`**: Deprecated alias for **`audioGallery()`** (full `pronunciation.audio_details` list).
 - **`interwiki`**: Alias for **`langlinks()`** (other Wiktionary editions for the page title).
@@ -1261,7 +1261,7 @@ playground error paths that are easy to break inside a large `App.tsx`.
 
 **Artifacts:**
 - `src/index.ts`: Orchestration entry point.
-- `src/types.ts`: Canonical type definitions.
+- `src/model/`: Canonical type definitions (`src/types.ts` re-exports the barrel).
 - `docs/EXHAUSTIVE_TYPOGRAPHIC_SPECIMEN.html`: The typographic gold standard.
 - `docs/TEXT_TO_DICTIONARY_PLAN.md`: Future architecture for text analysis.
 - `schema/normalized-entry.schema.json`: Formal output schema (v3.0.0).
@@ -1386,7 +1386,7 @@ This section is informational only. For the **backlog** of staged engineering an
 - **Unicode Normalization (NFC)**: Forced all inputs (queries) and outputs (wikitext, titles) to
   NFC normalization in `src/api.ts` and `src/index.ts`, resolving cross-platform comparison
   failures.
-- **Lemma Resolution Prioritization**: Updated `src/library.ts` to favor `INFLECTED_FORM` entries
+- **Lemma Resolution Prioritization**: Updated `src/convenience/lemma-translate.ts` to favor `INFLECTED_FORM` entries
   when searching for a lemma, preventing metadata blocks from intercepting resolution.
 - **Robust IPA Decoding**: Updated `src/registry.ts` to find IPA even if slashes (`/`) or 
   brackets (`[]`) are missing in the wikitext template.
@@ -1459,7 +1459,7 @@ This section is informational only. For the **backlog** of staged engineering an
 - **`GroupedLexemeResults<T>` envelope**: All lexeme-scoped convenience wrappers now
   return grouped per-lexeme output with stable `order` and a `lexemes` map, preserving
   explicit metadata (`language`, `pos`, `etymology_index`) for each extracted `value`.
-- **`mapLexemes<T>()` utility**: A generic mapping function in `library.ts` that applies
+- **`mapLexemes<T>()` utility**: A generic mapping function in `src/convenience/grouped-results.ts` that applies
   an extractor to each lexeme and wraps it in grouped output.
 - **`asLexemeRows()` helper**: Provides an ordered row projection for callers that prefer
   `map/find/filter` ergonomics.
@@ -1586,7 +1586,7 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 | **`registry/register-core-pronunciation.ts`** | **`registerCoreAndPronunciation(reg)`** — first four decoders (verbatim templates, IPA, hyphenation, PoS-block alternative-forms section). |
 | **`registry/register-all-decoders.ts`** | **`registerAllDecoders(reg)`** — thin orchestrator: sequential **`register*(reg)`** calls into family modules under **`registry/register-*.ts`**, normative order. |
 | **`registry/`** (helpers) | **`merge-patches.ts`**, **`form-of-predicates.ts`**, **`strip-wiki-markup.ts`**, **`section-extract.ts`** (section bodies + `l`/`link` lists + heading match), **`gender-map.ts`**, **`form-of-display-label.ts`** (form-of human labels). |
-| **`library.ts`** | Convenience wrappers (**`mapLexemes`**, **`GroupedLexemeResults`**, **`lemma()`**, **`translate()`**, relations, formatting helpers, **`getNativeSenses()`** for `translate(..., { mode: "senses" })` on foreign wikis). |
+| **`src/convenience/`** | Convenience wrappers (split modules: **`grouped-results`**, **`lemma-translate`**, **`relations`**, **`lexical-wrappers`**, **`page-enrichment`**, **`rich-entry`**, morphology/stem; **`getNativeSenses()`** lives with `translate` for foreign wikis). |
 | **`morphology.ts`** | **`morphology()`**, **`conjugate()`**, **`decline()`**, **`parseMorphologyTags()`**, Greek template discovery via `templates_all`, **`action=parse`** on raw conjugation/declension template wikitext, HTML table scraping via `node-html-parser`. |
 | **`form-of-display.ts`** | Pure morph-line helpers for form-of cards (`expandDualPersonInflectionLine`, abbrev-tag detection, **`inflectionMorphDisplayLines`**) — shared by **`formatter.ts`** and **`form-of-parse-enrich.ts`**. |
 | **`form-of-parse-enrich.ts`** | Batch **`enrichFormOfMorphLinesFromParseBatch()`**, **`mwParseWikitextFragment()`** (parse with page title context), HTML extraction `ol ol > li`. |

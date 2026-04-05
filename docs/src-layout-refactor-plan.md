@@ -1,6 +1,6 @@
 # Staged plan: modular `src/` layout
 
-**Status:** Forward-only engineering backlog (alpha). Not tied to npm semver until you choose to tag.
+**Status:** Forward-only engineering backlog (alpha). Not tied to npm semver until you choose to tag. **Phases 0–9** of this plan are implemented on `master` (convenience split, `infra/`, `model/` + `types.ts` shim); **Phase 10** is ongoing doc hygiene (README/spec/audit path strings; optional removal of the `types.ts` shim after migrating in-repo imports to `./model`).
 
 **Companion policy:** See **§ Project stage: alpha** in [`AGENTS.md`](../AGENTS.md): no backward-compatibility burden for internal paths or incidental APIs; the bar is **green tests**, **schema/types parity**, and **updated docs**.
 
@@ -46,7 +46,7 @@ Names are normative for *intent*; adjust if a clearer term emerges (e.g. `fetch/
 | `convenience` | `pipeline`, `ingress`, `model`, `infra`, `decode` (if ever needed) | `present`                             |
 | `model`     | (none or `infra` only)              | everything else                           |
 
-**Known debt:** Today `morphology.ts` ↔ `library.ts` forms a cycle; **Phase 8** resolves it (shared helper or dependency inversion).
+**Resolved:** The former `morphology` ↔ monolithic `library` cycle was removed by splitting convenience modules (`morphology` uses `lemma` / `mapLexemes` locally, not a circular import through a single library file).
 
 ---
 

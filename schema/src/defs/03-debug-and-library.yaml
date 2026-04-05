@@ -149,7 +149,7 @@ GrammarTraits:
   additionalProperties: false
 LexemeResult:
   type: object
-  description: Tagged per-lexeme row from `mapLexemes` and other `library.ts` helpers.
+  description: Tagged per-lexeme row from `mapLexemes` and other `src/convenience/` helpers.
   required:
     - lexeme_id
     - language
@@ -169,7 +169,7 @@ LexemeResult:
   additionalProperties: false
 GroupedLexemeMapValue:
   type: object
-  description: Value shape stored under `GroupedLexemeResults.lexemes[lexeme_id]` (`library.ts`).
+  description: Value shape stored under `GroupedLexemeResults.lexemes[lexeme_id]` (`src/convenience/grouped-results.ts`).
   required:
     - language
     - pos
