@@ -8,6 +8,21 @@ This document provides specialized context for AI coding assistants working on t
 **Source-faithful extraction over linguistic inference.**
 We extract what is *explicitly* in the Wikitext. We do not guess stems, complete paradigms, or infer data not found in template parameters.
 
+### ⚠️ Source of truth: domain data model (read before changing output shape)
+
+Collaborators must know **where the contract lives** and **what to edit**:
+
+| What | Authoritative location | Rule |
+|------|------------------------|------|
+| **TypeScript runtime types** | `src/types.ts` | Canonical interfaces (`Lexeme`, `FetchResult`, `SCHEMA_VERSION`, …). Engine and public API must match this file. |
+| **JSON Schema (authoring)** | `schema/src/root.yaml` and `schema/src/defs/*.yaml` | **Only** these YAML files are edited to change the normalized-output schema. |
+| **JSON Schema (published)** | `schema/normalized-entry.schema.json` | **Generated — do not hand-edit.** After any YAML change run **`npm run build:schema`**, then commit the updated JSON alongside the YAML. |
+| **Which def lives in which file** | `tools/schema-def-modules.ts` | Each `$defs` name is listed in exactly one module; add new defs there when splitting or adding files. |
+
+**CI:** `npm run test:ci` runs **`check:schema-artifact`**, which rebuilds from YAML and fails if the committed JSON drifts.
+
+**Detail:** [`schema/README.md`](schema/README.md).
+
 ---
 
 ## 🏗️ Architectural Anchors
@@ -47,6 +62,7 @@ A custom parser handles nested `{{...}}` structures.
 - **Authoring workflow**: Edit the source files `src/templates/entry.html.hbs`, `lexeme-homonym-group.html.hbs`, `entry.md.hbs`, and `entry.css`. The webapp Vite dev server watches them and regenerates `templates.ts` on save; commit the regenerated `templates.ts` so CLI and package consumers stay in sync without running Vite.
 
 ### 6. Schema Synchronization (High-Fidelity Parity)
+- **Reminder:** The **source-of-truth table** for types vs YAML vs generated JSON is in **§ Source of truth: domain data model** above; read it first.
 - **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
     - **JSON Schema (author-time YAML):** Edit `schema/src/root.yaml` and/or `schema/src/defs/*.yaml` (see `tools/schema-def-modules.ts`), then run **`npm run build:schema`** and commit the generated **`schema/normalized-entry.schema.json`** (do not hand-edit the JSON). See `schema/README.md`.
     - `docs/schemata/*.yaml`: Update the reference YAML models (e.g., `DictionaryEntry.yaml`) to ensure documentation parity.

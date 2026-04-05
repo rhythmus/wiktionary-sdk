@@ -20,6 +20,18 @@ The project is designed as a **multi-client ecosystem**, separating the core ext
 
 Bump rules for schema vs code: see `VERSIONING.md`. The spec revision and `SCHEMA_VERSION` can move at different cadences; the table above is the support checklist from `audit.md` §2.2.
 
+### Where the domain model lives (source of truth)
+
+Changes to **normalized output shape** must stay consistent across three layers:
+
+| Layer | Location | What you do |
+|-------|----------|-------------|
+| **TypeScript** | [`src/types.ts`](src/types.ts) | Update interfaces (`Lexeme`, `FetchResult`, …) and `SCHEMA_VERSION` when the runtime payload changes. |
+| **JSON Schema (edit here)** | [`schema/src/root.yaml`](schema/src/root.yaml) + [`schema/src/defs/`](schema/src/defs/) | **Author-time YAML only** — this is the single place to edit the schema structure. |
+| **JSON Schema (shipped / validated)** | [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json) | **Generated.** Run **`npm run build:schema`** after YAML edits and **commit** this file. Do not edit it by hand. |
+
+Which `$defs` key belongs in which YAML file is defined in [`tools/schema-def-modules.ts`](tools/schema-def-modules.ts). Full workflow, CI expectations, and adding new defs: **[`schema/README.md`](schema/README.md)**. **`npm run test:ci`** runs **`check:schema-artifact`** so the committed JSON always matches the YAML.
+
 ## 🚀 Quick Start: Programmatic vs. CLI
 
 The SDK features a strict separation between programmatic usage inside Node.js applications and powerful data-piping capabilities via the terminal.
@@ -413,7 +425,11 @@ wiktionary-sdk/
 │   ├── rate-limiter.ts       # Request throttling & User-Agent management
 │   └── utils.ts              # Shared utilities (MD5, deep merge, etc.)
 ├── schema/                   # JSON Schema for normalized output
-│   └── normalized-entry.schema.json
+│   ├── src/                  # AUTHOR-TIME YAML (source of truth for schema shape)
+│   │   ├── root.yaml         # FetchResult root (no $defs)
+│   │   └── defs/*.yaml       # Modular $defs (see tools/schema-def-modules.ts)
+│   ├── normalized-entry.schema.json  # GENERATED — run npm run build:schema after YAML edits
+│   └── README.md             # Schema authoring workflow
 ├── test/                     # Vitest hardening + regression suites
 ├── cli/                      # CLI tool (single & batch lookup)
 ├── tools/                    # Developer tooling (template introspection)
@@ -548,7 +564,7 @@ The project distinguishes between two primary entry types:
 1.  **LEXEME**: Represents a dictionary lemma (e.g., *γράφω*). Includes POS, morphology stems, translations, senses, semantic relations, etymology, pronunciation, and usage notes.
 2.  **INFLECTED_FORM**: Represents a specific form (e.g., *έγραψε*). Links back to a lemma via `form_of` and includes inflectional tags.
 
-The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`) versioned per the policy in `VERSIONING.md`. The current schema version is `3.0.0`.
+**Contract:** Runtime shapes are defined in **`src/types.ts`**. The machine-readable JSON Schema is **authored** as modular YAML under **`schema/src/`** and **emitted** to **`schema/normalized-entry.schema.json`** via **`npm run build:schema`** (see **[Where the domain model lives](#where-the-domain-model-lives-source-of-truth)** and **`schema/README.md`**). The emitted `schema_version` matches **`SCHEMA_VERSION`** in `types.ts` (see the [Version axes](#version-axes) table). Versioning policy: **`VERSIONING.md`**.
 
 ## 🧩 Decoder Coverage
 
@@ -571,6 +587,14 @@ Use `npm run introspect` to discover templates in the wild that do not yet have 
 ## 📋 Output Schema Versioning
 
 See [VERSIONING.md](VERSIONING.md) for the full policy. In short: MAJOR bumps for breaking changes, MINOR for additive fields, PATCH for documentation-only fixes.
+
+**Authoring reminder:** The file consumers and Ajv validate against — **`schema/normalized-entry.schema.json`** — is **generated from YAML**. After editing anything under **`schema/src/`**, run:
+
+```bash
+npm run build:schema
+```
+
+and commit both the YAML and the updated JSON. CI (`npm run test:ci`) runs **`check:schema-artifact`** and will fail if you forget. Do not edit **`normalized-entry.schema.json`** by hand.
 
 ## 🧭 Roadmap (post-v1.0)
 
