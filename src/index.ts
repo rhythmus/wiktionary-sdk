@@ -43,4 +43,4 @@ export {
     registerAllDecoders,
     isFormOfTemplateName,
     isVariantFormOfTemplateName,
-} from "./registry";
+} from "./decode/registry";

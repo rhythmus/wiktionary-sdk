@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { registry } from "../src/registry";
-import { EXPECTED_DECODER_IDS } from "../src/registry/decoder-ids";
+import { registry } from "../src/decode/registry";
+import { EXPECTED_DECODER_IDS } from "../src/decode/registry/decoder-ids";
 
 describe("registry decoder registration order", () => {
     it("matches the canonical id sequence (phase 4.3)", () => {

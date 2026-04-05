@@ -1,4 +1,4 @@
-import { deepMerge } from "../utils";
+import { deepMerge } from "../../utils";
 
 export function mergePatches(patches: any[]) {
     const out = {};

@@ -1,10 +1,10 @@
 /**
  * Non-Vitest guard: fails if a fresh DecoderRegistry’s id sequence drifts from
- * `src/registry/decoder-ids.ts` (e.g. pre-publish or CI).
+ * `src/decode/registry/decoder-ids.ts` (e.g. pre-publish or CI).
  */
-import { DecoderRegistry } from "../src/registry/decoder-registry";
-import { EXPECTED_DECODER_IDS } from "../src/registry/decoder-ids";
-import { registerAllDecoders } from "../src/registry/register-all-decoders";
+import { DecoderRegistry } from "../src/decode/registry/decoder-registry";
+import { EXPECTED_DECODER_IDS } from "../src/decode/registry/decoder-ids";
+import { registerAllDecoders } from "../src/decode/registry/register-all-decoders";
 
 const reg = new DecoderRegistry();
 registerAllDecoders(reg);

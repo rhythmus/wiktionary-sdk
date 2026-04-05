@@ -35,7 +35,7 @@ import {
     registry,
     isFormOfTemplateName,
     isVariantFormOfTemplateName,
-} from "./registry";
+} from "./decode/registry";
 import { deepMerge, commonsThumbUrl, parallelMap } from "./utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
 import { LANG_PRIORITY } from "./constants";

@@ -11,7 +11,7 @@ import {
   splitEtymologiesAndPOS,
   parseTemplates,
 } from "../src/parse/parser";
-import { registry } from "../src/registry";
+import { registry } from "../src/decode/registry";
 import type { DecodeContext } from "../src/types";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");

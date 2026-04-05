@@ -39,17 +39,17 @@ Collaborators must know **where the contract lives** and **what to edit**:
 
 ## 🏗️ Architectural Anchors
 
-### 1. Registry-Based Decoders (`src/registry.ts` + `src/registry/register-*.ts`)
-The engine is a decentralized registry of pure functions (`TemplateDecoder`). **`registerAllDecoders(reg)`** (`register-all-decoders.ts`) orchestrates family **`register*(reg)`** modules under **`src/registry/`**; the package entry **`registry.ts`** builds the singleton, re-exports **`registerAllDecoders`**, predicates, and **`stripWikiMarkup`**.
+### 1. Registry-Based Decoders (`src/decode/registry.ts` + `src/decode/registry/register-*.ts`)
+The engine is a decentralized registry of pure functions (`TemplateDecoder`). **`registerAllDecoders(reg)`** (`register-all-decoders.ts`) orchestrates family **`register*(reg)`** modules under **`src/decode/registry/`**; the package entry **`decode/registry.ts`** builds the singleton, re-exports **`registerAllDecoders`**, predicates, and **`stripWikiMarkup`**.
 - **Pattern**: If a template exists in the wild, create a decoder for it.
-- **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in the registry layer (family **`register-*.ts`** modules and `src/registry/*.ts` helpers).
+- **Strict Rule**: Do not add mapping logic to the parser or orchestrator. Keep it in the registry layer (family **`register-*.ts`** modules and `src/decode/registry/*.ts` helpers).
 - **Per-language form-of templates** (en.wiktionary): Treat `{{xx-verb form of|…}}`, `{{xx-noun form of|…}}`, `{{xx-adj form of|…}}` as first-class. The lemma is often **only** in `|1=`; the language is implied by the template name. They must participate in the same `form_of` / `guessLexemeTypeFromTemplates` path as `inflection of` so **lemma resolution** (second `wiktionary()` fetch) runs when the definition line is template-only. **`only used in`** is *not* a lemma pointer; it is decoded on sense lines as structured `only_used_in` (see `types.ts`).
-- **Extended “Category:Form-of templates” family**: `isFormOfTemplateName()` (re-exported from `registry.ts`, defined in `form-of-predicates.ts`) recognises the core `FORM_OF_TEMPLATES` set, per-lang templates above, names ending in ` … of`, and a few extras (e.g. `rfform`, `IUPAC-*`). **`isVariantFormOfTemplateName()`** decides `FORM_OF` vs `INFLECTED_FORM` when `guessLexemeTypeFromTemplates` runs. Run `npm run report:form-of` to compare the live Wiktionary category against this logic.
-- **Registration order**: Register decoders that depend on shared constants (`GENDER_MAP`, etc.) **after** those constants are defined in the registering module (no forward reference). **`src/registry/decoder-ids.ts`** (`EXPECTED_DECODER_IDS`) and **`test/registry-decoder-order.test.ts`** lock the canonical `id` sequence; update them when appending a decoder.
+- **Extended “Category:Form-of templates” family**: `isFormOfTemplateName()` (re-exported from `decode/registry.ts`, defined in `form-of-predicates.ts`) recognises the core `FORM_OF_TEMPLATES` set, per-lang templates above, names ending in ` … of`, and a few extras (e.g. `rfform`, `IUPAC-*`). **`isVariantFormOfTemplateName()`** decides `FORM_OF` vs `INFLECTED_FORM` when `guessLexemeTypeFromTemplates` runs. Run `npm run report:form-of` to compare the live Wiktionary category against this logic.
+- **Registration order**: Register decoders that depend on shared constants (`GENDER_MAP`, etc.) **after** those constants are defined in the registering module (no forward reference). **`src/decode/registry/decoder-ids.ts`** (`EXPECTED_DECODER_IDS`) and **`test/registry-decoder-order.test.ts`** lock the canonical `id` sequence; update them when appending a decoder.
 - **One registration per `id`**: Do not duplicate `reg.register({ id: "…" })` blocks (e.g. merge conflicts). Order of patches changes behaviour.
 - **Corpus evidence**: New production decoders must appear in a fixture or test string, or be listed in `DECODER_EVIDENCE_ALLOWLIST` in `test/decoder-coverage.test.ts`, so the decoder coverage test stays green.
 
-### 2. Brace-Aware Parser (`src/parser.ts`)
+### 2. Brace-Aware Parser (`src/parse/parser.ts`)
 A custom parser handles nested `{{...}}` structures. 
 - **Context**: Standard regex is insufficient for Wikitext. Always use the provided parser to extract `TemplateCall` objects.
 
@@ -65,7 +65,7 @@ A custom parser handles nested `{{...}}` structures.
 
 ### 4b. Lexeme classification (PoS vs lexicographic section)
 - **`part_of_speech`**: strict grammatical part of speech only (`PartOfSpeech` in `src/types.ts`). Headword templates and recognized PoS headings may set it; morpheme/symbol/phraseology sections leave it `null`.
-- **`lexicographic_section` / `lexicographic_family`**: always set from the section heading via `src/lexicographic-headings.ts` (expanded taxonomy, comparable to [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) headings).
+- **`lexicographic_section` / `lexicographic_family`**: always set from the section heading via `src/parse/lexicographic-headings.ts` (expanded taxonomy, comparable to [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) headings).
 - **`Lexeme.type`** (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`): still determined only by **form-of templates** in wikitext, not by whether the heading says “Abbreviation” or “Noun”.
 
 ### 5. Environment-Agnostic Assets (Cross-Platform Parity)
@@ -85,11 +85,11 @@ A custom parser handles nested `{{...}}` structures.
 
 ## ⚖️ Rigid Constraints & "No Heuristics" Policy
 
-1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/morphology.ts`, and per-lang form-of nested inflection lines in `src/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals).
+1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `src/ingress/api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/morphology.ts`, and per-lang form-of nested inflection lines in `src/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals).
 2.  **No linguistic "Guessing"**: If a stem or gender is missing from a headword template, do not attempt to calculate it. Leave the field undefined.
 3.  **Traceability**: Every field added to a `NormalizedEntry` must be traceable to a source line or template parameter.
 4.  **Verbatim Storage**: All template calls must be stored verbatim in `entry.templates` for forensic verification.
-5.  **Terminology**: In docs and UI, say **wikitext** or **templates** when referring to source `{{…}}` markup. Reserve **Wikidata** for QID / `wikibase_item` enrichment from `api.ts`. Do not conflate the two.
+5.  **Terminology**: In docs and UI, say **wikitext** or **templates** when referring to source `{{…}}` markup. Reserve **Wikidata** for QID / `wikibase_item` enrichment from `src/ingress/api.ts`. Do not conflate the two.
 6.  **User-facing definitions**: Do not show raw `{{…}}` wikitext as the primary definition gloss in HTML or formatted output. Decode into structured fields and a plain `gloss` string; keep verbatim text on `gloss_raw` or structured `raw` fields for traceability (see `only_used_in` and similar patterns).
 
 ---
@@ -113,7 +113,7 @@ When modifying templates, ensure you maintain the "Gold Standard" typographic de
 
 1.  **Identify**: Find the template on Wiktionary (e.g., `{{el-noun-m-ος-2}}`).
 2.  **Define**: Update `types.ts` if a new PoS-specific interface is needed.
-3.  **Implement**: Add a new `reg.register({ … })` block in the appropriate **`src/registry/register-*.ts`** family module (preserve order; extend **`decoder-ids.ts`** and `registry-decoder-order.test.ts`).
+3.  **Implement**: Add a new `reg.register({ … })` block in the appropriate **`src/decode/registry/register-*.ts`** family module (preserve order; extend **`decoder-ids.ts`** and `registry-decoder-order.test.ts`).
 4.  **Form-of family**: If the template is a language-prefixed inflection line (`xx-verb form of`, etc.), wire it into `FORM_OF_TEMPLATES` / `isPerLangFormOfTemplate` (or equivalent) and ensure `guessLexemeTypeFromTemplates` returns `INFLECTED_FORM` when appropriate so nested lemma UX works.
 5.  **Verify**: Run the verification script: `npx tsx tools/verify_templates.ts`.
 

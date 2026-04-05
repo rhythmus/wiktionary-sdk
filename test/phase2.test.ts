@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registry } from "../src/registry";
+import { registry } from "../src/decode/registry";
 import { parseTemplates } from "../src/parse/parser";
 import type { DecodeContext } from "../src/types";
 

@@ -4,7 +4,7 @@ import {
   FORM_OF_TEMPLATES,
   isFormOfTemplateName,
   isVariantFormOfTemplateName,
-} from "../src/registry";
+} from "../src/decode/registry";
 import { parseTemplates } from "../src/parse/parser";
 import type { DecodeContext } from "../src/types";
 

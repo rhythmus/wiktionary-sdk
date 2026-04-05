@@ -11,7 +11,7 @@
 
 import { mwFetchJson } from "../src/ingress/api";
 import { fetchWikitextEnWiktionary } from "../src/ingress/api";
-import { registry } from "../src/registry";
+import { registry } from "../src/decode/registry";
 import { extractLanguageSection } from "../src/parse/parser";
 import { parseTemplates } from "../src/parse/parser";
 

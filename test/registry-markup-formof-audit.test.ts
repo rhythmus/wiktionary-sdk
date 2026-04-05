@@ -7,7 +7,7 @@ import {
   isFormOfTemplateName,
   isVariantFormOfTemplateName,
   isPerLangFormOfTemplate,
-} from "../src/registry";
+} from "../src/decode/registry";
 
 describe("registry audit: stripWikiMarkup", () => {
   it("strips nested link with nested template in display text", () => {

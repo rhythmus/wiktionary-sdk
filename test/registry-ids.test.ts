@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registry } from "../src/registry";
+import { registry } from "../src/decode/registry";
 
 /**
  * Duplicate decoder ids break merge order expectations, hide decoders from

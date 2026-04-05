@@ -1,4 +1,4 @@
-import { parseTemplates } from "../parse/parser";
+import { parseTemplates } from "../../parse/parser";
 import type { DecoderRegistry } from "./decoder-registry";
 
 function parseTranslationsFromBlock(wikitext: string) {

@@ -1,4 +1,4 @@
-import type { TemplateCall } from "../types";
+import type { TemplateCall } from "../../types";
 import type { DecoderRegistry } from "./decoder-registry";
 import { GENDER_MAP } from "./gender-map";
 

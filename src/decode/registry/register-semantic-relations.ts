@@ -1,4 +1,4 @@
-import type { SemanticRelations } from "../types";
+import type { SemanticRelations } from "../../types";
 import type { DecoderRegistry } from "./decoder-registry";
 import {
     extractSectionByLevelHeaders,

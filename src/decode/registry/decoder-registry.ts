@@ -1,4 +1,4 @@
-import type { DecodeContext, TemplateDecoder, DecoderDebugEvent } from "../types";
+import type { DecodeContext, TemplateDecoder, DecoderDebugEvent } from "../../types";
 import { mergePatches } from "./merge-patches";
 
 export class DecoderRegistry {

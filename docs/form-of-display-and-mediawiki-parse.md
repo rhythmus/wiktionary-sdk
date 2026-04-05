@@ -185,7 +185,7 @@ Lemma vs PoS spacing uses CSS adjacent-sibling rules because Handlebars `~` ofte
 | `src/form-of-parse-enrich.ts` | Gate, `action=parse`, `ol ol > li` extraction, merge into `form_of.display_morph_lines` |
 | `src/index.ts` | Runs batch enrichment when `enrich` is true, after lexemes built, before lemma resolution |
 | `src/formatter.ts` | `inflectionMorphDisplayLines`, bullets vs inline, abbrev phrase, `expandDualPersonInflectionLine` |
-| `src/registry.ts` | `form_of` decoder, `isPerLangFormOfTemplate`, `##` subsenses |
+| `src/decode/registry.ts` | `form_of` decoder, `isPerLangFormOfTemplate`, `##` subsenses |
 | `schema/normalized-entry.schema.json` | `FormOf.display_morph_lines`, `display_morph_lines_source` |
 | `test/form-of-parse-enrich.test.ts` | HTML fixture for extractor; template-name gate |
 

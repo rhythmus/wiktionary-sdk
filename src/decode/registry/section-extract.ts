@@ -1,5 +1,5 @@
-import { parseTemplates } from "../parse/parser";
-import type { SectionLinkItem } from "../types";
+import { parseTemplates } from "../../parse/parser";
+import type { SectionLinkItem } from "../../types";
 
 export function extractSectionByLevelHeaders(wikitext: string, headerName: string): { raw: string } | null {
     const re = new RegExp(`^=+\\s*${headerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=+.*$`, "im");
