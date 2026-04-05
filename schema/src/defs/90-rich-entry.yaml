@@ -1,0 +1,66 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+RichEntry:
+  type: object
+  required:
+    - headword
+    - pos
+    - source
+  properties:
+    headword:
+      type: string
+    pos:
+      type: string
+    type:
+      $ref: '#/$defs/LexemeType'
+    form_of:
+      $ref: '#/$defs/FormOf'
+    morphology:
+      type: object
+      additionalProperties: true
+    headword_morphology:
+      $ref: '#/$defs/HeadwordMorphology'
+    pronunciation:
+      $ref: '#/$defs/Pronunciation'
+    hyphenation:
+      $ref: '#/$defs/Hyphenation'
+    etymology:
+      $ref: '#/$defs/EtymologyData'
+    senses:
+      type: array
+      items:
+        $ref: '#/$defs/Sense'
+    relations:
+      $ref: '#/$defs/SemanticRelations'
+    derived_terms:
+      $ref: '#/$defs/SectionWithLinks'
+    related_terms:
+      $ref: '#/$defs/SectionWithLinks'
+    descendants:
+      $ref: '#/$defs/SectionWithLinks'
+    usage_notes:
+      type: array
+      items:
+        type: string
+    references:
+      type: array
+      items:
+        type: string
+    inflection_table:
+      $ref: '#/$defs/InflectionTable'
+    translations:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          $ref: '#/$defs/TranslationItem'
+    wikidata:
+      $ref: '#/$defs/WikidataEnrichment'
+    images:
+      type: array
+      items:
+        type: string
+      description: Image filenames/URLs from the source lexeme (`library.richEntry`).
+    source:
+      $ref: '#/$defs/WiktionarySource'
+  additionalProperties: true

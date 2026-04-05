@@ -37,7 +37,7 @@ Return:
 3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
 4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
-The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
+The output conforms to a formal JSON Schema published as `schema/normalized-entry.schema.json` (generated from modular author-time YAML under `schema/src/` via `npm run build:schema`; see `schema/README.md`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
 **Roadmap note (non-normative):** For **outstanding** phased work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 

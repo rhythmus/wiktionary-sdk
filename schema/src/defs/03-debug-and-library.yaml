@@ -1,0 +1,187 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+MatchedTemplateRef:
+  type: object
+  required:
+    - raw
+    - name
+  properties:
+    raw:
+      type: string
+    name:
+      type: string
+  additionalProperties: false
+DecoderDebugEvent:
+  type: object
+  required:
+    - decoderId
+    - matchedTemplates
+    - fieldsProduced
+  properties:
+    decoderId:
+      type: string
+    matchedTemplates:
+      type: array
+      items:
+        $ref: '#/$defs/MatchedTemplateRef'
+    fieldsProduced:
+      type: array
+      items:
+        type: string
+  additionalProperties: false
+ConjugateCriteria:
+  type: object
+  description: Optional verb conjugation filters (`src/morphology.ts`).
+  properties:
+    person:
+      type: string
+      enum:
+        - '1'
+        - '2'
+        - '3'
+    number:
+      type: string
+      enum:
+        - singular
+        - plural
+    voice:
+      type: string
+      enum:
+        - active
+        - passive
+    mood:
+      type: string
+      enum:
+        - indicative
+        - subjunctive
+        - imperative
+    tense:
+      type: string
+      enum:
+        - present
+        - past
+        - future
+        - perfect
+        - pluperfect
+        - future perfect
+    aspect:
+      type: string
+      enum:
+        - imperfective
+        - perfective
+  additionalProperties: false
+DeclineCriteria:
+  type: object
+  description: Optional nominal declension filters (`src/morphology.ts`).
+  properties:
+    case:
+      type: string
+      enum:
+        - nominative
+        - genitive
+        - accusative
+        - vocative
+    number:
+      type: string
+      enum:
+        - singular
+        - plural
+    gender:
+      type: string
+      enum:
+        - masculine
+        - feminine
+        - neuter
+  additionalProperties: false
+GrammarTraits:
+  type: object
+  description: Merged conjugation + declension criteria (`GrammarTraits` in `src/morphology.ts`).
+  properties:
+    person:
+      type: string
+      enum:
+        - '1'
+        - '2'
+        - '3'
+    number:
+      type: string
+      enum:
+        - singular
+        - plural
+    voice:
+      type: string
+      enum:
+        - active
+        - passive
+    mood:
+      type: string
+      enum:
+        - indicative
+        - subjunctive
+        - imperative
+    tense:
+      type: string
+      enum:
+        - present
+        - past
+        - future
+        - perfect
+        - pluperfect
+        - future perfect
+    aspect:
+      type: string
+      enum:
+        - imperfective
+        - perfective
+    case:
+      type: string
+      enum:
+        - nominative
+        - genitive
+        - accusative
+        - vocative
+    gender:
+      type: string
+      enum:
+        - masculine
+        - feminine
+        - neuter
+  additionalProperties: false
+LexemeResult:
+  type: object
+  description: Tagged per-lexeme row from `mapLexemes` and other `library.ts` helpers.
+  required:
+    - lexeme_id
+    - language
+    - pos
+    - value
+  properties:
+    lexeme_id:
+      type: string
+    language:
+      type: string
+    pos:
+      type: string
+    etymology_index:
+      type: integer
+      minimum: 0
+    value: {}
+  additionalProperties: false
+GroupedLexemeMapValue:
+  type: object
+  description: Value shape stored under `GroupedLexemeResults.lexemes[lexeme_id]` (`library.ts`).
+  required:
+    - language
+    - pos
+    - etymology_index
+    - value
+  properties:
+    language:
+      type: string
+    pos:
+      type: string
+    etymology_index:
+      type: integer
+      minimum: 0
+    value: {}
+  additionalProperties: false

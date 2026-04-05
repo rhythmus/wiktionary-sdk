@@ -1,0 +1,56 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+EtymologyLink:
+  type: object
+  required:
+    - template
+    - relation
+    - source_lang
+    - raw
+  properties:
+    template:
+      type: string
+      description: Template name, e.g. 'inh', 'der', 'bor', 'cog'
+    relation:
+      type: string
+      description: >-
+        The semantic relation between the target and source language forms. Typically 'inherited', 'borrowed',
+        'derived', or 'cognate'.
+      examples:
+        - inherited
+        - borrowed
+        - derived
+        - cognate
+    source_lang:
+      type: string
+    source_lang_name:
+      type: string
+    term:
+      type: string
+    gloss:
+      type: string
+    raw:
+      type: string
+  additionalProperties: false
+EtymologyData:
+  type: object
+  properties:
+    chain:
+      type: array
+      items:
+        $ref: '#/$defs/EtymologyLink'
+      description: 'Ordered ancestry chain: inherited (inh), derived (der), borrowed (bor) links.'
+    links:
+      type: array
+      items:
+        $ref: '#/$defs/EtymologyLink'
+      description: Deprecated alias for `chain`. Prefer `chain` for new data.
+    cognates:
+      type: array
+      items:
+        $ref: '#/$defs/EtymologyLink'
+      description: Cognate forms in other languages (from {{cog}} templates), distinct from the ancestry chain.
+    raw_text:
+      type: string
+      description: Full human-readable prose of the etymology section, wikimarkup stripped.
+  additionalProperties: false

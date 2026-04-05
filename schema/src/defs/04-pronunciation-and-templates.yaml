@@ -1,0 +1,240 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+Pronunciation:
+  type: object
+  properties:
+    IPA:
+      type: string
+      description: International Phonetic Alphabet transcription.
+    audio:
+      type: string
+      description: Raw Wikimedia Commons filename, e.g. 'El-γράφω.ogg'.
+    audio_url:
+      type: string
+      format: uri
+      description: Resolved Wikimedia Commons download URL for the audio file.
+    audio_details:
+      type: array
+      items:
+        type: object
+        properties:
+          url:
+            type: string
+            format: uri
+          label:
+            type: string
+            description: Regional label, e.g. 'UK', 'Netherlands'.
+          filename:
+            type: string
+        required:
+          - url
+          - filename
+      description: Detailed audio resources with dialect/location labels.
+    romanization:
+      type: string
+      description: Romanized form of the headword, e.g. 'gráfo' for γράφω.
+    rhymes:
+      type: array
+      items:
+        type: string
+      description: Rhyming words or sounds.
+    homophones:
+      type: array
+      items:
+        type: string
+      description: Words that sound the same but have different meanings/spellings.
+  additionalProperties: false
+Hyphenation:
+  type: object
+  required:
+    - raw
+  properties:
+    syllables:
+      type: array
+      items:
+        type: string
+    raw:
+      type: string
+  additionalProperties: false
+TemplateParams:
+  type: object
+  required:
+    - positional
+    - named
+  properties:
+    positional:
+      type: array
+      items:
+        type: string
+    named:
+      type: object
+      additionalProperties:
+        type: string
+  additionalProperties: false
+StoredTemplate:
+  type: object
+  required:
+    - params
+    - raw
+  properties:
+    params:
+      $ref: '#/$defs/TemplateParams'
+    raw:
+      type: string
+  additionalProperties: false
+StoredTemplateInstance:
+  type: object
+  required:
+    - name
+    - raw
+    - params
+  properties:
+    name:
+      type: string
+    raw:
+      type: string
+    params:
+      $ref: '#/$defs/TemplateParams'
+    start:
+      type: integer
+      description: Character offset in posBlockWikitext
+    end:
+      type: integer
+      description: Character offset in posBlockWikitext
+    line:
+      type: integer
+      description: 1-based line number
+  additionalProperties: false
+FormOf:
+  type: object
+  required:
+    - template
+    - lang
+    - tags
+    - named
+  properties:
+    template:
+      type: string
+    lemma:
+      type:
+        - string
+        - 'null'
+    lang:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+      description: >-
+        Abbreviated inflection / variant tags from form-of templates (e.g. person, number, tense); see
+        `parseMorphologyTags` in `src/morphology.ts` for common tag vocabulary.
+    subclass:
+      type: string
+      description: The specific subclass of form-of (e.g. 'misspelling', 'abbreviation', 'plural').
+    label:
+      type: string
+      description: Human-readable label rendered from the tag array, e.g. '1st pers. singular perfective past'.
+    named:
+      type: object
+      additionalProperties:
+        type: string
+    display_morph_lines:
+      type: array
+      items:
+        type: string
+      description: Inflection lines from MediaWiki parse of the definition (e.g. {{ll-verb|noun|adj form of}} Lua HTML).
+    display_morph_lines_source:
+      type: string
+      enum:
+        - mediawiki_parse
+  additionalProperties: false
+TranslationItem:
+  type: object
+  required:
+    - term
+    - sense
+    - template
+    - raw
+    - params
+  properties:
+    term:
+      type: string
+      description: The translation term (authoritative)
+    gloss:
+      type: string
+      description: From explicit t= or gloss= only
+    transliteration:
+      type: string
+      description: From tr=
+    gender:
+      type: string
+      description: From g=
+    alt:
+      type: string
+      description: From alt=
+    sense:
+      type:
+        - string
+        - 'null'
+    template:
+      type: string
+    raw:
+      type: string
+    params:
+      description: Template parameters verbatim; usually `TemplateParams`, occasionally a generic object from edge-case decoders.
+      oneOf:
+        - $ref: '#/$defs/TemplateParams'
+        - type: object
+          additionalProperties: true
+  additionalProperties: false
+HeadwordMorphology:
+  type: object
+  description: Grammatical traits extracted from the headword template (el-verb, el-noun, etc.).
+  properties:
+    transitivity:
+      type:
+        - string
+        - 'null'
+      enum:
+        - transitive
+        - intransitive
+        - both
+        - null
+      description: 'For verbs: whether the verb takes a direct object.'
+    gender:
+      type:
+        - string
+        - 'null'
+      enum:
+        - masculine
+        - feminine
+        - neuter
+        - null
+      description: 'For nouns/adjectives: grammatical gender.'
+    principal_parts:
+      type: object
+      description: >-
+        Paradigm slots from headword / inflection-stem decoders (e.g. `present`, `aorist_active`, `simple_past`, `stem`
+        from Greek `el-noun-stems` / `el-verb-stems`). Keys are template-driven, not a closed set.
+      additionalProperties:
+        type: string
+    aspect:
+      type:
+        - string
+        - 'null'
+      enum:
+        - perfective
+        - imperfective
+        - null
+      description: 'For verbs: aspectual trait.'
+    voice:
+      type:
+        - string
+        - 'null'
+      enum:
+        - active
+        - passive
+        - mediopassive
+        - null
+      description: 'For verbs: grammatical voice.'
+  additionalProperties: false

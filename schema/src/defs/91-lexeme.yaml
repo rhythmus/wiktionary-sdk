@@ -1,0 +1,169 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+Lexeme:
+  type: object
+  required:
+    - id
+    - language
+    - query
+    - type
+    - form
+    - etymology_index
+    - part_of_speech_heading
+    - lexicographic_section
+    - lexicographic_family
+    - templates
+    - source
+  properties:
+    id:
+      type: string
+      description: >-
+        Stable lexeme id, typically `{lang}:{pageTitle}#E{etymology_index}#{section_slug}#{LexemeType}` (see engine
+        output).
+      examples:
+        - el:γράφω#E1#verb#LEXEME
+    language:
+      $ref: '#/$defs/WikiLang'
+    query:
+      type: string
+    type:
+      $ref: '#/$defs/LexemeType'
+    form:
+      type: string
+    etymology_index:
+      type: integer
+      minimum: 0
+    part_of_speech_heading:
+      type: string
+    lexicographic_section:
+      type: string
+      description: >-
+        Stable slug for the section kind. Registered headings use slugs listed in `$defs.LexicographicSectionSlug`;
+        unregistered headings use a derived slug from `fallbackLexicographicFromHeading`.
+    lexicographic_family:
+      $ref: '#/$defs/LexicographicFamily'
+    part_of_speech:
+      description: Strict grammatical PoS when applicable; null for morphemes, symbols, phraseology, etc.
+      anyOf:
+        - type: 'null'
+        - $ref: '#/$defs/PartOfSpeech'
+    pronunciation:
+      $ref: '#/$defs/Pronunciation'
+    hyphenation:
+      $ref: '#/$defs/Hyphenation'
+    form_of:
+      $ref: '#/$defs/FormOf'
+    translations:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          $ref: '#/$defs/TranslationItem'
+    templates:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          $ref: '#/$defs/StoredTemplate'
+    templates_all:
+      type: array
+      items:
+        $ref: '#/$defs/StoredTemplateInstance'
+      description: Templates in document order with optional location metadata
+    senses:
+      type: array
+      items:
+        $ref: '#/$defs/Sense'
+    semantic_relations:
+      $ref: '#/$defs/SemanticRelations'
+    etymology:
+      $ref: '#/$defs/EtymologyData'
+    derived_terms:
+      $ref: '#/$defs/SectionWithLinks'
+    related_terms:
+      $ref: '#/$defs/SectionWithLinks'
+    descendants:
+      $ref: '#/$defs/SectionWithLinks'
+    usage_notes:
+      type: array
+      items:
+        type: string
+    headword_morphology:
+      $ref: '#/$defs/HeadwordMorphology'
+    alternative_forms:
+      type: array
+      items:
+        $ref: '#/$defs/AlternativeForm'
+      description: Entries from the ====Alternative forms==== section.
+    see_also:
+      type: array
+      items:
+        type: string
+      description: Terms from the ====See also==== section.
+    anagrams:
+      type: array
+      items:
+        type: string
+      description: Anagrams of this word from the ====Anagrams==== section.
+    references:
+      type: array
+      items:
+        type: string
+      description: Content from the ====References==== section.
+    inflection_table_ref:
+      type: object
+      properties:
+        template_name:
+          type: string
+        raw:
+          type: string
+      required:
+        - template_name
+        - raw
+      additionalProperties: false
+      description: Reference to the inflection template used.
+    external_links:
+      type: array
+      items:
+        type: string
+        format: uri
+      description: All external links extracted from the page.
+    page_links:
+      type: array
+      items:
+        type: string
+      description: All Wiktionary page titles linked from this article.
+    images:
+      type: array
+      items:
+        type: string
+      description: List of image filenames/URLs found on the page.
+    wikidata:
+      $ref: '#/$defs/WikidataEnrichment'
+    resolved_for_query:
+      type: string
+    lemma_triggered_by_lexeme_id:
+      type: string
+    preferred:
+      type: boolean
+    source:
+      type: object
+      required:
+        - wiktionary
+      properties:
+        wiktionary:
+          $ref: '#/$defs/WiktionarySource'
+      additionalProperties: false
+    categories:
+      type: array
+      items:
+        type: string
+      description: Wiktionary categories filtered to this language section.
+    langlinks:
+      type: array
+      items:
+        $ref: '#/$defs/WiktionaryLanglink'
+      description: Links to the same term in other Wiktionary language editions.
+    metadata:
+      $ref: '#/$defs/PageMetadataInfo'
+  additionalProperties: true

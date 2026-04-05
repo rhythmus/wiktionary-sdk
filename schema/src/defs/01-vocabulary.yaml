@@ -1,0 +1,230 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+schemaVersion:
+  type: string
+  description: >-
+    Semantic version of this output schema. Bump MAJOR for breaking shape changes, MINOR for additive fields, PATCH for
+    documentation-only corrections.
+  examples:
+    - 3.3.0
+    - 3.2.0
+    - 3.0.0
+WikiLang:
+  type: string
+  description: BCP-47-style language code.
+  examples:
+    - el
+    - grc
+    - en
+    - nl
+    - de
+    - fr
+LexemeType:
+  type: string
+  enum:
+    - LEXEME
+    - INFLECTED_FORM
+    - FORM_OF
+  description: Discriminator for the kind of lexeme.
+LexicographicFamily:
+  type: string
+  description: Taxonomic bucket for the lexeme-class section (see `src/lexicographic-headings.ts`).
+  enum:
+    - pos
+    - morpheme
+    - symbol
+    - character
+    - phraseology
+    - numeral_kind
+    - other
+    - disallowed_attested
+LexicographicSectionSlug:
+  type: string
+  description: >-
+    Known `section_slug` values from `src/lexicographic-headings.ts`. `Lexeme.lexicographic_section` may also be any
+    other string when `fallbackLexicographicFromHeading` derives a slug from an unregistered heading.
+  enum:
+    - abbreviation
+    - acronym
+    - adjective
+    - adposition
+    - adverb
+    - affix
+    - ambiposition
+    - article
+    - cardinal_numeral
+    - cardinal_number
+    - character
+    - circumfix
+    - circumposition
+    - classifier
+    - clitic
+    - combining_form
+    - conjunction
+    - contraction
+    - counter
+    - determinative
+    - determiner
+    - diacritical_mark
+    - gerund
+    - han_character
+    - hanja
+    - hanzi
+    - idiom
+    - ideophone
+    - infix
+    - initialism
+    - interfix
+    - interjection
+    - kanji
+    - letter
+    - ligature
+    - logogram
+    - noun
+    - numeral
+    - number
+    - ordinal_numeral
+    - ordinal_number
+    - particle
+    - participle
+    - phrase
+    - phrasebook
+    - postposition
+    - preposition
+    - prepositional_phrase
+    - prefix
+    - pronoun
+    - proper_noun
+    - proverb
+    - punctuation_mark
+    - root
+    - romanization
+    - suffix
+    - syllable
+    - symbol
+    - verb
+PartOfSpeech:
+  type: string
+  description: >-
+    Part-of-speech slug (`Lexeme.part_of_speech`): en.wiktionary strict headings plus ODict-aligned tags
+    (https://www.odict.org/docs/reference/pos), snake_case; Japanese ODict codes use underscores for hyphens. Non-PoS
+    sections may use `lexicographic_section` with null `part_of_speech`. Canonical list: `PART_OF_SPEECH_VALUES` in
+    `src/types.ts`.
+  enum:
+    - abbreviation
+    - adfix
+    - adj_f
+    - adj_ix
+    - adj_kari
+    - adj_ku
+    - adj_na
+    - adj_nari
+    - adj_no
+    - adj_pn
+    - adj_shiku
+    - adj_t
+    - adjective
+    - adjective_phrase
+    - adv_to
+    - adverb
+    - adverbial_phrase
+    - affix
+    - article
+    - auxiliary
+    - auxiliary_adjective
+    - auxiliary_verb
+    - character
+    - circumfix
+    - conjunction
+    - contraction
+    - coordinating_conjunction
+    - copula
+    - counter
+    - determiner
+    - expression
+    - infix
+    - interfix
+    - interjection
+    - intransitive_verb
+    - n_adv
+    - n_pref
+    - n_suf
+    - n_t
+    - name
+    - noun
+    - numeral
+    - numeric
+    - participle
+    - particle
+    - phrase
+    - postposition
+    - prefix
+    - preposition
+    - prepositional_phrase
+    - pronoun
+    - proper_noun
+    - proverb
+    - punctuation
+    - subordinating_conjunction
+    - suffix
+    - symbol
+    - transitive_verb
+    - unknown
+    - v_unspec
+    - v1
+    - v1_s
+    - v2a_s
+    - v2b_k
+    - v2b_s
+    - v2d_k
+    - v2d_s
+    - v2g_k
+    - v2g_s
+    - v2h_k
+    - v2h_s
+    - v2k_k
+    - v2k_s
+    - v2m_k
+    - v2m_s
+    - v2n_s
+    - v2r_k
+    - v2r_s
+    - v2s_s
+    - v2t_k
+    - v2t_s
+    - v2w_s
+    - v2y_k
+    - v2y_s
+    - v2z_s
+    - v4b
+    - v4g
+    - v4h
+    - v4k
+    - v4m
+    - v4n
+    - v4r
+    - v4s
+    - v4t
+    - v5aru
+    - v5b
+    - v5g
+    - v5k
+    - v5k_s
+    - v5m
+    - v5n
+    - v5r
+    - v5r_i
+    - v5s
+    - v5t
+    - v5u
+    - v5u_s
+    - v5uru
+    - verb
+    - vk
+    - vn
+    - vr
+    - vs
+    - vs_c
+    - vs_i
+    - vs_s
+    - vz

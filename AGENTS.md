@@ -48,7 +48,7 @@ A custom parser handles nested `{{...}}` structures.
 
 ### 6. Schema Synchronization (High-Fidelity Parity)
 - **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
-    - `schema/normalized-entry.schema.json`: Update the JSON Schema to match the new structure.
+    - **JSON Schema (author-time YAML):** Edit `schema/src/root.yaml` and/or `schema/src/defs/*.yaml` (see `tools/schema-def-modules.ts`), then run **`npm run build:schema`** and commit the generated **`schema/normalized-entry.schema.json`** (do not hand-edit the JSON). See `schema/README.md`.
     - `docs/schemata/*.yaml`: Update the reference YAML models (e.g., `DictionaryEntry.yaml`) to ensure documentation parity.
 - **Sense-only or presentation fields**: If you add structured sense data (e.g. decoded definition templates), also update **Handlebars + CSS** and regenerate **`src/templates/templates.ts`** so HTML output stays in sync with the package API.
 - **Reason**: To maintain the SDK's promise of a deterministic, machine-readable output that external consumers can rely on for validation.

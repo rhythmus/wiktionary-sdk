@@ -22,9 +22,11 @@
   },
   "scripts": {
     "build": "tsc && tsc -p tsconfig.cjs.json",
+    "build:schema": "tsx tools/build-normalized-schema.ts",
+    "check:schema-artifact": "npm run build:schema && git diff --exit-code -- schema/normalized-entry.schema.json",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:ci": "npm run check:registry-order && vitest run",
+    "test:ci": "npm run check:registry-order && npm run check:schema-artifact && vitest run",
     "check:registry-order": "tsx tools/assert-registry-order.ts",
     "test:unit": "vitest run",
     "test:perf": "vitest run --config vitest.bench.config.ts",

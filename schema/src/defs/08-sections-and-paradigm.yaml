@@ -1,0 +1,49 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+SectionLinkItem:
+  type: object
+  required:
+    - term
+    - lang
+    - template
+    - raw
+  properties:
+    term:
+      type: string
+    lang:
+      type: string
+    gloss:
+      type: string
+    alt:
+      type: string
+    template:
+      type: string
+    raw:
+      type: string
+  additionalProperties: false
+SectionWithLinks:
+  type: object
+  required:
+    - raw_text
+    - items
+  properties:
+    raw_text:
+      type: string
+      description: Verbatim section content
+    items:
+      type: array
+      items:
+        $ref: '#/$defs/SectionLinkItem'
+  additionalProperties: false
+InflectionTable:
+  type: object
+  description: >-
+    A hierarchical representation of a grammatical paradigm. Keys are dimensions (e.g. 'mood', 'tense'), values are
+    either strings, arrays of strings, or nested InflectionTable objects.
+  additionalProperties:
+    anyOf:
+      - type: string
+      - type: array
+        items:
+          type: string
+      - $ref: '#/$defs/InflectionTable'

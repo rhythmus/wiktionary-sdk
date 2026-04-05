@@ -1,0 +1,48 @@
+# FetchResult root document (no $defs). Built JSON: schema/normalized-entry.schema.json
+# Regenerate: npm run build:schema
+
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://github.com/rhythmus/wiktionary-sdk/schema/normalized-entry.schema.json
+title: Wiktionary SDK Normalized Output
+description: JSON Schema for the wiktionary-sdk engine output (FetchResult and Lexeme types). v3.3.0.
+type: object
+properties:
+  schema_version:
+    $ref: '#/$defs/schemaVersion'
+  rawLanguageBlock:
+    type: string
+  lexemes:
+    type: array
+    items:
+      $ref: '#/$defs/Lexeme'
+  notes:
+    type: array
+    items:
+      type: string
+  debug:
+    type: array
+    items:
+      type: array
+      items:
+        $ref: '#/$defs/DecoderDebugEvent'
+    description: 'Detailed trace of decoder matches per lexeme (`debugDecoders: true`). Outer array aligns with `lexemes` order.'
+  metadata:
+    type: object
+    description: Page-level metadata attached to the FetchResult (whole page, not per lexeme).
+    properties:
+      categories:
+        type: array
+        items:
+          type: string
+      langlinks:
+        type: array
+        items:
+          $ref: '#/$defs/WiktionaryLanglink'
+      info:
+        $ref: '#/$defs/PageMetadataInfo'
+    additionalProperties: true
+required:
+  - schema_version
+  - rawLanguageBlock
+  - lexemes
+  - notes

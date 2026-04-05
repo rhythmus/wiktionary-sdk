@@ -6,7 +6,7 @@ The runtime string **`schema_version`** on each `FetchResult` is defined as **`S
 
 ## Current Version
 
-**`3.3.0`** — formalized in [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json), aligned with `Lexeme` / `FetchResult` in `src/types.ts`.
+**`3.3.0`** — formalized in [`schema/normalized-entry.schema.json`](schema/normalized-entry.schema.json) (built from [`schema/src/`](schema/src/) YAML via `npm run build:schema`), aligned with `Lexeme` / `FetchResult` in `src/types.ts`.
 
 ## Version Semantics
 

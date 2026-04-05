@@ -84,7 +84,7 @@ Modules under test mirror extractions from **`webapp/src/App.tsx`**:
 - **`test/cross-interface-parity.test.ts`** enforces shared invocation semantics across SDK direct calls, CLI extract routing, and webapp playground routing.
 - **`test/cli-combinatorics-generator.test.ts`** runs a generated wrapper/argument matrix to catch signature drift as wrappers evolve.
 - **`test/fallback-enrichment-matrix.test.ts`** asserts QID enrichment fallback order (pageprops -> Wiktionary title -> Wikipedia title -> no enrichment).
-- **`test/negative-schema-hardening.test.ts`** asserts malformed payloads are rejected by `schema/normalized-entry.schema.json`.
+- **`test/negative-schema-hardening.test.ts`** asserts malformed payloads are rejected by `schema/normalized-entry.schema.json` (generated from `schema/src/*.yaml`; `npm run test:ci` runs `check:schema-artifact` so the JSON matches the YAML).
 
 ## Parser invariants
 

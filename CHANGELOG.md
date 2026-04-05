@@ -10,6 +10,7 @@ for its output schema (see `VERSIONING.md`).
 
 ### Changed
 
+- **Schema authoring**: Normalized JSON Schema is built from modular YAML under `schema/src/` (`npm run build:schema`); CI runs `check:schema-artifact` so `schema/normalized-entry.schema.json` stays in sync.
 - **Output schema 3.3.0**: JSON Schema aligned with `src/types.ts` — `schema_version` required on `FetchResult`; `RichEntry` fixes; `AlternativeForm` / `EtymologyData` / `TranslationItem.params` / `debug` / `metadata` tightened; new documentation `$defs` (lexicographic section slugs, langlinks, page metadata, decoder debug, library rows, morphology criteria). `EtymologyData.links` optional deprecated alias of `chain` in TypeScript.
 - **Roadmap (Phase 9 / Stage 24)**: Documented **full ODXML ([ODict ODXML](https://www.odict.org/docs/xml))** export as a first-class deliverable alongside TEI Lex-0 (`docs/STAGED_IMPLEMENTATION_PLAN.md`, spec §12.10.7, §15 item 6).
 - **Output schema 3.2.0**: `PartOfSpeech` / `PART_OF_SPEECH_VALUES` expanded with [ODict](https://www.odict.org/docs/reference/pos)-aligned standard tags (snake_case) and the full Japanese tag set (hyphens → underscores). JSON Schema `$defs.PartOfSpeech.enum` updated; `lexicographic-headings.ts` English heading mapping unchanged.

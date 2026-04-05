@@ -1,0 +1,141 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+WiktionaryLanglink:
+  type: object
+  required:
+    - lang
+    - title
+  properties:
+    lang:
+      type: string
+    title:
+      type: string
+  additionalProperties: false
+PageMetadataInfo:
+  type: object
+  description: Subset of MediaWiki `prop=info` fields mirrored on `Lexeme.metadata` and `FetchResult.metadata.info`.
+  properties:
+    last_modified:
+      type: string
+      format: date-time
+      description: ISO 8601 when provided by the API; some MediaWiki configurations use slightly non-RFC3339 forms.
+    length:
+      type: integer
+    pageid:
+      type:
+        - integer
+        - 'null'
+    lastrevid:
+      type: integer
+  additionalProperties: true
+WiktionarySource:
+  type: object
+  required:
+    - site
+    - title
+    - language_section
+    - etymology_index
+    - pos_heading
+  properties:
+    site:
+      type: string
+    title:
+      type: string
+    language_section:
+      type: string
+    etymology_index:
+      type: integer
+      minimum: 0
+    pos_heading:
+      type: string
+    revision_id:
+      type: integer
+      description: MediaWiki revision ID at time of fetch. Use for reproducibility/cache-busting.
+    last_modified:
+      type: string
+      format: date-time
+      description: >-
+        ISO 8601 timestamp of the last page edit from the MediaWiki API when available; some sites return timestamps
+        that are not strict RFC 3339.
+      examples:
+        - '2026-03-28T17:18:53Z'
+    pageid:
+      type:
+        - integer
+        - 'null'
+      description: Numeric page ID from the MediaWiki API.
+  additionalProperties: false
+WikidataMedia:
+  type: object
+  properties:
+    P18:
+      type: string
+    commons_file:
+      type: string
+    thumbnail:
+      type: string
+      format: uri
+  additionalProperties: false
+LabelValue:
+  type: object
+  required:
+    - language
+    - value
+  properties:
+    language:
+      type: string
+    value:
+      type: string
+  additionalProperties: false
+SitelinkValue:
+  type: object
+  required:
+    - site
+    - title
+  properties:
+    site:
+      type: string
+    title:
+      type: string
+    url:
+      type: string
+      format: uri
+  additionalProperties: false
+WikidataEnrichment:
+  type: object
+  required:
+    - qid
+  properties:
+    qid:
+      type: string
+      pattern: ^Q\d+$
+    labels:
+      type: object
+      additionalProperties:
+        $ref: '#/$defs/LabelValue'
+    descriptions:
+      type: object
+      additionalProperties:
+        $ref: '#/$defs/LabelValue'
+    sitelinks:
+      type: object
+      additionalProperties:
+        $ref: '#/$defs/SitelinkValue'
+    media:
+      $ref: '#/$defs/WikidataMedia'
+    instance_of:
+      type: array
+      items:
+        type: string
+        pattern: ^Q\d+$
+      description: Wikidata P31 'Instance Of' claims.
+    subclass_of:
+      type: array
+      items:
+        type: string
+        pattern: ^Q\d+$
+      description: Wikidata P279 'Subclass Of' claims.
+    wikidata_error:
+      type: string
+      description: Optional diagnostic when Wikidata enrichment failed.
+  additionalProperties: false

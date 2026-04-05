@@ -1,0 +1,69 @@
+# JSON Schema $defs fragment — see tools/schema-def-modules.ts
+
+SemanticRelation:
+  type: object
+  required:
+    - term
+  properties:
+    term:
+      type: string
+    sense_id:
+      type: string
+    qualifier:
+      type: string
+  additionalProperties: false
+SemanticRelations:
+  type: object
+  properties:
+    synonyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+    antonyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+    hypernyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+    hyponyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+    coordinate_terms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: Peer-level terms (e.g. days of the week together).
+    holonyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: Wholes that contain this term as a part.
+    meronyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: Parts that make up this term.
+    troponyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: 'For verbs: manner-of-action subtypes.'
+    comeronyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: Terms in the same semantic field (complementary/contrastive); Wiktionary Comeronyms section.
+    parasynonyms:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: Near-synonyms with distinct nuance; Wiktionary Parasynonyms section.
+    collocations:
+      type: array
+      items:
+        $ref: '#/$defs/SemanticRelation'
+      description: Typical word combinations; Wiktionary Collocations section.
+  additionalProperties: false
