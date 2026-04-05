@@ -12,7 +12,33 @@ export * from "./lexeme-display-groups";
 export * from "./stem";
 export * from "./wrapper-invoke";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";
-export type { WikiLang, LexemeType, Lexeme, LexemeResult, FetchResult, RichEntry, OnlyUsedIn, EtymologyStep } from "./types";
+export type {
+  WikiLang,
+  LexemeType,
+  Lexeme,
+  LexemeResult,
+  FetchResult,
+  RichEntry,
+  OnlyUsedIn,
+  EtymologyStep,
+  PartOfSpeech,
+  LexicographicFamily,
+} from "./types";
+export {
+  PART_OF_SPEECH_VALUES,
+  isPartOfSpeech,
+  SCHEMA_VERSION,
+} from "./types";
+export {
+  mapHeadingToLexicographic,
+  mapHeadingToStrictPartOfSpeech,
+  isLexemeSectionHeading,
+  fallbackLexicographicFromHeading,
+  lexemeMatchesPosQuery,
+  lexemePosSortKey,
+  getLexicographicTaxonomyStats,
+} from "./lexicographic-headings";
+export type { LexicographicHeadingResult } from "./lexicographic-headings";
 export {
     registerAllDecoders,
     isFormOfTemplateName,

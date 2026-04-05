@@ -3,7 +3,16 @@ import { mwFetchJson } from "./api";
 import { stripWikiMarkup } from "./registry";
 import { morphology as getMorphology, conjugate as runConjugate, decline as runDecline } from "./morphology";
 import { commonsThumbUrl } from "./utils";
-import type { WikiLang, FetchResult, Lexeme, LexemeResult, RichEntry, EtymologyStep } from "./types";
+import type {
+    WikiLang,
+    FetchResult,
+    Lexeme,
+    LexemeResult,
+    RichEntry,
+    EtymologyStep,
+    PartOfSpeech,
+    LexicographicFamily,
+} from "./types";
 import type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
 
 export interface GroupedLexemeResults<T> extends Array<LexemeResult<T>> {
@@ -62,7 +71,11 @@ export function mapLexemes<T>(
     const rows: LexemeResult<T>[] = result.lexemes.map(lexeme => ({
         lexeme_id: lexeme.id,
         language: lexeme.language,
-        pos: lexeme.part_of_speech_heading || lexeme.part_of_speech || "unknown",
+        pos:
+            lexeme.part_of_speech ??
+            lexeme.lexicographic_section ??
+            lexeme.part_of_speech_heading ??
+            "unknown",
         etymology_index: lexeme.etymology_index,
         value: extractor(lexeme),
     }));
@@ -264,14 +277,38 @@ export async function syllableCount(query: string, sourceLang: WikiLang = "Auto"
 }
 
 /**
- * Returns the normalized structural identifier (e.g., "verb", "noun").
+ * Returns the strict grammatical part of speech when known (e.g. verb, noun); otherwise null.
+ * Use {@link lexicographicClass} for section slug and family (morpheme, symbol, phraseology, …).
  */
-export async function partOfSpeech(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string | null>> {
+export async function partOfSpeech(
+    query: string,
+    sourceLang: WikiLang = "Auto",
+    pos: string = "Auto",
+): Promise<GroupedLexemeResults<PartOfSpeech | null>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => {
-        const s = (lexeme.part_of_speech || lexeme.part_of_speech_heading)?.replace(/_/g, " ");
-        return s ?? null;
-    });
+    return mapLexemes(result, (lexeme) => lexeme.part_of_speech ?? null);
+}
+
+export interface LexicographicClass {
+    lexicographic_section: string;
+    lexicographic_family: LexicographicFamily;
+    part_of_speech: PartOfSpeech | null;
+}
+
+/**
+ * Full lexeme-class taxonomy: section slug, family bucket, and strict PoS (if any).
+ */
+export async function lexicographicClass(
+    query: string,
+    sourceLang: WikiLang = "Auto",
+    pos: string = "Auto",
+): Promise<GroupedLexemeResults<LexicographicClass>> {
+    const result = await wiktionary({ query, lang: sourceLang, pos });
+    return mapLexemes(result, (lexeme) => ({
+        lexicographic_section: lexeme.lexicographic_section,
+        lexicographic_family: lexeme.lexicographic_family,
+        part_of_speech: lexeme.part_of_speech ?? null,
+    }));
 }
 
 /**
@@ -313,7 +350,12 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
     const result = await wiktionary({ query: lemmaStr, lang, pos });
 
     return mapLexemes(result, lexeme => {
-        const entryPos = (lexeme.part_of_speech || lexeme.part_of_speech_heading || "unknown").toLowerCase();
+        const entryPos = (
+            lexeme.part_of_speech ||
+            lexeme.lexicographic_section ||
+            lexeme.part_of_speech_heading ||
+            "unknown"
+        ).toLowerCase();
 
         const inflectedForLexeme = resolvedTriggeredId && lexeme.id === resolvedTriggeredId ? inflectedSource : undefined;
 

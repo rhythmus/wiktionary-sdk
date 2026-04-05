@@ -6,7 +6,9 @@ export type LexemeDisplayGroup =
 
 /** Normalized PoS key for grouping (homonyms share language + surface + PoS). */
 export function lexemePosGroupKey(lex: Lexeme): string {
-    const raw = String(lex.part_of_speech ?? lex.part_of_speech_heading ?? "").trim();
+    const raw = String(
+        lex.part_of_speech ?? lex.lexicographic_section ?? lex.part_of_speech_heading ?? "",
+    ).trim();
     const pos = raw.toLowerCase().replace(/_/g, " ").trim();
     return `${lex.language}\0${lex.form}\0${pos}`;
 }

@@ -282,11 +282,14 @@ function formatGenderForPosLine(gender: string): string {
 
 /** PoS line: nouns (and proper nouns) append headword gender when present (dictionary convention). */
 Handlebars.registerHelper("posLine", (entry: Record<string, unknown>) => {
-    let raw = String((entry?.pos ?? entry?.part_of_speech) ?? "").trim();
+    let raw = String(
+        (entry?.pos ?? entry?.part_of_speech ?? entry?.lexicographic_section) ?? "",
+    ).trim();
     if (!raw) raw = String(entry?.part_of_speech_heading ?? "").trim();
     if (!raw) return "(unknown)";
     const normalized = raw.toLowerCase().replace(/_/g, " ");
-    const isNounLike = normalized === "noun" || normalized === "proper noun";
+    const isNounLike =
+        normalized === "noun" || normalized === "proper noun" || normalized === "proper_noun";
     const gender = (entry?.headword_morphology as { gender?: string } | undefined)?.gender;
     const display = raw.replace(/_/g, " ");
     if (isNounLike && gender) {
@@ -542,7 +545,11 @@ function prepareLexemeHtmlContext(entry: any, options: FormatOptions): Record<st
     return {
         ...entry,
         headword: entry.headword || entry.form,
-        pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
+        pos:
+            entry.pos ||
+            entry.part_of_speech ||
+            entry.lexicographic_section ||
+            entry.part_of_speech_heading,
         schema_version: SCHEMA_VERSION,
         standalone,
         relations: entry.relations ?? entry.semantic_relations,
@@ -696,7 +703,11 @@ class MarkdownStyle extends TextStyle {
         const context = {
             ...entry,
             headword: entry.headword || entry.form,
-            pos: entry.pos || entry.part_of_speech || entry.part_of_speech_heading,
+            pos:
+                entry.pos ||
+                entry.part_of_speech ||
+                entry.lexicographic_section ||
+                entry.part_of_speech_heading,
             schema_version: SCHEMA_VERSION,
             standalone: options.mode === "markdown",
             relations: entry.relations ?? entry.semantic_relations,
@@ -928,7 +939,12 @@ class TerminalHtmlStyle extends HtmlStyle {
     }
     rich(entry: any, options: FormatOptions): string {
         const headword = (entry.headword || entry.form || "Unknown").toUpperCase();
-        const pos = entry.pos || entry.part_of_speech || entry.part_of_speech_heading || "unknown";
+        const pos =
+            entry.pos ||
+            entry.part_of_speech ||
+            entry.lexicographic_section ||
+            entry.part_of_speech_heading ||
+            "unknown";
         
         return `
             <div style="font-family: monospace; line-height: 1.5;">

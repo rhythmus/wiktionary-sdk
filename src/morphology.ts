@@ -95,7 +95,12 @@ function extractMorphologyFromLexeme(lexeme: Lexeme, query: string): Partial<Gra
         if (lexeme.form_of.lemma && lexeme.form_of.lemma.toLowerCase().endsWith("μαι")) criteria.voice = "passive";
         criteria = { ...criteria, ...decoded };
     } else if (lexeme.type === "LEXEME") {
-        const pos = (lexeme.part_of_speech || lexeme.part_of_speech_heading || "").toLowerCase();
+        const pos = (
+            lexeme.part_of_speech ||
+            lexeme.lexicographic_section ||
+            lexeme.part_of_speech_heading ||
+            ""
+        ).toLowerCase();
         const posNorm = pos.replace(/[_-]/g, " ").trim();
         const isGreek = String(lexeme.language) === "el" || String(lexeme.language) === "grc";
         if ((posNorm === "verb") && isGreek) {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { mapHeadingToPos } from "../src/parser";
+import { mapHeadingToLexicographic } from "../src/lexicographic-headings";
 import {
   expandDualPersonInflectionLine,
   format,
@@ -14,21 +15,25 @@ import {
 } from "../src/formatter";
 import type { Lexeme } from "../src/types";
 
-describe("hardening: rare PoS heading normalization", () => {
-  it("maps rare headings to normalized part_of_speech values", () => {
+describe("hardening: heading taxonomy (strict PoS vs lexicographic section)", () => {
+  it("maps strict grammatical headings via mapHeadingToPos", () => {
+    expect(mapHeadingToPos("Interjection")).toBe("interjection");
+    expect(mapHeadingToPos("Contraction")).toBe("contraction");
+  });
+
+  it("maps phraseology/symbol/disallowed headings to lexicographic_section only", () => {
     const cases: Array<[string, string]> = [
-      ["Interjection", "interjection"],
       ["Symbol", "symbol"],
       ["Abbreviation", "abbreviation"],
       ["Initialism", "initialism"],
       ["Acronym", "acronym"],
       ["Letter", "letter"],
-      ["Contraction", "contraction"],
       ["Idiom", "idiom"],
       ["Proverb", "proverb"],
     ];
-    for (const [heading, expected] of cases) {
-      expect(mapHeadingToPos(heading)).toBe(expected);
+    for (const [heading, slug] of cases) {
+      expect(mapHeadingToPos(heading)).toBeNull();
+      expect(mapHeadingToLexicographic(heading)?.section_slug).toBe(slug);
     }
   });
 });
@@ -231,10 +236,15 @@ describe("hardening: inflection morph display lines", () => {
   it("enables ultra-compact inflected HTML for single gloss (L-05)", () => {
     const lex = {
       id: "en:cats#1",
+      query: "cats",
       type: "INFLECTED_FORM",
       form: "cats",
       language: "en",
+      part_of_speech_heading: "Noun",
+      lexicographic_section: "noun",
+      lexicographic_family: "pos",
       part_of_speech: "noun",
+      templates: {},
       form_of: {
         lemma: "cat",
         label: "Plural of",
@@ -283,9 +293,13 @@ describe("hardening: FetchResult HTML (homonym merge + empty)", () => {
         lexemes: [
           {
             id: "a",
+            query: "bank",
             type: "LEXEME",
             form: "bank",
             language: "en",
+            part_of_speech_heading: "Noun",
+            lexicographic_section: "noun",
+            lexicographic_family: "pos",
             part_of_speech: "noun",
             etymology_index: 1,
             etymology: { chain: [{ template: "inh", relation: "inherited", source_lang: "enm", term: "banke" }] },
@@ -295,9 +309,13 @@ describe("hardening: FetchResult HTML (homonym merge + empty)", () => {
           } as unknown as Lexeme,
           {
             id: "b",
+            query: "bank",
             type: "LEXEME",
             form: "bank",
             language: "en",
+            part_of_speech_heading: "Noun",
+            lexicographic_section: "noun",
+            lexicographic_family: "pos",
             part_of_speech: "noun",
             etymology_index: 2,
             etymology: { chain: [{ template: "der", relation: "derived", source_lang: "fr", term: "banque" }] },

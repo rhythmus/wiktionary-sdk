@@ -6,7 +6,7 @@ import {
   wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms,
   etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
   derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
-  partOfSpeech, usageNotes, translate, richEntry,
+  partOfSpeech, lexicographicClass, usageNotes, translate, richEntry,
   rhymes, homophones, syllableCount, allImages, audioGallery, audioDetails, exampleDetails,
   externalLinks, internalLinks, isInstance, isSubclass, alternativeForms, seeAlso, anagrams,
   citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
@@ -36,12 +36,12 @@ function langName(lang: string) {
   return s;
 }
 
-/** Prefer decoder `part_of_speech` over raw section heading when both exist (headword vs heading mismatch). */
+/** Strict PoS, else lexicographic section slug, else verbatim heading. */
 function posLabelForPill(r: Lexeme): string {
   const raw =
     (r.part_of_speech && String(r.part_of_speech).trim()) ||
+    (r.lexicographic_section && String(r.lexicographic_section).trim()) ||
     r.part_of_speech_heading ||
-    r.part_of_speech ||
     '?';
   return String(raw)
     .replace(/_/g, ' ')
@@ -53,8 +53,8 @@ function lexemePillGroupKey(r: Lexeme): string {
   const lang = String(r.language ?? '').trim();
   const posRaw =
     (r.part_of_speech && String(r.part_of_speech).trim()) ||
+    (r.lexicographic_section && String(r.lexicographic_section).trim()) ||
     r.part_of_speech_heading ||
-    r.part_of_speech ||
     '';
   const posNorm = String(posRaw).toLowerCase().replace(/_/g, ' ').trim();
   return `${lang}\u0000${posNorm}`;
@@ -156,7 +156,7 @@ const PlainLexemeHtmlBlock: React.FC<{ lexeme: Lexeme }> = ({ lexeme }) => {
 // ── SDK method registry ──────────────────────────────────────────────────────
 const API_METHODS: Record<string, any> = {
   // Core / Senses
-  richEntry, translate, partOfSpeech, usageNotes,
+  richEntry, translate, partOfSpeech, lexicographicClass, usageNotes,
   // Phonology & Morphology
   lemma, ipa, pronounce, hyphenate, rhymes, homophones, syllableCount,
   stem, morphology, conjugate, decline, gender, transitivity,
@@ -179,7 +179,7 @@ const API_METHODS: Record<string, any> = {
  * Mirrors the organization in README.md and the v2 Schema.
  */
 const API_GROUPS = [
-  { label: 'Identity & Senses', methods: ['richEntry', 'lemma', 'partOfSpeech', 'usageNotes'] },
+  { label: 'Identity & Senses', methods: ['richEntry', 'lemma', 'partOfSpeech', 'lexicographicClass', 'usageNotes'] },
   { label: 'Pronunciation', methods: ['ipa', 'pronounce', 'rhymes', 'homophones', 'audioGallery'] },
   { label: 'Morphology', methods: ['stem', 'morphology', 'conjugate', 'decline', 'gender', 'transitivity', 'inflectionTableRef'] },
   { label: 'Hyphenation', methods: ['hyphenate', 'syllableCount'] },

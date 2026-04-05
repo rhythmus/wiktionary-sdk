@@ -1,4 +1,5 @@
 import { stripCombiningMarksForPageTitle } from '@engine/index';
+import { lexemeMatchesPosQuery } from '@engine/lexicographic-headings';
 import type { FetchResult, Lexeme } from '@engine/types';
 
 /**
@@ -22,7 +23,7 @@ export function pickLemmaLexemeFromSecondFetch(
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0];
   if (preferredPos && preferredPos !== 'Auto') {
-    const byPos = candidates.find((l) => l.part_of_speech === preferredPos);
+    const byPos = candidates.find((l) => lexemeMatchesPosQuery(l, preferredPos));
     if (byPos) return byPos;
   }
   return candidates[0];

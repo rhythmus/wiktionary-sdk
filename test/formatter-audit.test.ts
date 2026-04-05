@@ -15,6 +15,9 @@ function minimalLexeme(over: Partial<Lexeme>): Lexeme {
     form: "bank",
     etymology_index: 1,
     part_of_speech_heading: "Noun",
+    lexicographic_section: "noun",
+    lexicographic_family: "pos",
+    part_of_speech: "noun",
     templates: {},
     source: {
       wiktionary: {

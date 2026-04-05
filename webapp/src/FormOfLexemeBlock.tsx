@@ -23,7 +23,9 @@ export const FormOfLexemeBlock: FC<{
     const preferredPos =
       lexeme.part_of_speech && lexeme.part_of_speech !== 'Auto'
         ? lexeme.part_of_speech
-        : undefined;
+        : lexeme.lexicographic_section && lexeme.lexicographic_section !== 'unknown'
+          ? lexeme.lexicographic_section
+          : undefined;
 
     let cancelled = false;
     setLemmaResolveLoading(true);
@@ -73,6 +75,7 @@ export const FormOfLexemeBlock: FC<{
     lexeme.form_of?.lemma,
     lexeme.language,
     lexeme.part_of_speech,
+    lexeme.lexicographic_section,
     lexeme.type,
     debugMode,
     matchMode,
