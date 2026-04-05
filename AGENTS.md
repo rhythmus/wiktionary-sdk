@@ -167,7 +167,7 @@ Follow this format consistently for all commits.
 | `feat` | Adding or extending functionality (new decoders, new modules, new CLI flags, new UI features) |
 | `fix` | Correcting a bug or incorrect behaviour |
 | `refactor` | Restructuring code without changing behaviour (renames, moves, extractions) |
-| `docs` | Documentation-only changes (README, spec, STAGED_IMPLEMENTATION_PLAN, AGENTS.md, comments) |
+| `docs` | Documentation-only changes (README, spec, ROADMAP, AGENTS.md, comments) |
 | `test` | Adding or updating tests without changing production code |
 | `chore` | Tooling, CI, dependency bumps, config changes with no user-facing impact |
 
@@ -176,7 +176,7 @@ Follow this format consistently for all commits.
 1. **Subject line**: lowercase after the prefix colon, imperative mood ("add", not "added" or "adds"), no trailing period, ideally under 72 characters.
 2. **Body**: separated from subject by a blank line. Describe *what* was delivered and *why*. Use plain sentences or a concise bulleted list. Name files, interfaces, and design choices where relevant. Wrap at ~72 characters.
 3. **Scope tags** (e.g. `feat(parser):`) are not used in this project — keep it simple.
-4. **Group logically**: one commit per cohesive unit of work (e.g. one roadmap phase in STAGED_IMPLEMENTATION_PLAN, one feature area). Do not mix unrelated changes; do not split a single feature across many tiny commits.
+4. **Group logically**: one commit per cohesive unit of work (e.g. one roadmap phase in `docs/ROADMAP.md`, one feature area). Do not mix unrelated changes; do not split a single feature across many tiny commits.
 5. **No noise**: do not commit generated files (`dist/`, `docs/api/`), secrets, or empty commits.
 
 ### Examples
@@ -201,7 +201,7 @@ Includes 11 tests for cache and rate limiter.
 ```
 
 ```
-docs: update README, spec, CHANGELOG, and STAGED_IMPLEMENTATION_PLAN after a roadmap phase
+docs: update README, spec, CHANGELOG, and ROADMAP after a roadmap phase
 
 Rewrite README.md with updated architecture diagram, full project
 structure, all npm scripts, Docker usage, decoder coverage table, and
@@ -209,7 +209,7 @@ schema versioning reference.
 
 Update wiktionary-fetch-spec.md from v0.9 draft to v1.0.
 
-When roadmap items ship, update **`CHANGELOG.md`** (versioned notes + roadmap history appendix) and trim or check off items in **`docs/STAGED_IMPLEMENTATION_PLAN.md`**; keep “what shipped” narrative primarily in the spec §13 and changelog.
+When roadmap items ship, update **`CHANGELOG.md`** (versioned notes + roadmap history appendix) and trim or check off items in **`docs/ROADMAP.md`**; keep “what shipped” narrative primarily in the spec §13 and changelog.
 ```
 
 ---

@@ -3,7 +3,7 @@
 **Scope:** deterministic, source-faithful extraction of lexicographic data from **Wiktionary** (primary), optionally enriched with **Wikidata** and **Wikimedia Commons**.  
 **Non-scope:** any linguistic inference, paradigm completion, stem guessing, accent rules, generation of missing forms.
 
-This revision (v3.4) extends v3.3 with **operational hardening** (debug/cache), **testable REST wiring** (`buildApiFetchResponse`), **Vitest + jsdom coverage** for extracted webapp helpers, and pointers to **`audit.md`** (repository critique) and **`docs/STAGED_IMPLEMENTATION_PLAN.md`** (remaining work — phased engineering + product backlog; delivered history in **`CHANGELOG.md`**). Normative extraction behaviour is unchanged unless noted inline.
+This revision (v3.4) extends v3.3 with **operational hardening** (debug/cache), **testable REST wiring** (`buildApiFetchResponse`), **Vitest + jsdom coverage** for extracted webapp helpers, and pointers to **`audit.md`** (repository critique) and **`docs/ROADMAP.md`** (remaining work — phased engineering + product backlog; delivered history in **`CHANGELOG.md`**). Normative extraction behaviour is unchanged unless noted inline.
 
 ## Related: query result combinatorics
 
@@ -39,7 +39,7 @@ Return:
 
 The output conforms to a formal JSON Schema published as `schema/normalized-entry.schema.json` (generated from modular author-time YAML under `schema/src/` via `npm run build:schema`; see `schema/README.md`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.3.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
-**Roadmap note (non-normative):** For **outstanding** phased work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
+**Roadmap note (non-normative):** For **outstanding** phased work, see `docs/ROADMAP.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 
 ### 1.1 Primary API entry point: `wiktionary()`
 
@@ -930,7 +930,7 @@ Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang 
 
 #### 12.10.7 Planned standard exports (roadmap)
 
-Phase 9 / Stage 24 (`docs/STAGED_IMPLEMENTATION_PLAN.md`) adds **fragment-first** lexicographic serializers beside Handlebars, including **TEI Lex-0** and **full, ODXML-compliant** output per [ODict’s ODXML element reference](https://www.odict.org/docs/xml) (alongside OntoLex-Lemon, LMF, and XDXF). See §15 item 6.
+Phase 9 / Stage 24 (`docs/ROADMAP.md`) adds **fragment-first** lexicographic serializers beside Handlebars, including **TEI Lex-0** and **full, ODXML-compliant** output per [ODict’s ODXML element reference](https://www.odict.org/docs/xml) (alongside OntoLex-Lemon, LMF, and XDXF). See §15 item 6.
 
 ### 12.11 Playground: Multi-Interface Triple-Window Architecture
 The webapp's API Playground presents the SDK's three consumption interfaces —
@@ -1269,7 +1269,7 @@ playground error paths that are easy to break inside a large `App.tsx`.
 - `webapp/src/App.tsx`: React frontend with inspector, comparison mode, and triple-window playground.
 - `webapp/src/playground-api-execute.ts`, `url-query-popstate.ts`, `FormOfLexemeBlock.tsx`, `pick-lemma-lexeme.ts`: extracted playground helpers (tested under `test/webapp/`).
 - `audit.md`: Architecture and reliability critique (non-normative; informs audit tests).
-- `docs/STAGED_IMPLEMENTATION_PLAN.md`: Forward-only implementation plan (remaining work); delivered history in `CHANGELOG.md`.
+- `docs/ROADMAP.md`: Forward-only implementation plan (remaining work); delivered history in `CHANGELOG.md`.
 - `webapp/src/index.css`: Dual-theme stylesheet (light dictionary + dark inspector).
 - `cli/index.ts`: CLI tool with `--extract`, `--props`, `--format ansi`.
 - `server.ts`: HTTP API wrapper.
@@ -1277,7 +1277,7 @@ playground error paths that are easy to break inside a large `App.tsx`.
 
 ## 13. Post-v1.0 roadmap (non-normative)
 
-This section is informational only. For the **backlog** of staged engineering and product work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. Delivered roadmap stages are summarized in `CHANGELOG.md`.
+This section is informational only. For the **backlog** of staged engineering and product work, see `docs/ROADMAP.md`. Delivered roadmap stages are summarized in `CHANGELOG.md`.
 
 **Completed (post-v1.0):**
 
@@ -1649,7 +1649,7 @@ The codebase is deliberately modular so the following extensions can be pursued 
 3. **Non–en.wiktionary wikis**: Introduce a site parameter (e.g. `el.wiktionary.org`) with separate normalizers; most of the pipeline (brace-aware parse, registry) is reusable, but section headings and template families differ.
 4. **Decoder expansion**: Continue category-driven coverage (`template-introspect`, `report:form-of`); keep **one registration per `id`**, evidence in fixtures or allowlist (`decoder-coverage.test.ts`).
 5. **Persistent cache adapters**: Implement L2/L3 `CacheAdapter` for Node (SQLite/disk) or browser (IndexedDB) and document cache invalidation using `revision_id` / `last_modified`.
-6. **Standard lexicographic exports**: TEI Lex-0, **ODXML ([ODict ODXML](https://www.odict.org/docs/xml))** — full schema-compliant serialization alongside TEI; OntoLex-Lemon, LMF, XDXF — mapped in roadmap Stage 24 (Phase 9 of `STAGED_IMPLEMENTATION_PLAN.md`); would sit beside Handlebars as additional **`FormatterStyle`** or standalone serializers of `Lexeme`.
+6. **Standard lexicographic exports**: TEI Lex-0, **ODXML ([ODict ODXML](https://www.odict.org/docs/xml))** — full schema-compliant serialization alongside TEI; OntoLex-Lemon, LMF, XDXF — mapped in roadmap Stage 24 (Phase 9 of `ROADMAP.md`); would sit beside Handlebars as additional **`FormatterStyle`** or standalone serializers of `Lexeme`.
 7. **Optional schema diagnostics**: Add `wikidata_error` to JSON Schema as an optional string if long-term consumer validation of failed enrichment is desired.
 8. **Morphology beyond Greek**: Parameterize template predicates in `morphology.ts`, reuse `action=parse` with title when Lua modules require it, and add regression fixtures per language.
 9. **Sense disambiguation layer**: Build “Layer 2” consumers (see `docs/TEXT_TO_DICTIONARY_PLAN.md`) that use `FetchResult.lexemes` + metadata to pick senses from running text — explicitly out of scope for the extractor itself.

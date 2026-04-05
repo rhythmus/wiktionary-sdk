@@ -77,7 +77,7 @@ Set `sort: "priority"` to apply a hardcoded language-priority heuristic instead:
 
 Within the same priority tier, lexemes are sorted alphabetically by language code; within the same language, by PoS heading.
 
-> **Note:** The priority values above are provisional. A future release will make them configurable and expand coverage — see [Staged implementation plan](docs/STAGED_IMPLEMENTATION_PLAN.md) (Stage 23 / Phase 8).
+> **Note:** The priority values above are provisional. A future release will make them configurable and expand coverage — see [Roadmap](docs/ROADMAP.md) (Stage 23 / Phase 8).
 
 ### 2. CLI Execution (DevOps pipelines)
 You can execute exactly the same core engine natively from your shell. By default, it dumps the entire requested schema:
@@ -441,7 +441,7 @@ wiktionary-sdk/
     ├── wiktionary-sdk-spec.md              # Formal technical specification
     ├── form-of-display-and-mediawiki-parse.md  # Form-of Lua vs wikitext; parse enrichment (e.g. Spanish sense)
     ├── query-result-dimensional-matrix.md      # All dimensions of wiktionary() results (languages, PoS, etymology, …)
-    └── STAGED_IMPLEMENTATION_PLAN.md       # Remaining work: phased engineering + product backlog
+    └── ROADMAP.md                          # Remaining work: phased engineering + product backlog
 ```
 
 ## 🚀 Getting Started
@@ -598,7 +598,7 @@ and commit both the YAML and the updated JSON. CI (`npm run test:ci`) runs **`ch
 
 ## 🧭 Roadmap (post-v1.0)
 
-The plan lives in **[docs/STAGED_IMPLEMENTATION_PLAN.md](docs/STAGED_IMPLEMENTATION_PLAN.md)** (phases 0–10: hygiene through long-horizon items). **Delivered** roadmap stages 14–22 and the testing baseline are summarized in **`CHANGELOG.md`** (*Roadmap history — delivered engineering stages*). For narrative “what shipped” detail, see spec §13.
+The plan lives in **[docs/ROADMAP.md](docs/ROADMAP.md)** (phases 0–10: hygiene through long-horizon items). **Delivered** roadmap stages 14–22 and the testing baseline are summarized in **`CHANGELOG.md`** (*Roadmap history — delivered engineering stages*). For narrative “what shipped” detail, see spec §13.
 
 ## 🔮 Future Work: Text-to-Dictionary (T2D)
 

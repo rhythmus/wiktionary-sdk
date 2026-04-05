@@ -31,7 +31,7 @@ The existing test story (goldens, decoder coverage, parser invariants, cross-int
 | `docs/wiktionary-sdk-spec.md` | Ground truth for API options, data model, pipeline, decoder philosophy, formatter/homonym merge, known caveats (e.g. lemma-resolved rows and empty `debug`). |
 | `docs/query-result-dimensional-matrix.md` | Combinatorics of axes (strict/fuzzy, lang, etymology, PoS, type, enrichment); good for test design. |
 | `docs/form-of-display-and-mediawiki-parse.md` | Rationale for `action=parse` on definition-line wikitext; boundaries vs scraping. |
-| `docs/STAGED_IMPLEMENTATION_PLAN.md` | Remaining work: audit-aligned phases 0–10, product phases 8–10; delivered history in `CHANGELOG.md`. |
+| `docs/ROADMAP.md` | Remaining work: audit-aligned phases 0–10, product phases 8–10; delivered history in `CHANGELOG.md`. |
 | `docs/TEXT_TO_DICTIONARY_PLAN.md` | Consumer-layer vision; marks Wikidata SPARQL as aspirational — not implemented in core SDK path. |
 | `docs/wiktionary_morphology_engine.md` | Context for Lua/Scribunto; aligns with `morphology.ts` parse fallback. |
 | `docs/Prior and Related Work.md` | Background (if present in tree). |
