@@ -221,3 +221,4 @@ When roadmap items ship, update **`CHANGELOG.md`** (versioned notes + roadmap hi
 - [Query result dimensional matrix](docs/query-result-dimensional-matrix.md) (combinatorics: languages, PoS, etymologies, lexeme types, morph richness, fuzzy merge)
 - [Roadmap / staged product backlog](docs/ROADMAP.md) (remaining engineering + product work; delivered stages in `CHANGELOG.md`)
 - [**Modular `src/` layout refactor (phased)**](docs/src-layout-refactor-plan.md) (ingress → parse → decode → pipeline → present → convenience → model split; alpha-era, no path-compat obligation)
+- [**Layer dependency rules**](docs/architecture-layers.md) (allowed import edges + diagram; pairs with the refactor plan)
