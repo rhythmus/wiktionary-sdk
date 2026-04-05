@@ -1,10 +1,10 @@
 /**
  * AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
  * Source files:
- * - src/templates/entry.html.hbs
- * - src/templates/lexeme-homonym-group.html.hbs
- * - src/templates/entry.md.hbs
- * - src/templates/entry.css
+ * - src/present/templates/entry.html.hbs
+ * - src/present/templates/lexeme-homonym-group.html.hbs
+ * - src/present/templates/entry.md.hbs
+ * - src/present/templates/entry.css
  */
 
 export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}is-redirect{{/if}}">

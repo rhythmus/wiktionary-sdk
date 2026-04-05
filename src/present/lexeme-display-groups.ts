@@ -1,4 +1,4 @@
-import type { Lexeme } from "./types";
+import type { Lexeme } from "../types";
 
 export type LexemeDisplayGroup =
     | { type: "single"; items: [Lexeme] }

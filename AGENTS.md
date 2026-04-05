@@ -69,16 +69,16 @@ A custom parser handles nested `{{...}}` structures.
 - **`Lexeme.type`** (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`): still determined only by **form-of templates** in wikitext, not by whether the heading says “Abbreviation” or “Noun”.
 
 ### 5. Environment-Agnostic Assets (Cross-Platform Parity)
-- **Strict Rule**: Templates and static assets MUST be bundled as imported TypeScript strings (see `src/templates/templates.ts`) rather than loaded via Node-specific filesystem APIs (`fs`, `path`).
+- **Strict Rule**: Templates and static assets MUST be bundled as imported TypeScript strings (see `src/present/templates/templates.ts`) rather than loaded via Node-specific filesystem APIs (`fs`, `path`).
 - **Reason**: To ensure the SDK remains fully functional in both Node.js (CLI/Server) and Browser (Webapp) environments without a runtime filesystem.
-- **Authoring workflow**: Edit the source files `src/templates/entry.html.hbs`, `lexeme-homonym-group.html.hbs`, `entry.md.hbs`, and `entry.css`. The webapp Vite dev server watches them and regenerates `templates.ts` on save; commit the regenerated `templates.ts` so CLI and package consumers stay in sync without running Vite.
+- **Authoring workflow**: Edit the source files `src/present/templates/entry.html.hbs`, `lexeme-homonym-group.html.hbs`, `entry.md.hbs`, and `entry.css`. The webapp Vite dev server watches them and regenerates `templates.ts` on save; commit the regenerated `templates.ts` so CLI and package consumers stay in sync without running Vite.
 
 ### 6. Schema Synchronization (High-Fidelity Parity)
 - **Reminder:** The **source-of-truth table** for types vs YAML vs generated JSON is in **§ Source of truth: domain data model** above; read it first.
 - **Strict Rule**: Any change to the structure of `Entry`, `Sense`, `WikidataEnrichment`, or other core interfaces in `src/types.ts` MUST be reflected in:
     - **JSON Schema (author-time YAML):** Edit `schema/src/root.yaml` and/or `schema/src/defs/*.yaml` (see `tools/schema-def-modules.ts`), then run **`npm run build:schema`** and commit the generated **`schema/normalized-entry.schema.json`** (do not hand-edit the JSON). See `schema/README.md`.
     - `docs/schemata/*.yaml`: Update the reference YAML models (e.g., `DictionaryEntry.yaml`) to ensure documentation parity.
-- **Sense-only or presentation fields**: If you add structured sense data (e.g. decoded definition templates), also update **Handlebars + CSS** and regenerate **`src/templates/templates.ts`** so HTML output stays in sync with the package API.
+- **Sense-only or presentation fields**: If you add structured sense data (e.g. decoded definition templates), also update **Handlebars + CSS** and regenerate **`src/present/templates/templates.ts`** so HTML output stays in sync with the package API.
 - **Reason**: To maintain the SDK's promise of a deterministic, machine-readable output that external consumers can rely on for validation.
 
 ---
@@ -98,11 +98,11 @@ A custom parser handles nested `{{...}}` structures.
 
 The SDK uses **Handlebars** for high-fidelity rendering of dictionary entries. 
 
-1.  **HTML Design**: Edit `src/templates/entry.html.hbs` (per-lexeme) and `src/templates/lexeme-homonym-group.html.hbs` (homonym merge via `formatFetchResult`).
-2.  **Markdown Design**: Edit `src/templates/entry.md.hbs`.
-3.  **Styling**: Edit `src/templates/entry.css`.
-4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`) are defined in `src/formatter.ts`.
-5.  **Bundle**: After editing the `.hbs` / `.css` sources, ensure `src/templates/templates.ts` is updated (run `npm run dev` in `webapp/` and save, or regenerate by the same logic the Vite plugin uses) and commit it.
+1.  **HTML Design**: Edit `src/present/templates/entry.html.hbs` (per-lexeme) and `src/present/templates/lexeme-homonym-group.html.hbs` (homonym merge via `formatFetchResult`).
+2.  **Markdown Design**: Edit `src/present/templates/entry.md.hbs`.
+3.  **Styling**: Edit `src/present/templates/entry.css`.
+4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`) are registered in `src/present/handlebars-setup.ts` (loaded via `src/present/formatter.ts`).
+5.  **Bundle**: After editing the `.hbs` / `.css` sources, ensure `src/present/templates/templates.ts` is updated (run `npm run dev` in `webapp/` and save, or regenerate by the same logic the Vite plugin uses) and commit it.
 6.  **Whitespace**: Handlebars `~` strips whitespace between tokens. When lemma and part-of-speech sit in adjacent inline spans (and there is no romanization buffer), add CSS so they do not visually merge (e.g. `.entry-line-head .lemma ~ .pos { margin-left: … }`).
 
 **Etymology labels in templates:** use `{{langLabel this}}` inside `{{#each etymology.chain}}` / cognate loops. Decoders set `source_lang` on every link; `source_lang_name` is optional. The helper mirrors the `source_lang_name || source_lang` fallback used elsewhere so tags never render empty.
@@ -131,7 +131,7 @@ These behaviours come up often when extending decoders or the webapp.
 - Some sections contain **only** a form-of line (e.g. `{{es-verb form of|lemma}}`) or a restriction template (e.g. `{{only used in|nl|…}}`) with **no** `===Etymology===`. **Empty etymology there is correct**—do not invent prose. **Do** decode templates so the card is not blank and lemma resolution can run where applicable.
 - **Lua vs wikitext for morph lines:** A single `# {{xx-verb form of|lemma}}` line has **no** `##` subsenses; detailed inflection glosses may exist **only** after Lua runs. With `enrich` on, the SDK may fill `form_of.display_morph_lines` from `action=parse` (see **`docs/form-of-display-and-mediawiki-parse.md`**). This is not a substitute for `##` lines when editors add them — subsenses still win.
 
-### Form-of headline display (`src/formatter.ts`, templates)
+### Form-of headline display (`src/present/format-core.ts` / `handlebars-setup.ts`, templates)
 - **Abbrev positionals** (`voc`, `m`, `s`, …): inline phrase + gender beside PoS, not three bullets.
 - **Multiple morph lines** (from `##`, `display_morph_lines`, or expanded tags): bullet list + `of:` + lemma row.
 - **Single** morph gloss: inline with headword; **label-only** (e.g. plural): compact `headword` + lowercased label + `of:`.

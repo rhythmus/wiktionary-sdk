@@ -1,5 +1,5 @@
 import { richEntry } from "../src/library";
-import { format } from "../src/formatter";
+import { format } from "../src/present/formatter";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
 import path from "path";

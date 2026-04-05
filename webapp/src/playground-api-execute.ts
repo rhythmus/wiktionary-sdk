@@ -1,4 +1,4 @@
-import { format } from '@engine/formatter';
+import { format } from '@engine/present/formatter';
 import { invokeWrapperMethod as defaultInvoke } from '@engine/index';
 import type { WikiLang } from '@engine/types';
 

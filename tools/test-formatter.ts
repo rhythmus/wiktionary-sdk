@@ -1,4 +1,4 @@
-import { format, registerStyle } from "../src/formatter";
+import { format, registerStyle } from "../src/present/formatter";
 import { GrammarTraits } from "../src/morphology";
 
 async function test() {

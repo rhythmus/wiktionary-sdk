@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { wiktionary } from '@engine/index';
 import type { Lexeme } from '@engine/types';
 import { normalizeWikiLangArg } from '@engine/parse/parser';
-import { format, formatInflectedFormHeadline } from '@engine/formatter';
+import { format, formatInflectedFormHeadline } from '@engine/present/formatter';
 import { parseMorphologyTags } from '@engine/morphology';
 import { pickLemmaLexemeFromSecondFetch } from './pick-lemma-lexeme';
 

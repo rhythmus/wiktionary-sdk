@@ -7,8 +7,8 @@ export {
     DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS,
 } from "./constants";
 export * from "./library";
-export * from "./formatter";
-export * from "./lexeme-display-groups";
+export * from "./present/formatter";
+export * from "./present/lexeme-display-groups";
 export * from "./stem";
 export * from "./wrapper-invoke";
 export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";

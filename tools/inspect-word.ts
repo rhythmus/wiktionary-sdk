@@ -3,7 +3,7 @@ import {
     partOfSpeech, etymology, morphology, conjugate, decline, pronounce, 
     translate, richEntry 
 } from "../src/library";
-import { format } from "../src/formatter";
+import { format } from "../src/present/formatter";
 
 async function inspect(word: string, lang: any = "el") {
     console.log(`\n=== Inspecting: "${word}" (${lang}) ===\n`);

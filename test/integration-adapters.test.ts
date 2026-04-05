@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { format } from "../src/formatter";
+import { format } from "../src/present/formatter";
 
 describe("integration adapters: formatter/cli/webapp contracts", () => {
   it("formats wrapper row arrays without object stringification", () => {

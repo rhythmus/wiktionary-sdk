@@ -12,7 +12,7 @@ import {
   hasFormOfMorphBullets,
   inflectionMorphBulletItems,
   inflectionMorphDisplayLines,
-} from "../src/formatter";
+} from "../src/present/formatter";
 import type { Lexeme } from "../src/types";
 
 describe("hardening: heading taxonomy (strict PoS vs lexicographic section)", () => {

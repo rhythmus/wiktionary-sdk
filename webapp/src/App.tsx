@@ -13,11 +13,11 @@ import {
   categories, langlinks, inflectionTableRef, gender, transitivity,
   stripCombiningMarksForPageTitle,
 } from '@engine/index';
-import { ENTRY_CSS } from '@engine/templates/templates';
+import { ENTRY_CSS } from '@engine/present/templates/templates';
 import { SHARED_COPY } from './shared-copy.generated';
 import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/types';
 import { langToLanguageName, languageNameToLang } from '@engine/parse/parser';
-import { format } from '@engine/formatter';
+import { format } from '@engine/present/formatter';
 import { FormOfLexemeBlock } from './FormOfLexemeBlock';
 import { runPlaygroundApiExecute } from './playground-api-execute';
 import { readInitialQueryFromWindow, usePopstateQuerySync } from './url-query-popstate';

@@ -4,7 +4,7 @@ import path from 'path'
 import fs from 'fs'
 
 const ROOT_DIR = path.resolve(__dirname, '..')
-const TEMPLATES_DIR = path.resolve(ROOT_DIR, 'src/templates')
+const TEMPLATES_DIR = path.resolve(ROOT_DIR, 'src/present/templates')
 const HTML_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'entry.html.hbs')
 const HTML_HOMONYM_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'lexeme-homonym-group.html.hbs')
 const MD_TEMPLATE_PATH = path.resolve(TEMPLATES_DIR, 'entry.md.hbs')
@@ -27,10 +27,10 @@ function buildTemplateBundleSource(): string {
   return `/**
  * AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
  * Source files:
- * - src/templates/entry.html.hbs
- * - src/templates/lexeme-homonym-group.html.hbs
- * - src/templates/entry.md.hbs
- * - src/templates/entry.css
+ * - src/present/templates/entry.html.hbs
+ * - src/present/templates/lexeme-homonym-group.html.hbs
+ * - src/present/templates/entry.md.hbs
+ * - src/present/templates/entry.css
  */
 
 export const HTML_ENTRY_TEMPLATE = \`${html}\`;

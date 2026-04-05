@@ -2,8 +2,8 @@
  * Audit §13.9 — formatFetchResult, homonym grouping, morph helpers.
  */
 import { describe, it, expect } from "vitest";
-import { expandDualPersonInflectionLine, formatFetchResult, format } from "../src/formatter";
-import { groupLexemesForIntegratedHomonyms } from "../src/lexeme-display-groups";
+import { expandDualPersonInflectionLine, formatFetchResult, format } from "../src/present/formatter";
+import { groupLexemesForIntegratedHomonyms } from "../src/present/lexeme-display-groups";
 import type { FetchResult, Lexeme } from "../src/types";
 
 function minimalLexeme(over: Partial<Lexeme>): Lexeme {
