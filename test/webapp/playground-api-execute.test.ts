@@ -1,8 +1,9 @@
 /**
- * Audit §13.12 — playground execute (invalid JSON + invoke errors) without DOM.
+ * Playground execute (invalid JSON + invoke errors + `wiktionary` direct path) without DOM.
  */
 import { describe, it, expect, vi } from "vitest";
 import { runPlaygroundApiExecute } from "../../webapp/src/playground-api-execute";
+import * as Engine from "../../src/index";
 
 describe("runPlaygroundApiExecute", () => {
   const apiMethods = {
@@ -57,5 +58,36 @@ describe("runPlaygroundApiExecute", () => {
       expect(out.result).toBeDefined();
       expect(typeof out.formatted).toBe("string");
     }
+  });
+
+  it("wiktionary calls library entrypoint and ignores invalid apiProps JSON", async () => {
+    const spy = vi.spyOn(Engine, "wiktionary").mockResolvedValue({
+      schema_version: "test",
+      lexemes: [],
+      notes: [],
+      rawLanguageBlock: "",
+    } as Awaited<ReturnType<typeof Engine.wiktionary>>);
+    const out = await runPlaygroundApiExecute({
+      apiMethod: "wiktionary",
+      apiPropsRaw: "{not-json",
+      query: "x",
+      lang: "en",
+      prefPos: "Auto",
+      apiMethods: {},
+      matchMode: "strict",
+      debugDecoders: true,
+    });
+    expect(out.ok).toBe(true);
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: "x",
+        lang: "en",
+        pos: "Auto",
+        enrich: true,
+        matchMode: "strict",
+        debugDecoders: true,
+      }),
+    );
+    spy.mockRestore();
   });
 });

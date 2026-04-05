@@ -14,7 +14,8 @@ export function readInitialQueryFromWindow(fallback: string): string {
 
 /**
  * Keeps React query state in sync with the URL when the user navigates with back/forward.
- * Does not trigger a refetch — same contract as App.tsx (audit §13.12).
+ * App.tsx additionally listens for `popstate` and refetches so results match `?q=` (this hook
+ * only updates `query` state; use it in harnesses or minimal shells without that refetch).
  */
 export function usePopstateQuerySync(setQuery: (q: string) => void, emptyFallback: string): void {
   useEffect(() => {

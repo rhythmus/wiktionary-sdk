@@ -20,7 +20,7 @@ import { langToLanguageName, languageNameToLang } from '@engine/parse/parser';
 import { format } from '@engine/present/formatter';
 import { FormOfLexemeBlock } from './FormOfLexemeBlock';
 import { runPlaygroundApiExecute } from './playground-api-execute';
-import { readInitialQueryFromWindow, usePopstateQuerySync } from './url-query-popstate';
+import { readInitialQueryFromWindow, readQueryParamQ } from './url-query-popstate';
 
 /** Full language name for pills / labels (codes + section titles like "Latin"). */
 function langName(lang: string) {
@@ -179,7 +179,7 @@ const API_METHODS: Record<string, any> = {
  * Mirrors the organization in README.md and the v2 Schema.
  */
 const API_GROUPS = [
-  { label: 'Identity & Senses', methods: ['richEntry', 'lemma', 'partOfSpeech', 'lexicographicClass', 'usageNotes'] },
+  { label: 'Identity & Senses', methods: ['wiktionary', 'richEntry', 'lemma', 'partOfSpeech', 'lexicographicClass', 'usageNotes'] },
   { label: 'Pronunciation', methods: ['ipa', 'pronounce', 'rhymes', 'homophones', 'audioGallery'] },
   { label: 'Morphology', methods: ['stem', 'morphology', 'conjugate', 'decline', 'gender', 'transitivity', 'inflectionTableRef'] },
   { label: 'Hyphenation', methods: ['hyphenate', 'syllableCount'] },
@@ -273,7 +273,20 @@ function playgroundTypescriptSnippet(
   lang: WikiLang,
   prefPos: string,
   apiPropsRaw: string,
+  matchMode: 'strict' | 'fuzzy',
+  debugDecoders: boolean,
 ): string {
+  const q = JSON.stringify(query || '');
+  const langLit = JSON.stringify(lang);
+  const posLit = JSON.stringify(prefPos);
+
+  if (method === 'wiktionary') {
+    const importLine = `import { wiktionary } from "wiktionary-sdk";`;
+    const mm = JSON.stringify(matchMode);
+    const dbg = debugDecoders ? 'true' : 'false';
+    return `${importLine}\n\nawait wiktionary({ query: ${q}, lang: ${langLit}, pos: ${posLit}, enrich: true, debugDecoders: ${dbg}, matchMode: ${mm}, sort: "source" });`;
+  }
+
   let props: Record<string, unknown> | undefined;
   let propsInvalid = false;
   if (apiPropsRaw.trim()) {
@@ -284,10 +297,6 @@ function playgroundTypescriptSnippet(
       props = undefined;
     }
   }
-
-  const q = JSON.stringify(query || '');
-  const langLit = JSON.stringify(lang);
-  const posLit = JSON.stringify(prefPos);
 
   const fmtObj = (o: Record<string, unknown>) => {
     const s = JSON.stringify(o, null, 2);
@@ -381,8 +390,10 @@ function buildPlaygroundTsSource(
   apiProps: string,
   apiResult: unknown,
   apiLoading: boolean,
+  matchMode: 'strict' | 'fuzzy',
+  debugDecoders: boolean,
 ): string {
-  const base = playgroundTypescriptSnippet(method, query, lang, prefPos, apiProps);
+  const base = playgroundTypescriptSnippet(method, query, lang, prefPos, apiProps, matchMode, debugDecoders);
   return `${base}\n\n${playgroundResultAppendix(apiResult, apiLoading)}`;
 }
 
@@ -554,15 +565,63 @@ const App: React.FC = () => {
     setApiFormatted(null);
   };
 
-  const handleApiExecute = useCallback(async () => {
+  const runWiktionaryForUi = useCallback(async (qRaw: string) => {
+    const q = qRaw.trim();
+    if (!q) return;
+    setLoading(true);
+    setError(null);
+    setSelectedEntryIdx(0);
+    try {
+      const res = await wiktionary({ query: q, lang, pos: prefPos, enrich: true, debugDecoders: debugMode, matchMode });
+      setResults(res.lexemes);
+      setRawBlock(res.rawLanguageBlock);
+      setDebugEvents(res.debug ?? []);
+      if (res.notes.length > 0 && res.lexemes.length === 0) setError(res.notes[0]);
+
+      if (compareMode) {
+        setCompareLoading(true);
+        try {
+          const cRes = await wiktionary({
+            query: q,
+            lang: compareLang,
+            pos: prefPos,
+            enrich: true,
+            debugDecoders: debugMode,
+            matchMode,
+          });
+          setCompareResults(cRes.lexemes);
+          setCompareRawBlock(cRes.rawLanguageBlock);
+        } catch {
+          setCompareResults([]);
+          setCompareRawBlock('');
+        } finally {
+          setCompareLoading(false);
+        }
+      } else {
+        setCompareResults([]);
+        setCompareRawBlock('');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [lang, prefPos, matchMode, compareMode, compareLang, debugMode]);
+
+  const handleApiExecute = useCallback(async (queryOverride?: string) => {
+    const qEff = (queryOverride ?? query).trim();
     setApiLoading(true);
     const out = await runPlaygroundApiExecute({
       apiMethod,
       apiPropsRaw: apiProps,
-      query,
+      query: qEff,
       lang,
       prefPos,
       apiMethods: API_METHODS,
+      enrich: true,
+      debugDecoders: debugMode,
+      matchMode,
+      sort: 'source',
     });
     if (!out.ok && out.error === 'invalid_json') {
       setApiResult({ error: 'Invalid JSON' });
@@ -581,51 +640,42 @@ const App: React.FC = () => {
       setApiFormatted(out.formatted);
     }
     setApiLoading(false);
-  }, [apiMethod, apiProps, query, lang, prefPos]);
+  }, [apiMethod, apiProps, query, lang, prefPos, matchMode, debugMode]);
+
+  const runWiktionaryForUiRef = useRef(runWiktionaryForUi);
+  runWiktionaryForUiRef.current = runWiktionaryForUi;
+  const handleApiExecuteRef = useRef(handleApiExecute);
+  handleApiExecuteRef.current = handleApiExecute;
 
   const handleSearch = useCallback(async (e?: React.FormEvent) => {
     const triggeredFromFormSubmit = Boolean(e);
     if (e) e.preventDefault();
     if (!query.trim()) return;
-    syncUrlQuery(query, e ? 'push' : 'replace');
-    setLoading(true);
-    setError(null);
-    setSelectedEntryIdx(0);
-    try {
-      const res = await wiktionary({ query: query.trim(), lang, pos: prefPos, enrich: true, debugDecoders: debugMode, matchMode });
-      setResults(res.lexemes);
-      setRawBlock(res.rawLanguageBlock);
-      setDebugEvents(res.debug ?? []);
-      if (res.notes.length > 0 && res.lexemes.length === 0) setError(res.notes[0]);
-
-      if (compareMode) {
-        setCompareLoading(true);
-        try {
-          const cRes = await wiktionary({ query: query.trim(), lang: compareLang, pos: prefPos, enrich: false, matchMode });
-          setCompareResults(cRes.lexemes);
-          setCompareRawBlock(cRes.rawLanguageBlock);
-        } catch { setCompareResults([]); setCompareRawBlock(''); }
-        finally { setCompareLoading(false); }
-      }
-
-      // Keep hero-search and playground in sync: when the user submits the
-      // search form, auto-run the currently selected wrapper immediately.
-      if (triggeredFromFormSubmit) {
-        await handleApiExecute();
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
+    syncUrlQuery(query, triggeredFromFormSubmit ? 'push' : 'replace');
+    await runWiktionaryForUi(query.trim());
+    if (triggeredFromFormSubmit) {
+      await handleApiExecute();
     }
-  }, [query, lang, prefPos, matchMode, compareMode, compareLang, debugMode, syncUrlQuery, handleApiExecute]);
+  }, [query, syncUrlQuery, runWiktionaryForUi, handleApiExecute]);
 
   // Initial fetch on mount
-  useEffect(() => { 
-    handleSearch(); 
+  useEffect(() => {
+    void handleSearch();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  usePopstateQuerySync(setQuery, 'γράφω');
+  // Back/forward: URL `q` is source of truth; refetch main + compare columns and re-run playground.
+  useEffect(() => {
+    const onPop = () => {
+      const q = readQueryParamQ(window.location.search) || 'γράφω';
+      setQuery(q);
+      void (async () => {
+        await runWiktionaryForUiRef.current(q);
+        await handleApiExecuteRef.current(q);
+      })();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     const captureBaseline = (key: 'ts' | 'cli' | 'rest', ref: React.RefObject<HTMLDivElement | null>) => {
@@ -728,8 +778,9 @@ const App: React.FC = () => {
   const pills = SUGGESTED_PROPS[apiMethod] ?? DEFAULT_PILLS;
 
   const playgroundTsSource = useMemo(
-    () => buildPlaygroundTsSource(apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading),
-    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading],
+    () =>
+      buildPlaygroundTsSource(apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode),
+    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode],
   );
 
   const playgroundCurlSource = useMemo(
@@ -1008,7 +1059,7 @@ const App: React.FC = () => {
             <button
               type="button"
               className="dk-execute-btn dk-controls-execute"
-              onClick={handleApiExecute}
+              onClick={() => { void handleApiExecute(); }}
               disabled={apiLoading}
               aria-label={apiLoading ? 'Running' : 'Execute'}
               title={apiLoading ? 'Running…' : 'Execute'}

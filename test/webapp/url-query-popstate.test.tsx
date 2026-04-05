@@ -1,7 +1,5 @@
 /** @vitest-environment jsdom */
-/**
- * Audit §13.12 — URL `q` param + popstate updates React state (no automatic refetch).
- */
+/** URL `q` param + `usePopstateQuerySync` updates React state on popstate (refetch is App-specific). */
 import { describe, it, expect } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import React, { useState as useReactState } from "react";
@@ -15,7 +13,7 @@ describe("readQueryParamQ / readInitialQueryFromWindow", () => {
 });
 
 describe("usePopstateQuerySync (popstate)", () => {
-  /** Mirrors App: initial `q` from `location.search`, then popstate-only updates (no refetch). */
+  /** Minimal harness: popstate updates `q` only (full App refetches separately). */
   function Harness() {
     const [q, setQ] = useReactState(() => readQueryParamQ(window.location.search) || "FALLBACK");
     usePopstateQuerySync(setQ, "FALLBACK");
