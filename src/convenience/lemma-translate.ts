@@ -3,6 +3,7 @@ import { stripWikiMarkup } from "../decode/registry";
 import { wiktionary } from "../pipeline/wiktionary-core";
 import type { FetchResult, Lexeme, WikiLang } from "../model";
 import { groupRows, mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import { warnSensesList, warnTranslateGloss, withExtractionSupport } from "./extraction-support";
 
 /**
  * Helper to find the primary lexeme of a word result.
@@ -88,7 +89,11 @@ export async function translate(
     if (options.mode === "senses") {
         if (targetLang === "en") {
             const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-            return mapLexemes(result, (lexeme) => lexeme.senses?.map((s: any) => s.gloss) || []);
+            return mapLexemes(result, (lexeme) => {
+                const glosses = (lexeme.senses?.map((s: any) => s.gloss).filter((g: any) => g && String(g).trim()) ||
+                    []) as string[];
+                return withExtractionSupport(glosses, warnSensesList(lexeme, glosses, "Senses"));
+            });
         } else {
             const senses = await getNativeSenses(lemmaStr, sourceLang, targetLang);
             return groupRows([
@@ -98,6 +103,12 @@ export async function translate(
                     pos: "unknown",
                     etymology_index: 0,
                     value: senses,
+                    ...(senses.length === 0
+                        ? {
+                              support_warning:
+                                  "Native senses scrape returned no definition lines for the target wiki (missing language section, redirects, or unsupported layout).",
+                          }
+                        : {}),
                 },
             ]);
         }
@@ -106,7 +117,8 @@ export async function translate(
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
     return mapLexemes(result, (lexeme) => {
         const targetTranslations = lexeme.translations?.[targetLang] || [];
-        return targetTranslations.map((tr: any) => tr.term);
+        const terms = targetTranslations.map((tr: any) => tr.term);
+        return withExtractionSupport(terms, warnTranslateGloss(lexeme, targetLang, terms));
     });
 }
 

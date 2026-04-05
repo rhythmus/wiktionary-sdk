@@ -3,6 +3,18 @@ import { wiktionary } from "../pipeline/wiktionary-core";
 import type { EtymologyStep, Lexeme, WikiLang } from "../model";
 import { lemma } from "./lemma-translate";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import {
+    warnEtymologySteps,
+    warnGender,
+    warnHomophones,
+    warnInflectionTableRef,
+    warnLexemeArrayField,
+    warnPrincipalParts,
+    warnRhymes,
+    warnSensesList,
+    warnTransitivity,
+    withExtractionSupport,
+} from "./extraction-support";
 
 const WIKTIONARY_LANG_MACROS: Record<string, string> = {
     "ine-pro": "PIE", "grk-pro": "Proto-Greek", "gem-pro": "Proto-Germanic", "itc-pro": "Proto-Italic",
@@ -35,7 +47,10 @@ function extractEtymologySteps(lexeme: Lexeme): EtymologyStep[] | null {
 export async function etymology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<EtymologyStep[] | null>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, extractEtymologySteps);
+    return mapLexemes(result, (lexeme) => {
+        const steps = extractEtymologySteps(lexeme);
+        return withExtractionSupport(steps, warnEtymologySteps(lexeme, steps));
+    });
 }
 
 export async function wikidataQid(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string | null>> {
@@ -93,7 +108,10 @@ export async function pageMetadata(query: string, sourceLang: WikiLang = "Auto",
 export async function principalParts(query: string, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<Record<string, string> | null>> {
     const lemmaStr = await lemma(query, sourceLang, "verb");
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos: "verb" });
-    return mapLexemes(result, lexeme => lexeme.headword_morphology?.principal_parts || null);
+    return mapLexemes(result, (lexeme) => {
+        const v = lexeme.headword_morphology?.principal_parts || null;
+        return withExtractionSupport(v, warnPrincipalParts(lexeme, v));
+    });
 }
 
 /**
@@ -102,7 +120,10 @@ export async function principalParts(query: string, sourceLang: WikiLang = "Auto
 export async function gender(query: string, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<"masculine" | "feminine" | "neuter" | null>> {
     const lemmaStr = await lemma(query, sourceLang);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang });
-    return mapLexemes(result, lexeme => lexeme.headword_morphology?.gender || null);
+    return mapLexemes(result, (lexeme) => {
+        const g = lexeme.headword_morphology?.gender || null;
+        return withExtractionSupport(g, warnGender(lexeme, g));
+    });
 }
 
 /**
@@ -110,7 +131,10 @@ export async function gender(query: string, sourceLang: WikiLang = "Auto"): Prom
  */
 export async function rhymes(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string[]>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => lexeme.pronunciation?.rhymes || []);
+    return mapLexemes(result, (lexeme) => {
+        const list = lexeme.pronunciation?.rhymes || [];
+        return withExtractionSupport(list, warnRhymes(lexeme, list));
+    });
 }
 
 /**
@@ -118,7 +142,10 @@ export async function rhymes(query: string, sourceLang: WikiLang = "Auto", pos: 
  */
 export async function homophones(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string[]>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => lexeme.pronunciation?.homophones || []);
+    return mapLexemes(result, (lexeme) => {
+        const list = lexeme.pronunciation?.homophones || [];
+        return withExtractionSupport(list, warnHomophones(lexeme, list));
+    });
 }
 
 /**
@@ -173,7 +200,8 @@ export const audioDetails = audioGallery;
 export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<any[]>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
     return mapLexemes(result, lexeme => {
-        if (!lexeme.senses) return [];
+        if (!lexeme.senses)
+            return withExtractionSupport([], warnSensesList(lexeme, [], "Examples"));
         const examples: any[] = [];
         for (const sense of lexeme.senses) {
             if (sense.examples) {
@@ -182,7 +210,10 @@ export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto
                 }
             }
         }
-        return examples;
+        return withExtractionSupport(
+            examples,
+            examples.length > 0 ? undefined : warnSensesList(lexeme, [], "Examples"),
+        );
     });
 }
 
@@ -192,7 +223,8 @@ export async function exampleDetails(query: string, sourceLang: WikiLang = "Auto
 export async function citations(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<any[]>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
     return mapLexemes(result, lexeme => {
-        if (!lexeme.senses) return [];
+        if (!lexeme.senses)
+            return withExtractionSupport([], warnSensesList(lexeme, [], "Citations"));
         const examples: any[] = [];
         for (const sense of lexeme.senses) {
             if (sense.examples) {
@@ -201,7 +233,11 @@ export async function citations(query: string, sourceLang: WikiLang = "Auto", po
                 }
             }
         }
-        return examples.filter(ex => ex.raw?.toLowerCase().includes("{{quote"));
+        const cited = examples.filter(ex => ex.raw?.toLowerCase().includes("{{quote"));
+        return withExtractionSupport(
+            cited,
+            cited.length > 0 ? undefined : warnSensesList(lexeme, [], "Citations"),
+        );
     });
 }
 
@@ -231,7 +267,10 @@ export async function isSubclass(query: string, qid: string, sourceLang: WikiLan
 export async function transitivity(query: string, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<"transitive" | "intransitive" | "both" | null>> {
     const lemmaStr = await lemma(query, sourceLang, "verb");
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos: "verb" });
-    return mapLexemes(result, lexeme => lexeme.headword_morphology?.transitivity || null);
+    return mapLexemes(result, (lexeme) => {
+        const t = lexeme.headword_morphology?.transitivity || null;
+        return withExtractionSupport(t, warnTransitivity(lexeme, t));
+    });
 }
 
 /**
@@ -314,7 +353,13 @@ export async function referencesSection(query: string, sourceLang: WikiLang = "A
 export async function etymologyChain(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<any[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => lexeme.etymology?.chain || []);
+    return mapLexemes(result, (lexeme) => {
+        const chain = lexeme.etymology?.chain || [];
+        return withExtractionSupport(
+            chain,
+            warnLexemeArrayField(lexeme, chain, { label: "etymologyChain", templateNames: ["inh", "der", "bor", "cog"] }),
+        );
+    });
 }
 
 /**
@@ -323,7 +368,13 @@ export async function etymologyChain(query: string, sourceLang: WikiLang = "Auto
 export async function etymologyCognates(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<any[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => lexeme.etymology?.cognates || []);
+    return mapLexemes(result, (lexeme) => {
+        const cogs = lexeme.etymology?.cognates || [];
+        return withExtractionSupport(
+            cogs,
+            warnLexemeArrayField(lexeme, cogs, { label: "etymologyCognates", templateNames: ["cog"] }),
+        );
+    });
 }
 
 /**
@@ -359,5 +410,8 @@ export async function langlinks(query: string, sourceLang: WikiLang = "Auto", po
 export async function inflectionTableRef(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<{ template_name: string; raw: string } | null>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => lexeme.inflection_table_ref || null);
+    return mapLexemes(result, (lexeme) => {
+        const ref = lexeme.inflection_table_ref || null;
+        return withExtractionSupport(ref, warnInflectionTableRef(lexeme, ref));
+    });
 }

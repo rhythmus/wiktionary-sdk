@@ -3,6 +3,7 @@ import { mwFetchJson } from "../ingress/api";
 import { wiktionary } from "../pipeline/wiktionary-core";
 import type { Lexeme, WikiLang } from "../model";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import { warnConjugate, warnDecline, warnMorphologyTraits, withExtractionSupport } from "./extraction-support";
 import { lemma } from "./lemma-translate";
 
 export interface ConjugateCriteria {
@@ -124,7 +125,10 @@ function extractMorphologyFromLexeme(lexeme: Lexeme, query: string): Partial<Gra
  */
 export async function morphology(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<Partial<GrammarTraits>>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(result, lexeme => extractMorphologyFromLexeme(lexeme, query));
+    return mapLexemes(result, (lexeme) => {
+        const traits = extractMorphologyFromLexeme(lexeme, query);
+        return withExtractionSupport(traits, warnMorphologyTraits(lexeme, traits as Record<string, unknown>));
+    });
 }
 
 function findConjugationTemplate(lexeme: Lexeme): { name: string; raw: string; params: any } | null {
@@ -304,7 +308,10 @@ export async function decline(query: string, criteria: Partial<DeclineCriteria> 
         const value = await declineSingleLexeme(lexeme, query, criteria, sourceLang);
         byId.set(lexeme.id, value);
     }
-    return mapLexemes(result, (lexeme) => byId.get(lexeme.id) ?? null);
+    return mapLexemes(result, (lexeme) => {
+        const value = byId.get(lexeme.id) ?? null;
+        return withExtractionSupport(value, warnDecline(lexeme, value));
+    });
 }
 
 function scrapeFullConjugationTable(html: string): Record<string, any> {

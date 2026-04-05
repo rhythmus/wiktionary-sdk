@@ -9,6 +9,7 @@ import {
 import { wiktionary } from "../pipeline/wiktionary-core";
 import type { LexicographicFamily, PartOfSpeech, WikiLang } from "../model";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import { warnHyphenation, warnIpa, warnPronounce, withExtractionSupport } from "./extraction-support";
 
 /**
  * Extracts the primary IPA transcription or audio file.
@@ -19,10 +20,11 @@ export async function pronounce(
     pos: string = "Auto",
 ): Promise<GroupedLexemeResults<string | null>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(
-        result,
-        (lexeme) => lexeme.pronunciation?.audio_url || lexeme.pronunciation?.audio || lexeme.pronunciation?.IPA || null,
-    );
+    return mapLexemes(result, (lexeme) => {
+        const v =
+            lexeme.pronunciation?.audio_url || lexeme.pronunciation?.audio || lexeme.pronunciation?.IPA || null;
+        return withExtractionSupport(v, warnPronounce(lexeme, v));
+    });
 }
 
 /** Extracts the primary IPA transcription. */
@@ -32,7 +34,10 @@ export async function ipa(
     pos: string = "Auto",
 ): Promise<GroupedLexemeResults<string | null>> {
     const result = await wiktionary({ query, lang: sourceLang, pos });
-    return mapLexemes(result, (lexeme) => lexeme.pronunciation?.IPA || null);
+    return mapLexemes(result, (lexeme) => {
+        const ipa = lexeme.pronunciation?.IPA || null;
+        return withExtractionSupport(ipa, warnIpa(lexeme, ipa));
+    });
 }
 
 export const phonetic = ipa;
@@ -49,10 +54,12 @@ export async function hyphenate(
     const result = await wiktionary({ query, lang: sourceLang, pos });
     return mapLexemes(result, (lexeme) => {
         const syllables = lexeme.hyphenation?.syllables || null;
-        if (!syllables) return null;
-        if (options.format === "array") return syllables;
-        if (options.separator || options.format === "string") return syllables.join(options.separator || "-");
-        return syllables;
+        const warn = warnHyphenation(lexeme, syllables);
+        if (!syllables) return withExtractionSupport(null, warn);
+        if (options.format === "array") return withExtractionSupport(syllables, warn);
+        if (options.separator || options.format === "string")
+            return withExtractionSupport(syllables.join(options.separator || "-"), warn);
+        return withExtractionSupport(syllables, warn);
     });
 }
 
@@ -65,7 +72,9 @@ export async function syllableCount(
     const result = await wiktionary({ query, lang: sourceLang, pos });
     return mapLexemes(result, (lexeme) => {
         const syllables = lexeme.hyphenation?.syllables;
-        return syllables ? syllables.length : 0;
+        const n = syllables ? syllables.length : 0;
+        const warn = n === 0 ? warnHyphenation(lexeme, syllables) : undefined;
+        return withExtractionSupport(n, warn);
     });
 }
 

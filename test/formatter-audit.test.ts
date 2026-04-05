@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import { expandDualPersonInflectionLine, formatFetchResult, format } from "../src/present/formatter";
 import { groupLexemesForIntegratedHomonyms } from "../src/present/lexeme-display-groups";
 import type { FetchResult, Lexeme } from "../src/model";
+import type { WordStems } from "../src/convenience/stem";
 
 function minimalLexeme(over: Partial<Lexeme>): Lexeme {
   return {
@@ -97,5 +98,33 @@ describe("formatter audit: GroupedLexemeResults branch in format() (§13.9)", ()
     expect(out).toContain("[1]");
     expect(out).toContain("en:x#1");
     expect(out).toContain("a");
+  });
+
+  it("appends LexemeResult.support_warning after formatted value (text + html)", () => {
+    const rows = [
+      {
+        lexeme_id: "el:test#1",
+        language: "el",
+        pos: "verb",
+        etymology_index: 0,
+        value: [],
+        support_warning: "Decoder gap: syn templates present but list empty.",
+      },
+    ];
+    expect(format(rows, { mode: "text" })).toContain("Support:");
+    expect(format(rows, { mode: "text" })).toContain("Decoder gap");
+    const html = format(rows, { mode: "html-fragment" });
+    expect(html).toContain("stem-support-warning");
+    expect(html).toContain("Decoder gap");
+  });
+
+  it("includes stem support_warning after Stems line (text + ansi)", () => {
+    const sample: WordStems = {
+      aliases: [],
+      support_warning: "Empty output reflects SDK template coverage, not missing wikitext.",
+    };
+    expect(format(sample, { mode: "text" })).toContain("Support:");
+    expect(format(sample, { mode: "text" })).toContain("SDK template coverage");
+    expect(format(sample, { mode: "ansi" })).toContain("Support:");
   });
 });

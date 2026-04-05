@@ -2,6 +2,7 @@ import { wiktionary } from "../pipeline/wiktionary-core";
 import type { WikiLang } from "../model";
 import { lemma } from "./lemma-translate";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import { warnSemanticRelationList, withExtractionSupport } from "./extraction-support";
 
 /** Retrieves synonyms for a term. */
 export async function synonyms(
@@ -11,7 +12,10 @@ export async function synonyms(
 ): Promise<GroupedLexemeResults<string[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, (lexeme) => lexeme.semantic_relations?.synonyms?.map((s) => s.term) || []);
+    return mapLexemes(result, (lexeme) => {
+        const terms = lexeme.semantic_relations?.synonyms?.map((s) => s.term) || [];
+        return withExtractionSupport(terms, warnSemanticRelationList(lexeme, "synonyms", terms));
+    });
 }
 
 /** Retrieves antonyms for a term. */
@@ -22,7 +26,10 @@ export async function antonyms(
 ): Promise<GroupedLexemeResults<string[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, (lexeme) => lexeme.semantic_relations?.antonyms?.map((s) => s.term) || []);
+    return mapLexemes(result, (lexeme) => {
+        const terms = lexeme.semantic_relations?.antonyms?.map((s) => s.term) || [];
+        return withExtractionSupport(terms, warnSemanticRelationList(lexeme, "antonyms", terms));
+    });
 }
 
 /** Retrieves hypernyms for a term. */
@@ -33,7 +40,10 @@ export async function hypernyms(
 ): Promise<GroupedLexemeResults<string[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, (lexeme) => lexeme.semantic_relations?.hypernyms?.map((h) => h.term) || []);
+    return mapLexemes(result, (lexeme) => {
+        const terms = lexeme.semantic_relations?.hypernyms?.map((h) => h.term) || [];
+        return withExtractionSupport(terms, warnSemanticRelationList(lexeme, "hypernyms", terms));
+    });
 }
 
 /** Retrieves hyponyms for a term. */
@@ -44,7 +54,10 @@ export async function hyponyms(
 ): Promise<GroupedLexemeResults<string[]>> {
     const lemmaStr = await lemma(query, sourceLang, pos);
     const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
-    return mapLexemes(result, (lexeme) => lexeme.semantic_relations?.hyponyms?.map((h) => h.term) || []);
+    return mapLexemes(result, (lexeme) => {
+        const terms = lexeme.semantic_relations?.hyponyms?.map((h) => h.term) || [];
+        return withExtractionSupport(terms, warnSemanticRelationList(lexeme, "hyponyms", terms));
+    });
 }
 
 /**

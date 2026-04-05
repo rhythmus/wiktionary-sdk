@@ -13,6 +13,22 @@ import {
     renderUsageNoteWithRefLinks,
 } from "./handlebars-setup";
 
+/** Appends row-level SDK coverage notes for {@link GroupedLexemeResults} / `LexemeResult` arrays. */
+function appendGroupedLexemeRowSupport(rendered: string, support: string | undefined, mode: FormatMode): string {
+    if (!support) return rendered;
+    const m = String(mode || "text");
+    if (m === "markdown") return `${rendered}\n\n*Support:* ${support}`;
+    if (m === "html" || m === "html-fragment") {
+        return `${rendered}<div class="stem-support-warning" role="note"><strong>Support:</strong> ${escapeHtml(support)}</div>`;
+    }
+    if (m === "terminal-html") {
+        return `${rendered}<br/><span style="color: #fbbf24">Support:</span> ${escapeHtml(support)}`;
+    }
+    if (m === "ansi") {
+        return `${rendered}\n\x1b[33mSupport:\x1b[0m ${support}`;
+    }
+    return `${rendered}\nSupport: ${support}`;
+}
 
 /**
  * Supported output formats for the generic formatter.
@@ -110,7 +126,8 @@ export function format(data: any, options: FormatOptions = {}): string {
     if (Array.isArray(data) && data.length > 0 && typeof data[0] === "object" && data[0] !== null && "lexeme_id" in data[0] && "value" in data[0]) {
         return data.map((row: any, idx: number) => {
             const label = `[${idx + 1}] ${row.language || "unknown"} ${row.pos || "unknown"} ${row.lexeme_id || ""}`.trim();
-            const rendered = format(row.value, options);
+            let rendered = format(row.value, options);
+            rendered = appendGroupedLexemeRowSupport(rendered, row.support_warning, mode);
             return `${label}\n${rendered}`;
         }).join("\n\n");
     }
@@ -164,8 +181,9 @@ class TextStyle implements FormatterStyle {
         return formatGrammarBase(traits) || "(none)";
     }
     stems(stems: WordStems, _options: FormatOptions): string {
-        if (stems.aliases.length === 0) return "Stems: (none)";
-        return `Stems: ${stems.aliases.join(", ")}`;
+        const head =
+            stems.aliases.length === 0 ? "Stems: (none)" : `Stems: ${stems.aliases.join(", ")}`;
+        return stems.support_warning ? `${head}\nSupport: ${stems.support_warning}` : head;
     }
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
@@ -344,9 +362,11 @@ class MarkdownStyle extends TextStyle {
         return base ? `*${base}*` : "*(none)*";
     }
     stems(stems: WordStems, _options: FormatOptions): string {
-        if (stems.aliases.length === 0) return "Stems: *(none)*";
-        const items = stems.aliases.map(s => `\`${s}\``);
-        return `Stems: ${items.join(", ")}`;
+        const head =
+            stems.aliases.length === 0
+                ? "Stems: *(none)*"
+                : `Stems: ${stems.aliases.map(s => `\`${s}\``).join(", ")}`;
+        return stems.support_warning ? `${head}\n\n*Support:* ${stems.support_warning}` : head;
     }
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
@@ -407,9 +427,12 @@ class HtmlStyle extends TextStyle {
         return base ? `<i>${base}</i>` : "<i>(none)</i>";
     }
     stems(stems: WordStems, _options: FormatOptions): string {
-        if (stems.aliases.length === 0) return "Stems: <i>(none)</i>";
-        const items = stems.aliases.map(s => `<code>${s}</code>`);
-        return `Stems: ${items.join(", ")}`;
+        const head =
+            stems.aliases.length === 0
+                ? "Stems: <i>(none)</i>"
+                : `Stems: ${stems.aliases.map(s => `<code>${escapeHtml(s)}</code>`).join(", ")}`;
+        if (!stems.support_warning) return head;
+        return `${head}<div class="stem-support-warning" role="note"><strong>Support:</strong> ${escapeHtml(stems.support_warning)}</div>`;
     }
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         const steps = Array.isArray(data) ? data : (data?.chain || []).map((s: any) => ({ lang: s.source_lang_name || s.source_lang, form: s.term }));
@@ -498,9 +521,12 @@ class AnsiStyle extends TextStyle {
         return `${this.C.italic}${this.C.cyan}${base}${this.C.reset}`;
     }
     stems(stems: WordStems, _options: FormatOptions): string {
-        if (stems.aliases.length === 0) return `${this.C.bold}Stems${this.C.reset}: ${this.C.dim}(none)${this.C.reset}`;
-        const items = stems.aliases.map(s => `${this.C.bold}${this.C.green}${s}${this.C.reset}`);
-        return `${this.C.bold}Stems${this.C.reset}: ${items.join(", ")}`;
+        const head =
+            stems.aliases.length === 0
+                ? `${this.C.bold}Stems${this.C.reset}: ${this.C.dim}(none)${this.C.reset}`
+                : `${this.C.bold}Stems${this.C.reset}: ${stems.aliases.map(s => `${this.C.bold}${this.C.green}${s}${this.C.reset}`).join(", ")}`;
+        if (!stems.support_warning) return head;
+        return `${head}\n${this.C.yellow}Support:${this.C.reset} ${stems.support_warning}`;
     }
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
@@ -575,9 +601,12 @@ class TerminalHtmlStyle extends HtmlStyle {
         return `<span class="${this.C.fontItalic}" style="color: ${this.C.cyan}">${base}</span>`;
     }
     stems(stems: WordStems, _options: FormatOptions): string {
-        if (stems.aliases.length === 0) return `<span class="${this.C.fontBold}">Stems</span>: <span style="color: ${this.C.dim}">(none)</span>`;
-        const items = stems.aliases.map(s => `<span class="${this.C.fontBold}" style="color: ${this.C.green}">${s}</span>`);
-        return `<span class="${this.C.fontBold}">Stems</span>: ${items.join(", ")}`;
+        const head =
+            stems.aliases.length === 0
+                ? `<span class="${this.C.fontBold}">Stems</span>: <span style="color: ${this.C.dim}">(none)</span>`
+                : `<span class="${this.C.fontBold}">Stems</span>: ${stems.aliases.map(s => `<span class="${this.C.fontBold}" style="color: ${this.C.green}">${escapeHtml(s)}</span>`).join(", ")}`;
+        if (!stems.support_warning) return head;
+        return `${head}<br/><span style="color: ${this.C.yellow}">Support:</span> ${escapeHtml(stems.support_warning)}`;
     }
     etymology(data: EtymologyData | EtymologyStep[], _options: FormatOptions): string {
         if (Array.isArray(data)) {
