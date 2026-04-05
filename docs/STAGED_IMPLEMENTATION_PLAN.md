@@ -318,13 +318,14 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 
 1. **Semantic HTML5** — `entry.semantic-html.hbs`, `FormatterStyle` **`semantic-html`**: `<article lang>`, `<header>`, `<dl>`/`<dd>` senses, `<blockquote>` examples, microdata/`data-*`, ARIA as appropriate.
 2. **TEI Lex-0** — `entry.tei.hbs` or serializer → TEI `<entry>` **fragment**; mapping table in spec.
-3. **OntoLex-Lemon (JSON-LD)** — programmatic `@graph`; **`jsonld`** or **`ontolex`** ocheststyle.
-4. **LMF (ISO 24613)** — XML serializer; may share mapping logic with TEI.
-5. **XDXF** — XML for dictionary interchange.
+3. **ODXML (ODict)** — **Full, spec-compliant** [ODict XML / ODXML](https://www.odict.org/docs/xml): root [`dictionary`](https://www.odict.org/docs/xml/dictionary), [`entry`](https://www.odict.org/docs/xml/entry) (`term`, optional `pronunciation`, `see`), [`ety`](https://www.odict.org/docs/xml/ety) (`description`, `id`), [`sense`](https://www.odict.org/docs/xml/sense) (`pos` per [ODict POS tags](https://www.odict.org/docs/reference/pos)), [`group`](https://www.odict.org/docs/xml/group), [`definition`](https://www.odict.org/docs/xml/definition) (`value`), [`example`](https://www.odict.org/docs/xml/example), [`note`](https://www.odict.org/docs/xml/note). Map from `FetchResult` / `Lexeme` / `Sense` / `EtymologyData`; document **lossy** fields (e.g. semantic relations, translations, Wikidata); define **lexeme-merge** policy when one page yields multiple slices; golden tests vs ODict CLI expectations where useful; **`FormatterStyle` `odxml`** or standalone serializer (fragment vs full document wrapper).
+4. **OntoLex-Lemon (JSON-LD)** — programmatic `@graph`; **`jsonld`** or **`ontolex`** style.
+5. **LMF (ISO 24613)** — XML serializer; may share mapping logic with TEI.
+6. **XDXF** — XML for dictionary interchange.
 
 **Architecture constraints**
 
-- **Fragment-first:** consumers wrap in `<TEI>`, LMF container, etc.
+- **Fragment-first:** consumers wrap in `<TEI>`, LMF container, or a single-root ODXML `dictionary` (per [ODXML](https://www.odict.org/docs/xml)), etc.
 - **Traceability:** no synthetic fields beyond established extraction rules.
 - **Environment-agnostic:** bundle templates as TS strings (`AGENTS.md` §5).
 - **Verification:** golden or snapshot tests per format; update spec §12.10 distribution table.

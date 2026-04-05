@@ -37,7 +37,7 @@ Return:
 3) optional Wikidata enrichment for lemma entries (QID, sitelinks, P18 image)  
 4) **page-level metadata** (categories, interwiki links, revision ID, last-modified timestamp) extracted from the MediaWiki API
 
-The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.0.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
+The output conforms to a formal JSON Schema (`schema/normalized-entry.schema.json`). The runtime emits `schema_version` from `SCHEMA_VERSION` in `src/types.ts` (currently `"3.2.0"`). The separate `VERSIONING.md` file describes JSON Schema bump semantics; keep it in sync when `SCHEMA_VERSION` or required fields change.
 
 **Roadmap note (non-normative):** For **outstanding** phased work, see `docs/STAGED_IMPLEMENTATION_PLAN.md`. For **delivered** roadmap stages (14–22) and the testing baseline, see `CHANGELOG.md` (*Roadmap history — delivered engineering stages*). Narrative “what shipped” remains in §13 below.
 
@@ -132,7 +132,7 @@ metadata:          # page-level data from the API
 ```
 
 - `schema_version` (required): Semantic version of the output schema, from
-  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.0.0"`.
+  `SCHEMA_VERSION` in `src/types.ts`. Current value is `"3.2.0"`.
 - `debug` (optional): When `wiktionary({ debugDecoders: true })` is used,
   `debug[i]` is an array of `DecoderDebugEvent` for `lexemes[i]`, listing which
   decoder matched which templates and what fields it produced.
@@ -189,7 +189,7 @@ Each `Lexeme` contains:
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media; includes **`instance_of`** (P31) and **`subclass_of`** (P279) QID arrays when claims exist |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
 
-**Implementation note (lexicographic taxonomy):** Full heading coverage for **lexeme-opening** PoS and morpheme headings lives in `src/lexicographic-headings.ts`. For a **MoS-style checklist** of common *content* sections (synonyms, derived terms, collocations, etc.) and how they map to `Lexeme` fields, see [section-inventory.md](section-inventory.md) (aligned with [wiktionary-scraper’s `english.ts`](https://github.com/LearnRomanian/wiktionary-scraper/blob/main/src/constants/sections/english.ts)). Strict grammatical `PartOfSpeech` values are listed in `PART_OF_SPEECH_VALUES` in `src/types.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
+**Implementation note (lexicographic taxonomy):** Full heading coverage for **lexeme-opening** PoS and morpheme headings lives in `src/lexicographic-headings.ts`. For a **MoS-style checklist** of common *content* sections (synonyms, derived terms, collocations, etc.) and how they map to `Lexeme` fields, see [section-inventory.md](section-inventory.md) (aligned with [wiktionary-scraper’s `english.ts`](https://github.com/LearnRomanian/wiktionary-scraper/blob/main/src/constants/sections/english.ts)). `PartOfSpeech` values (en.wiktionary strict headings plus [ODict-aligned](https://www.odict.org/docs/reference/pos) tags for interchange, including Japanese classes) are listed in `PART_OF_SPEECH_VALUES` in `src/types.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
 
 **Mandatory traceability** (`WiktionarySource`):
 
@@ -928,6 +928,10 @@ Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang 
 - **Merged morph phrase:** Two or more morph lines from `##` subsenses, `display_morph_lines`, or expanded tags are collapsed into one phrase when possible (e.g. first/third person with shared tail; hyphen `first-person` uses “and”, spaced `first person` uses “or”), then `of:` and the lemma row (L-06/L-07). If merge is not applicable, lines are joined with ` · `. **Rationale:** dictionary-style density; bullets remain a fallback when merged text is empty.
 - **Lemma without etymology chain:** If there is no `form_of` and no `etymology.chain` but senses exist, show an explicit “(etymology not given on Wiktionary)” placeholder (L-04). **Rationale:** avoids a blank gap; inflected-only stubs still omit this on the inflected row where empty etym is normal.
 
+#### 12.10.7 Planned standard exports (roadmap)
+
+Phase 9 / Stage 24 (`docs/STAGED_IMPLEMENTATION_PLAN.md`) adds **fragment-first** lexicographic serializers beside Handlebars, including **TEI Lex-0** and **full, ODXML-compliant** output per [ODict’s ODXML element reference](https://www.odict.org/docs/xml) (alongside OntoLex-Lemon, LMF, and XDXF). See §15 item 6.
+
 ### 12.11 Playground: Multi-Interface Triple-Window Architecture
 The webapp's API Playground presents the SDK's three consumption interfaces —
 TypeScript library, CLI tool, and REST API — as three stacked pseudo-windows
@@ -1552,6 +1556,12 @@ This section is informational only. For the **backlog** of staged engineering an
 - **Tooling**: `npm run report:form-of` runs `tools/form-of-template-report.ts` against the live API to list category members vs `isFormOfTemplateName()` (with a short section for `only used in` as same-category, different semantics).
 - **Tests**: `test/registry-ids.test.ts` guards against duplicate decoder `id` registrations; registry and integration tests cover new decoders and gloss behaviour.
 
+### v3.2.0 — PartOfSpeech vocabulary (ODict alignment)
+
+- **`PartOfSpeech` / `PART_OF_SPEECH_VALUES`**: Expanded with standard tags from [ODict part-of-speech reference](https://www.odict.org/docs/reference/pos) using **snake_case** (`auxiliary_adjective`, `subordinating_conjunction`, …) and the full **Japanese** tag set with hyphens mapped to underscores (`adj_na`, `v5r_i`, …). Synonymous ODict abbreviations (`n`, `adj`, `vt`, …) are **not** separate enum members; map them onto `noun`, `adjective`, `transitive_verb`, etc. when importing.
+- **`lexicographic-headings.ts`**: Unchanged default strict mapping for en.wiktionary English headings; new slugs are primarily for interchange, filtering, and future headword or edition-specific decoders.
+- **JSON Schema**: `$defs.PartOfSpeech.enum` and package `SCHEMA_VERSION` bumped to **3.2.0** (additive enum extension).
+
 ## 14. Implementation map (source tree)
 
 This section is a **reader’s guide** to the repository layout as it exists today. It complements the normative rules above with file-level pointers for contributors and advanced consumers.
@@ -1635,7 +1645,7 @@ The codebase is deliberately modular so the following extensions can be pursued 
 3. **Non–en.wiktionary wikis**: Introduce a site parameter (e.g. `el.wiktionary.org`) with separate normalizers; most of the pipeline (brace-aware parse, registry) is reusable, but section headings and template families differ.
 4. **Decoder expansion**: Continue category-driven coverage (`template-introspect`, `report:form-of`); keep **one registration per `id`**, evidence in fixtures or allowlist (`decoder-coverage.test.ts`).
 5. **Persistent cache adapters**: Implement L2/L3 `CacheAdapter` for Node (SQLite/disk) or browser (IndexedDB) and document cache invalidation using `revision_id` / `last_modified`.
-6. **Standard lexicographic exports**: TEI Lex-0, OntoLex-Lemon, LMF — mapped in roadmap Stage 24; would sit beside Handlebars as additional **`FormatterStyle`** or standalone serializers of `Lexeme`.
+6. **Standard lexicographic exports**: TEI Lex-0, **ODXML ([ODict ODXML](https://www.odict.org/docs/xml))** — full schema-compliant serialization alongside TEI; OntoLex-Lemon, LMF, XDXF — mapped in roadmap Stage 24 (Phase 9 of `STAGED_IMPLEMENTATION_PLAN.md`); would sit beside Handlebars as additional **`FormatterStyle`** or standalone serializers of `Lexeme`.
 7. **Optional schema diagnostics**: Add `wikidata_error` to JSON Schema as an optional string if long-term consumer validation of failed enrichment is desired.
 8. **Morphology beyond Greek**: Parameterize template predicates in `morphology.ts`, reuse `action=parse` with title when Lua modules require it, and add regression fixtures per language.
 9. **Sense disambiguation layer**: Build “Layer 2” consumers (see `docs/TEXT_TO_DICTIONARY_PLAN.md`) that use `FetchResult.lexemes` + metadata to pick senses from running text — explicitly out of scope for the extractor itself.
