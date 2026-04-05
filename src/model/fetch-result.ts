@@ -18,6 +18,8 @@ export interface LexemeResult<T> {
   pos: string;
   etymology_index?: number;
   value: T;
+  /** When `value` is empty or partial because SDK decoders do not cover the relevant wikitext yet (or parse failed). */
+  support_warning?: string;
 }
 
 /** Top-level result returned by {@link wiktionary}. */

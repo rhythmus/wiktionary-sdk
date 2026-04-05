@@ -1,3 +1,4 @@
+export * from "./extraction-support";
 export * from "./grouped-results";
 export * from "./lemma-translate";
 export * from "./relations";
