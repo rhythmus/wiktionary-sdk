@@ -1,6 +1,6 @@
 # Staged plan: modular `src/` layout
 
-**Status:** Forward-only engineering backlog (alpha). Not tied to npm semver until you choose to tag. **Phases 0–9** of this plan are implemented on `master` (convenience split, `infra/`, `model/` + `types.ts` shim); **Phase 10** is ongoing doc hygiene (README/spec/audit path strings; optional removal of the `types.ts` shim after migrating in-repo imports to `./model`).
+**Status:** Forward-only engineering backlog (alpha). Not tied to npm semver until you choose to tag. **Phases 0–10** of this plan are implemented on `master` (convenience split, `infra/`, `model/` + `types.ts` shim, README/spec/schema path sweep, **`audit.md`** / **`docs/ROADMAP.md`** / **`CHANGELOG.md`** refresh). **Optional later:** remove the `types.ts` shim after migrating in-repo imports to `./model` (large churn).
 
 **Companion policy:** See **§ Project stage: alpha** in [`AGENTS.md`](../AGENTS.md): no backward-compatibility burden for internal paths or incidental APIs; the bar is **green tests**, **schema/types parity**, and **updated docs**.
 
@@ -202,12 +202,13 @@ Names are normative for *intent*; adjust if a clearer term emerges (e.g. `fetch/
 
 ## Phase 10 — Barrel, docs, and cleanup
 
-1. **`src/index.ts`** — Trim to re-exports only; confirm **`package.json`** `exports` still point at built `dist` (adjust only if you intentionally add subpath exports).
-2. **`README.md`** project tree — Match final layout.
-3. **`AGENTS.md`** — Replace every stale path (`src/parser.ts` → `src/parse/parser.ts`, etc.).
-4. **`docs/wiktionary-sdk-spec.md`** §14 / implementation map — Update file paths.
-5. Remove **temporary** `types.ts` shim if still present.
-6. Optional: **`eslint-plugin-import`** boundaries or a simple **`dependency-cruiser`** config encoding the layer table.
+1. **`src/index.ts`** — Trim to re-exports only; confirm **`package.json`** `exports` still point at built `dist` (adjust only if you intentionally add subpath exports). *(Barrel still mixes re-exports — optional future trim.)*
+2. **`README.md`** project tree — Match final layout. **Done.**
+3. **`AGENTS.md`** — Replace stale paths. **Done** (ongoing as new files land).
+4. **`docs/wiktionary-sdk-spec.md`** §14 / implementation map — Update file paths. **Done** (key rows).
+5. **`audit.md`**, **`docs/ROADMAP.md`**, **`CHANGELOG.md`** — Align with modular layout. **Done** (2026-04-05 pass).
+6. Remove **temporary** `types.ts` shim if still present. **Deferred** — shim retained for stable deep imports; see status note at top of this doc.
+7. Optional: **`eslint-plugin-import`** boundaries or a simple **`dependency-cruiser`** config encoding the layer table.
 
 **Exit:** Full doc sweep; `npm run test:ci` green.
 

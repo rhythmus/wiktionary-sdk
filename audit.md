@@ -1,6 +1,7 @@
 # Wiktionary SDK — Codebase audit (read-only)
 
 **Date:** 2026-04-04  
+**Path refresh:** 2026-04-05 — annotations updated for the modular `src/` layout on `master` (`ingress/`, `parse/`, `decode/`, `pipeline/`, `present/`, `convenience/`, `infra/`, `model/`; see `docs/src-layout-refactor-plan.md`).  
 **Scope:** Documentation in `docs/` (full read of normative and supporting docs; chat-history logs treated as non-normative archives), core `src/`, `webapp/src/`, `cli/`, `server.ts`, `test/`, and `tools/`.  
 **Constraint:** This report does not change runtime behaviour; it records findings and recommendations for future refactors.
 
@@ -8,14 +9,14 @@
 
 ## 1. Executive summary
 
-The project delivers a **source-faithful** Wiktionary extraction pipeline with a clear split between **orchestration** (`src/index.ts`), **parsing** (`src/parser.ts`), **decoding** (`src/registry.ts`), **I/O** (`src/api.ts`, cache, rate limiter), **presentation** (`src/formatter.ts` + bundled Handlebars/CSS), and **consumers** (CLI, webapp, HTTP server). The written specification (`docs/wiktionary-sdk-spec.md` v3.3) is unusually well aligned with the implementation and explicitly calls out known edges (lemma cycles, fuzzy merge, form-of Lua vs wikitext, REST parity gaps).
+The project delivers a **source-faithful** Wiktionary extraction pipeline with a layered `src/` layout: **public barrel** (`src/index.ts`), **domain model** (`src/model/` + `src/types.ts` shim), **ingress** (`src/ingress/` — API, cache, rate limiter, server fetch), **parse** (`src/parse/`), **decode** (`src/decode/registry/` tree), **pipeline** (`src/pipeline/` — `wiktionary-core`, `form-of-parse-enrich`), **present** (`src/present/` — formatter, templates, display groups), **convenience** (`src/convenience/` — wrappers, morphology, stem), and **infra** (`src/infra/` — utils, constants), plus **consumers** (CLI, webapp, HTTP server). The written specification (`docs/wiktionary-sdk-spec.md` v3.4+) is unusually well aligned with the implementation and explicitly calls out known edges (lemma cycles, fuzzy merge, form-of Lua vs wikitext, REST parity gaps).
 
 Main risks for maintainability and robustness:
 
-1. **Module cycles** (`index` ↔ `library` ↔ `index`, plus `morphology`/`stem` → `library` + `index`, and `form-of-parse-enrich` → `formatter` → `library`/`morphology`) — workable today but fragile for tree-shaking, static analysis, and test doubles.
-2. **`registry.ts` as a megamodule** — thousands of lines mixing predicates, gloss/sense parsing, section extraction, and dozens of decoders; high merge-conflict and registration-order sensitivity (already documented in `AGENTS.md`).
+1. **Residual module coupling** — The former `index` ↔ `library` and `morphology` ↔ `library` cycles are **removed** (`convenience/*` imports `wiktionary` from `pipeline/wiktionary-core`, not the barrel). **`present/format-core.ts`** still imports **types** from `convenience/morphology.ts` and `convenience/stem.ts` (`GrammarTraits`, `WordStems`) for formatter APIs — a **present → convenience** edge that could be dropped by moving those interfaces into `model/` if desired. Tree-shaking and test doubles are healthier than before.
+2. **Registry surface area** — Decoder registration is **split** across `src/decode/registry/register-*.ts` and `register-all-decoders.ts`, but the combined registry story remains **large and order-sensitive** (merge-conflict and registration-order sensitivity documented in `AGENTS.md`).
 3. **No network timeouts or abort** on `fetch()` in `mwFetchJson` — hung requests can stall callers indefinitely; rate limiter queues can grow without bound under burst concurrency.
-4. **Concrete bugs / sharp edges:** shared-array reference when padding `debug` for resolved lemma lexemes; several **public TypeScript return types** on wrappers that do not match the actual `GroupedLexemeResults` shape; webapp **popstate** updates query state without refetching.
+4. **Concrete bugs / sharp edges:** several **public TypeScript return types** on wrappers that do not match the actual `GroupedLexemeResults` shape; webapp **popstate** updates query state without refetching. *(Historical: debug padding used `Array.fill` with a shared array reference — **fixed** in `pipeline/wiktionary-core.ts` via `Array.from` factories.)*
 5. **Spec vs types drift:** `translate()` is documented as returning `GroupedLexemeResults<string[]>` but is annotated as such only at the function; many sibling wrappers are still declared as bare `Promise<LexemeResult<T>[]>` though they return `mapLexemes()` envelopes.
 
 The existing test story (goldens, decoder coverage, parser invariants, cross-interface parity, schema negatives) is strong. The final section lists **additional tests** that would best protect a heavy refactor.
@@ -33,14 +34,14 @@ The existing test story (goldens, decoder coverage, parser invariants, cross-int
 | `docs/form-of-display-and-mediawiki-parse.md` | Rationale for `action=parse` on definition-line wikitext; boundaries vs scraping. |
 | `docs/ROADMAP.md` | Remaining work: audit-aligned phases 0–10, product phases 8–10; delivered history in `CHANGELOG.md`. |
 | `docs/TEXT_TO_DICTIONARY_PLAN.md` | Consumer-layer vision; marks Wikidata SPARQL as aspirational — not implemented in core SDK path. |
-| `docs/wiktionary_morphology_engine.md` | Context for Lua/Scribunto; aligns with `morphology.ts` parse fallback. |
+| `docs/wiktionary_morphology_engine.md` | Context for Lua/Scribunto; aligns with `src/convenience/morphology.ts` parse fallback. |
 | `docs/Prior and Related Work.md` | Background (if present in tree). |
 | `test/README.md` / `AGENTS.md` | Operational rules for agents and tests (mock `api`, not partial `index` mocks). |
 
 ### 2.2 Alignment notes
 
 - **REST server** (`server.ts`): Spec §11.1 correctly states limited query surface vs CLI/webapp (`matchMode`, `sort`, `debugDecoders`, true `pos` filter). Default `lang` is `el` on the server vs `"Auto"` in `wiktionary()` — intentional mismatch worth centralizing in one “defaults” module when refactoring.
-- **Schema version:** Spec and `SCHEMA_VERSION` in `src/types.ts` remain `3.0.0` while spec revision is `v3.3` — version axes are documented but easy to confuse; a table in README linking “spec revision / npm version / SCHEMA_VERSION” would reduce support noise (documentation-only recommendation).
+- **Schema version:** `SCHEMA_VERSION` lives in `src/model/schema-version.ts` (re-exported via `src/types.ts`); it tracks the **output** schema (currently `3.3.0`), while the **spec document** carries its own revision label — both are called out in the README version table; keep them in sync when bumping (`VERSIONING.md`).
 - **Chat exports under `docs/AI agents chat history/`:** Historical; not treated as product requirements.
 
 ---
@@ -49,16 +50,16 @@ The existing test story (goldens, decoder coverage, parser invariants, cross-int
 
 ### 3.1 Strengths
 
-- **Core engine** is mostly environment-agnostic; templates are bundled in `src/templates/templates.ts` per `AGENTS.md` (no runtime `fs` for HTML/CSS in consumers).
+- **Core engine** is mostly environment-agnostic; templates are bundled in `src/present/templates/templates.ts` per `AGENTS.md` (no runtime `fs` for HTML/CSS in consumers).
 - **PoS-boundary rule** in `splitEtymologiesAndPOS()` is the correct answer to the “flat heading” problem; spec §4.2 matches code.
-- **Wrapper invocation** is centralized in `src/wrapper-invoke.ts` and reused by CLI and webapp — good defence against signature drift.
+- **Wrapper invocation** is centralized in `src/convenience/wrapper-invoke.ts` and reused by CLI and webapp — good defence against signature drift.
 - **Formatter** separates Handlebars/CSS from extraction; `lexeme-display-groups.ts` keeps homonym merge **display-only**, preserving normalized `lexemes[]` API (spec §12.10.6).
 
 ### 3.2 Weaknesses
 
-- **`registry.ts` concentration:** Template decoders, `stripWikiMarkup`, sense parsing, section helpers, form-of predicates, and merge behaviour live in one file. This violates “single responsibility” and increases the cost of safe refactors. A future split (e.g. `registry-core.ts`, `decoders/pronunciation.ts`, `decoders/form-of.ts`, `decoders/senses.ts`) would improve navigation; registration order must remain explicit and tested.
-- **`formatter.ts` imports presentation helpers used by enrichment:** `form-of-parse-enrich.ts` imports `expandDualPersonInflectionLine`, `formOfMorphLinesAreAbbrevTokensOnly`, and `inflectionMorphDisplayLines` from `formatter.ts`. That creates a **dependency from extraction-adjacent enrichment → formatter**, while `formatter` already depends on `morphology` and `library` types. For a stricter DAG, move morph-line utilities to a small neutral module (e.g. `src/form-of-display.ts`) imported by both `formatter` and `form-of-parse-enrich`.
-- **`library.ts` mixed responsibilities:** High-level wrappers, `RichEntry` assembly, `getNativeSenses` (foreign wiki fetch + heuristic headers), and re-exports of morphology/stem behaviour. Splitting “network convenience API” from “pure projections on `FetchResult`” would clarify testing boundaries.
+- **Registry navigation:** Decoders and helpers are **folderized** under `src/decode/registry/` (`register-*.ts`, `register-all-decoders.ts`, pure helpers). The **barrel** `decode/registry.ts` and **`decoder-registry.ts`** remain a broad surface — continue to treat registration order as a contract (`registry-decoder-order.test.ts`).
+- **Form-of display vs enrichment (mostly addressed):** Morph-line helpers live in **`src/form-of-display.ts`**. Both **`pipeline/form-of-parse-enrich.ts`** and **`present/formatter.ts`** (re-)export through that module, so enrichment no longer reaches into the full formatter implementation. **Residual:** `present/format-core.ts` imports **types** from **`convenience/morphology.ts`** / **`convenience/stem.ts`** for `GrammarTraits` / `WordStems` — acceptable but couples **present → convenience** until those types migrate to `model/`.
+- **Convenience split (done):** Former monolithic **`library.ts`** is replaced by **`src/convenience/*.ts`** (`grouped-results`, `lemma-translate`, `relations`, `page-enrichment`, `rich-entry`, `lexical-wrappers`, `morphology`, `stem`, `wrapper-invoke`, barrel `index.ts`). Further clarity is incremental (docs / naming), not a single-file split.
 
 ### 3.3 UI vs logic vs styling (webapp)
 
@@ -73,38 +74,38 @@ The existing test story (goldens, decoder coverage, parser invariants, cross-int
 Observed edges:
 
 ```
-index.ts  → library.ts (re-export)
-library.ts → index.ts (wiktionary)
-morphology.ts → library.ts + index.ts
-stem.ts → library.ts + index.ts
-formatter.ts → library.ts (type: EtymologyStep), morphology.ts
-form-of-parse-enrich.ts → formatter.ts (+ api, registry)
-index.ts → form-of-parse-enrich.ts
+index.ts → convenience/* (re-export), pipeline/wiktionary-core, present/*, decode/registry, …
+convenience/* → pipeline/wiktionary-core (wiktionary), ingress/* as needed
+convenience/morphology.ts → grouped-results, lemma-translate, ingress/api, pipeline/wiktionary-core
+convenience/stem.ts → pipeline/wiktionary-core
+present/format-core.ts → ../types (model), ../convenience/morphology|stem (types), ../form-of-display
+pipeline/form-of-parse-enrich.ts → ingress/api, decode/registry, form-of-display, infra/utils
 ```
 
-**Why it works:** ESM evaluation binds `wiktionary` after `index` finishes initializing exports; the spec even warns about partial `vi.mock("../src/index")` not replacing the binding inside `library.ts`.
+**Why it works:** Convenience code imports **`wiktionary`** from **`pipeline/wiktionary-core`**, not from `index.ts`, so the barrel is not on the hot path for those modules. The spec still warns that partial `vi.mock("../src/index")` may not replace **`wiktionary` bindings inside `src/convenience/*.ts`** — stub **`ingress/api`** or **`pipeline/wiktionary-core`** for reliable tests (`test/README.md`).
 
 **Risks:**
 
 - Refactors that add **top-level side effects** or **cyclic type-only imports** can cause TDZ or undefined bindings in some bundlers or test runners.
 - **Tree-shaking / dead-code elimination** may be suboptimal when everything re-exports through `index.ts`.
 
-**Refactor direction (behaviour-preserving):**
+**Refactor direction (largely shipped on `master`):**
 
-- Introduce `src/wiktionary-core.ts` (or `fetch-engine.ts`) exporting `wiktionary` / `wiktionaryRecursive` with **no** re-exports of `library` or `formatter`.
-- Let `library.ts` import from `wiktionary-core`, not `index`.
-- Keep `index.ts` as a thin **barrel** that re-exports public API.
+- **`src/pipeline/wiktionary-core.ts`** exports `wiktionary` / `wiktionaryRecursive` without pulling in convenience or present.
+- **`src/convenience/*`** imports core from `wiktionary-core`, not from `index.ts`.
+- **`src/form-of-display.ts`** shares morph-line logic between pipeline enrichment and present layer.
+- **`src/index.ts`** remains the public **barrel** (core + convenience + constants + headings + registry predicates).
 
 ---
 
 ## 5. Concurrency, timeouts, rate limiting, and “runaway” behaviour
 
-### 5.1 `mwFetchJson` (`src/api.ts`)
+### 5.1 `mwFetchJson` (`src/ingress/api.ts`)
 
 - Uses global `fetch` with **no `AbortSignal`, no timeout**. A slow or stuck MediaWiki response blocks the caller until the platform gives up.
 - **Recommendation:** Optional `timeoutMs` (or caller-supplied `signal`) with `AbortController` + `fetch`; document default for CLI/server vs browser.
 
-### 5.2 Rate limiter (`src/rate-limiter.ts`)
+### 5.2 Rate limiter (`src/ingress/rate-limiter.ts`)
 
 - Serializes requests with a minimum interval — good for Wikimedia etiquette.
 - **`proxyUrl` is stored but never applied** to `fetch`; spec and tests mention configuration, but HTTP traffic does not use the proxy. Either implement (e.g. Node `undici` proxy agent or documented limitation) or mark as reserved in API docs.
@@ -126,7 +127,7 @@ index.ts → form-of-parse-enrich.ts
 
 ## 6. Memory, caches, and leaks
 
-### 6.1 `TieredCache` (`src/cache.ts`)
+### 6.1 `TieredCache` (`src/ingress/cache.ts`)
 
 - L1 `MemoryCache` grows with distinct keys; **no max size eviction** (TTL only). Long-running CLI batches or servers with huge title diversity can grow memory without bound.
 - `get()` uses `JSON.parse` without **try/catch**; corrupted L2/L3 string values could throw and abort a fetch pipeline. Hardening: catch, delete key, miss as cache miss.
@@ -143,24 +144,18 @@ index.ts → form-of-parse-enrich.ts
 
 ### 7.1 Debug array padding — shared reference bug
 
-In `src/index.ts`, when `debugDecoders` is true:
-
-```ts
-out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
-```
-
-`Array.prototype.fill` with an object reuses **the same array instance** for every slot. Mutating one resolved-lexeme debug row could **alias** all others. Fix (when allowed to change code): `Array.from({ length: n }, () => [])`.
+In `src/pipeline/wiktionary-core.ts`, when `debugDecoders` is true, debug padding for resolved lemma rows uses **`Array.from({ length: n }, () => [])`** so each slot is a **fresh array** (avoids the historical `Array.fill([])` shared-reference bug).
 
 ### 7.2 Fuzzy mode + `debugDecoders`
 
 - Merged lexemes dedupe by `id`; `debug` rows are pushed in merge order with `debugRows[idx] ?? []`. If deduplication skips lexemes, **debug alignment with `lexemes[i]`** may be off in edge cases. Worth a dedicated test matrix (strict vs fuzzy, duplicate ids across variants).
 
-### 7.3 Type annotations vs runtime shape (`src/library.ts`)
+### 7.3 Type annotations vs runtime shape (`src/convenience/*.ts`)
 
 - Many async wrappers return `mapLexemes(...)`, which produces **`GroupedLexemeResults<T>`** (array + `order` + `lexemes`), but signatures often say `Promise<LexemeResult<T>[]>`. TypeScript structural typing may still accept this in some directions, but **consumers reading `.d.ts` files** get wrong guidance. Align declarations with `GroupedLexemeResults<T>` (spec §12.26 / §3.9).
 - `translate()` return type is correctly `GroupedLexemeResults<string[]>`; **synonyms/antonyms/…** should match for consistency.
 
-### 7.4 `morphology.ts` `extractMorphologyFromLexeme`
+### 7.4 `src/convenience/morphology.ts` — `extractMorphologyFromLexeme`
 
 - For Greek verbs lemmas, sets default person/number/tense/voice from surface form endings — documented as “smart defaults” for conjugation UX. This is **behavioural inference** relative to strict template-only extraction; it is limited to the morphology wrapper, not normalized `Lexeme` fields, but maintainers should not confuse it with core extractor invariants.
 
@@ -182,9 +177,9 @@ out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
 ## 8. Redundant, obsolete, or stray code
 
 - **Root `verify_v2.ts`:** Appears to be a manual verification script; consider moving under `tools/` or documenting in README as non-package entry (low priority).
-- **`console.error` in library** for `getNativeSenses` failures (`[lightweight-scraper]` prefix): legacy naming; consider structured logging hook or silent return with optional `onError` callback for library consumers.
+- **`console.error` in `convenience/lemma-translate.ts`** for `getNativeSenses` failures (`[lightweight-scraper]` prefix): legacy naming; consider structured logging hook or silent return with optional `onError` callback for consumers.
 - **Tools and CLI `console.log`:** Appropriate for CLI UX; not an issue.
-- **Duplicate concepts:** `LANG_PRIORITY` inline in `index.ts` vs roadmap mentions of configurability — centralize constant when touching that code path.
+- **`LANG_PRIORITY`:** defined in **`src/infra/constants.ts`** and re-exported from `index.ts`; roadmap configurability remains a product follow-up.
 
 ---
 
@@ -192,7 +187,7 @@ out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
 
 - Mixed **camelCase** file names vs **kebab-case** docs — acceptable.
 - **`phonetic` vs `ipa`, `derivations` vs `derivedTerms`, `audioDetails` vs `audioGallery`:** Aliases documented in spec §12.19; keep but consider deprecation warnings in JSDoc only (no runtime change).
-- **“lightweight-scraper”** log tag in `library.ts` does not match product name “Wiktionary SDK”.
+- **“lightweight-scraper”** log tag in **`convenience/lemma-translate.ts`** does not match product name “Wiktionary SDK”.
 
 ---
 
@@ -215,12 +210,12 @@ out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
 
 ## 12. Refactoring proposals (behaviour-preserving when done carefully)
 
-1. **Split `registry.ts`** into logical modules + single `registerAll()` to preserve order.
-2. **Break the `index` ↔ `library` cycle** via `wiktionary-core` module.
-3. **Extract `form-of-display` helpers** from `formatter.ts` for shared use with `form-of-parse-enrich.ts`.
-4. **Centralize defaults:** `LANG_PRIORITY`, API default languages (server vs library), rate-limit defaults, cache TTL in one `src/constants.ts` or config object.
+1. **Continue registry ergonomics** — optional shrinks of `decoder-registry.ts` / helper extraction without reordering `reg.register` (`docs/ROADMAP.md` Phase 4.5 follow-ups).
+2. ~~**Break the `index` ↔ `library` cycle**~~ — **Done** (`pipeline/wiktionary-core` + `convenience/*`).
+3. ~~**Extract `form-of-display` helpers**~~ — **Done** (`src/form-of-display.ts`).
+4. ~~**Centralize defaults**~~ — **Done** (`src/infra/constants.ts` for `LANG_PRIORITY`, cache TTL, rate-limit interval; server default lang in same module).
 5. **Thin `App.tsx`:** hooks + subcomponents; keep props identical to preserve UI.
-6. **Optional concurrency primitives:** shared `parallelMap(items, limit, fn)` for lemma batch and form-of parse batch.
+6. **Optional concurrency primitives:** extend use of **`parallelMap`** (`src/infra/utils.ts`) with tighter limits for lemma batch and form-of parse batch where needed.
 7. **Fetcher abstraction:** single place for timeout, retries (if ever added), and metrics.
 
 ---
@@ -229,7 +224,7 @@ out.debug = allDebugEvents.concat(Array(resolvedLexemes.length).fill([]));
 
 Existing coverage (goldens, decoder coverage, registry ids, parser invariants, wrapper contract, cross-interface parity, fallback enrichment matrix, negative schema, integration adapters) is a solid baseline. For a **heavy refactor**, prioritize:
 
-### 13.1 Orchestration (`index.ts`)
+### 13.1 Orchestration (`pipeline/wiktionary-core.ts`; barrel `index.ts`)
 
 - **Cycle detection:** visited set prevents infinite recursion; assert note text and empty lexeme list.
 - **Combining-mark retry:** mock missing page then hit for stripped title; assert single visit behaviour and optional note when `debugDecoders`.
@@ -289,7 +284,7 @@ Existing coverage (goldens, decoder coverage, registry ids, parser invariants, w
 - **`lemma()` priority:** INFLECTED_FORM vs LEXEME vs diacritic-insensitive cases with mocked `wiktionary`.
 - **`richEntry()`:** two `wiktionary` calls and `lemma_triggered_by_lexeme_id` attachment logic.
 
-### 13.11 `wrapper-invoke.ts`
+### 13.11 `src/convenience/wrapper-invoke.ts`
 
 - Extend `cli-combinatorics` or dedicated tests for **every** special-case branch (`translate`, `wikipediaLink`, `isInstance`, `conjugate`, `hyphenate`, default).
 
@@ -307,13 +302,13 @@ Existing coverage (goldens, decoder coverage, registry ids, parser invariants, w
 
 ### 13.14 Schema
 
-- Whenever `types.ts` changes, keep **JSON Schema + docs/schemata** in lockstep (already a project rule); add CI assertion script if not present.
+- Whenever **`src/model/`** (or the `types.ts` shim) changes, keep **JSON Schema + docs/schemata** in lockstep (`AGENTS.md`); CI runs **`check:schema-artifact`** after YAML edits.
 
 ---
 
 ## 14. Conclusion
 
-The codebase is **coherent and well documented** relative to typical open-source extraction projects. The main engineering debt is **graph complexity** (cycles and god-module registry), **operational hardening** (timeouts, cache parse safety, optional queue bounds), and a few **sharp correctness/typing edges** (debug `fill`, wrapper return types, URL popstate). Addressing these with the test matrix above would make a large refactor **mechanical and reversible** while preserving the project’s source-faithful contract.
+The codebase is **coherent and well documented** relative to typical open-source extraction projects. After the modular `src/` layout, the main engineering debt is **residual layering** (present → convenience type imports), **registry/order discipline** (still large), **operational hardening** (timeouts, cache parse safety, optional queue bounds), and **sharp typing/UX edges** (wrapper return types vs `GroupedLexemeResults`, URL popstate). Addressing these with the test matrix above would make further refactors **mechanical and reversible** while preserving the project’s source-faithful contract.
 
 ---
 

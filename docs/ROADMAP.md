@@ -21,8 +21,8 @@
 
 - **Extraction, not inference:** only what Wikitext/templates expose.
 - **Traceability:** structured fields map to source lines/templates.
-- **Registry-first:** decoding in `src/registry.ts` (and split modules when introduced), not in the parser orchestrator.
-- **Cross-interface parity:** `library.ts` ↔ `cli/index.ts` ↔ `webapp/src/App.tsx` ↔ `server.ts` where applicable (`AGENTS.md`).
+- **Registry-first:** decoding in `src/decode/registry/` (barrel `decode/registry.ts`), not in the parser orchestrator.
+- **Cross-interface parity:** `src/convenience/` ↔ `cli/index.ts` ↔ `webapp/src/App.tsx` ↔ `server.ts` where applicable (`AGENTS.md`).
 - **Schema + templates parity** on structural type changes (`AGENTS.md`).
 
 ---
@@ -89,9 +89,9 @@
 
 | # | Todo | Notes |
 |---|------|--------|
-| 2.1 | **`library.ts`:** align wrapper return types to **`Promise<GroupedLexemeResults<T>>`** where `mapLexemes` is used (`audit.md` §7.3, spec §12.26). | Possible **semver minor** for `.d.ts` consumers |
+| 2.1 | **`src/convenience/`:** align wrapper return types to **`Promise<GroupedLexemeResults<T>>`** where `mapLexemes` is used (`audit.md` §7.3, spec §12.26). | Possible **semver minor** for `.d.ts` consumers |
 | 2.2 | **`server.ts` / `buildApiFetchResponse`:** expose **`matchMode`**, **`sort`**, **`debugDecoders`**, and distinguish **`pos`** vs **`preferredPos`** per spec §11.1 / §15 item 2. | Extend `server-fetch-audit` tests |
-| 2.3 | **Centralize defaults** in e.g. `src/constants.ts`: `LANG_PRIORITY`, default `lang` (**server `el` vs library `Auto`** documented), cache TTL, rate-limit interval (`audit.md` §12, §8). | |
+| 2.3 | **Centralize defaults** in `src/infra/constants.ts`: `LANG_PRIORITY`, default `lang` (**server `el` vs programmatic `Auto`** documented), cache TTL, rate-limit interval (`audit.md` §12, §8). | **Done** on `master` — see `infra/constants.ts`; keep docs in sync when adding knobs. |
 | 2.4 | **Optional:** add **`wikidata_error`** to JSON Schema + YAML docs (spec §15 item 7). | Consumer validation only |
 
 **Risk:** Medium. **Depends on:** Phase 0–1 optional.
@@ -104,10 +104,10 @@
 
 | # | Todo | Status / notes |
 |---|------|----------------|
-| 3.1 | Add **`src/wiktionary-core.ts`:** `wiktionary`, `wiktionaryRecursive`; **no** re-export of `library` / full `formatter`. | **Done** — `library`, `morphology`, `stem`, `server-fetch` import core; tests that stub `wiktionary` mock **`wiktionary-core`**. |
+| 3.1 | Add **`src/pipeline/wiktionary-core.ts`:** `wiktionary`, `wiktionaryRecursive`; **no** re-export of convenience / full formatter. | **Done** — `convenience/*`, `server-fetch` import core; tests that stub `wiktionary` target **`pipeline/wiktionary-core`** (or `ingress/api`). |
 | 3.2 | Keep **`src/index.ts`** as **public barrel** only. | **Done** — barrel re-exports core + packages. |
-| 3.3 | Add **`src/form-of-display.ts`:** morph-line helpers shared by **`formatter.ts`** and **`form-of-parse-enrich.ts`** (`audit.md` §3.2). | **Done** — `formatter` re-exports for API parity; enrich imports `form-of-display` directly. |
-| 3.4 | Move **`EtymologyStep`** (or equivalent) to **`types.ts`** or `types-etymology.ts`. | **Done** — `EtymologyStep` on `types.ts`; barrel type export; `formatter` / `library` import from types. |
+| 3.3 | Add **`src/form-of-display.ts`:** morph-line helpers shared by **`present/formatter`** and **`pipeline/form-of-parse-enrich.ts`** (`audit.md` §3.2). | **Done** — `present/formatter` re-exports for API parity; enrich imports `form-of-display` directly. |
+| 3.4 | Move **`EtymologyStep`** (or equivalent) into the domain model. | **Done** — `EtymologyStep` in `src/model/etymology.ts` (re-exported via `src/types.ts` shim); `present/format-core` / `convenience` import from `../types` or package barrel. |
 
 **Risk:** High (load order, Vitest mocks). **Depends on:** Phases 0–2 desirable.
 
@@ -120,8 +120,8 @@
 | # | Todo | Notes |
 |---|------|--------|
 | 4.1 | Inventory decoders by family; map to spec §5 / §14.1. | **Done** — `docs/registry-inventory.md` (registration order, informal families). |
-| 4.2 | Extract pure helpers into **`src/registry/`**; transitional re-exports from `registry.ts`. | **Done** — `merge-patches.ts`, `form-of-predicates.ts`, `strip-wiki-markup.ts`; `registry.ts` re-exports predicates + `stripWikiMarkup`. |
-| 4.3 | Per-family `register` blocks + **`registerAllDecoders()`** preserving historical order. | **Done** — `decoder-registry.ts`, `register-all-decoders.ts`, thin `registry.ts` barrel; `registry-decoder-order.test.ts` locks id sequence. |
+| 4.2 | Extract pure helpers into **`src/decode/registry/`**; transitional re-exports from **`src/decode/registry.ts`**. | **Done** — `merge-patches.ts`, `form-of-predicates.ts`, `strip-wiki-markup.ts`; barrel re-exports predicates + `stripWikiMarkup`. |
+| 4.3 | Per-family `register` blocks + **`registerAllDecoders()`** preserving historical order. | **Done** — `decoder-registry.ts`, `register-all-decoders.ts`, thin **`src/decode/registry.ts`** barrel; `registry-decoder-order.test.ts` locks id sequence. |
 | 4.4 | Shrink **`DECODER_EVIDENCE_ALLOWLIST`** via `decoder-smoke.wikitext` / fixtures (ties to Phase 7.2). | Small PRs |
 
 **Risk:** High — **never reorder** registrations casually. **Depends on:** Phase 3.3 helps.
@@ -158,7 +158,7 @@
 | **`gender-map.ts`** | **`GENDER_MAP`** (single definition for nl/de/el-noun-gender/la paths). |
 | **`form-of-display-label.ts`** | `TAG_LABEL_MAP`, `tagsToLabel`, `defaultFormOfKindLabel`, `buildFormOfDisplayLabel`. |
 
-Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid** circular imports: helpers must not import `register-*` modules.
+Exact file names are suggestions; keep **`src/decode/registry/`** as the home. **Avoid** circular imports: helpers must not import `register-*` modules.
 
 ---
 
@@ -179,8 +179,8 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 | **4.5.11** | **`register-pronunciation-extra.ts`.** | **Done** — `el-ipa`, `audio`, `romanization`, `rhymes`, `homophones` in **`register-pronunciation-extra.ts`**. | Order test. |
 | **4.5.12** | **`register-sections.ts`.** | **Done** — section/citation decoders in **`register-sections.ts`** (`section-extract`, **`format-usage-note-line`**). | Order test. |
 | **4.5.13** | **`register-inflection-stems.ts`.** | **Done** — `inflection-table-ref`, `el-verb-stems`, `el-noun-stems` in **`register-inflection-stems.ts`**; **`register-all-decoders.ts`** is orchestrator-only. | Order test. |
-| **4.5.14** | **Public **`registerAllDecoders`** re-export (optional).** | **Done** — **`src/registry.ts`** re-exports **`registerAllDecoders`**; spec §14.1 **`registry.ts`** row updated. | Typecheck; no default behaviour change. |
-| **4.5.15** | **Single source of truth for canonical decoder `id` list (optional).** | **Done** — **`src/registry/decoder-ids.ts`** exports **`EXPECTED_DECODER_IDS`**; **`registry-decoder-order.test.ts`** imports it; spec §14.1 row; **`docs/registry-inventory.md`** sync note. | Order test still passes; doc accuracy. |
+| **4.5.14** | **Public **`registerAllDecoders`** re-export (optional).** | **Done** — **`src/decode/registry.ts`** re-exports **`registerAllDecoders`**; spec §14.1 registry row updated. | Typecheck; no default behaviour change. |
+| **4.5.15** | **Single source of truth for canonical decoder `id` list (optional).** | **Done** — **`src/decode/registry/decoder-ids.ts`** exports **`EXPECTED_DECODER_IDS`**; **`registry-decoder-order.test.ts`** imports it; spec §14.1 row; **`docs/registry-inventory.md`** sync note. | Order test still passes; doc accuracy. |
 | **4.5.16** | **CI / release guard (optional).** | **Done** — **`tools/assert-registry-order.ts`** compares a fresh registry to **`decoder-ids.ts`**; **`npm run check:registry-order`**; **`test:ci`** runs the check before Vitest. | CI green. |
 
 ---
@@ -208,9 +208,9 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 
 | # | Todo | Notes |
 |---|------|--------|
-| 5.1 | Split or document **`library.ts`** into projection vs async/network helpers (`audit.md` §3.2). | Preserve `index.ts` exports |
+| 5.1 | Split or document convenience layer into projection vs async/network helpers (`audit.md` §3.2). | **Done** — `src/convenience/*.ts` modules + barrel; preserve `index.ts` exports |
 | 5.2 | **`getNativeSenses`:** rename log tag; optional **`onError`** (`audit.md` §8–9). | |
-| 5.3 | **`morphology.ts`:** thread **`title`** into `action=parse` where Lua needs page context; non-`el` template prefixes behind explicit options. | New fixtures per language |
+| 5.3 | **`src/convenience/morphology.ts`:** thread **`title`** into `action=parse` where Lua needs page context; non-`el` template prefixes behind explicit options. | New fixtures per language |
 | 5.4 | Document **`extractMorphologyFromLexeme`** smart defaults as **wrapper-only** inference (`audit.md` §7.4). | Spec/README + JSDoc |
 
 **Risk:** Medium. **Depends on:** Phase 3.1.
@@ -371,7 +371,7 @@ Exact file names are suggestions; keep **`src/registry/`** as the home. **Avoid*
 
 The hardening phases (0–7 + 8–9 as adopted) are **complete enough** when:
 
-- [ ] No **undocumented** module cycles; `library` / `stem` / `morphology` do not import the public barrel for core fetch.
+- [ ] No **undocumented** module cycles; **`convenience/stem`** / **`convenience/morphology`** do not import the public barrel for core fetch (use **`pipeline/wiktionary-core`**).
 - [ ] Convenience wrappers expose **`GroupedLexemeResults<T>`** in `.d.ts` where applicable.
 - [ ] **REST** query params match documented **CLI** parity for `matchMode`, `sort`, `debugDecoders`, `pos` vs `preferredPos`.
 - [ ] **`mwFetchJson`** supports **bounded** wait time (or caller `signal`) in server/CLI scenarios.
