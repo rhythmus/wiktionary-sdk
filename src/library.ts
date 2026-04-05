@@ -230,6 +230,39 @@ export async function hyponyms(query: string, sourceLang: WikiLang = "Auto", pos
 }
 
 /**
+ * Retrieves comeronyms (same semantic field) from the `====Comeronyms====` section.
+ */
+export async function comeronyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string[]>> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.comeronyms?.map((c) => c.term) || []
+    );
+}
+
+/**
+ * Retrieves parasynonyms from the `====Parasynonyms====` section.
+ */
+export async function parasynonyms(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string[]>> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.parasynonyms?.map((p) => p.term) || []
+    );
+}
+
+/**
+ * Retrieves collocations from the `====Collocations====` section.
+ */
+export async function collocations(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string[]>> {
+    const lemmaStr = await lemma(query, sourceLang, pos);
+    const result = await wiktionary({ query: lemmaStr, lang: sourceLang, pos });
+    return mapLexemes(result, lexeme =>
+        lexeme.semantic_relations?.collocations?.map((c) => c.term) || []
+    );
+}
+
+/**
  * Extracts the primary IPA transcription or audio file.
  */
 export async function pronounce(query: string, sourceLang: WikiLang = "Auto", pos: string = "Auto"): Promise<GroupedLexemeResults<string | null>> {
@@ -382,6 +415,9 @@ export async function richEntry(query: string, lang: WikiLang = "Auto", pos: str
                 holonyms: lexeme.semantic_relations?.holonyms?.map(h => ({ term: h.term })),
                 meronyms: lexeme.semantic_relations?.meronyms?.map(m => ({ term: m.term })),
                 troponyms: lexeme.semantic_relations?.troponyms?.map(t => ({ term: t.term })),
+                comeronyms: lexeme.semantic_relations?.comeronyms?.map((c) => ({ term: c.term })),
+                parasynonyms: lexeme.semantic_relations?.parasynonyms?.map((p) => ({ term: p.term })),
+                collocations: lexeme.semantic_relations?.collocations?.map((c) => ({ term: c.term })),
             },
             derived_terms: lexeme.derived_terms,
             related_terms: lexeme.related_terms,

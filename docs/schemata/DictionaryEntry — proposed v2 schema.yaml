@@ -117,6 +117,9 @@ semantic_relations:
   holonyms: []
   meronyms: []
   troponyms: []
+  comeronyms: []
+  parasynonyms: []
+  collocations: []
 
 # ── Derived / Related / Descendants ─────────────────────────────────────────
 derived_terms:

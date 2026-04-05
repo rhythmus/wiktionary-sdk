@@ -83,6 +83,15 @@ of:
 {{#if relations.antonyms}}
 - **Antonyms (ANT):** {{#each relations.antonyms}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
 {{/if}}
+{{#if relations.comeronyms}}
+- **Comeronyms (COM):** {{#each relations.comeronyms}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if relations.parasynonyms}}
+- **Parasynonyms (PAR):** {{#each relations.parasynonyms}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if relations.collocations}}
+- **Collocations (COL):** {{#each relations.collocations}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
 {{#if derived_terms.items}}
 - **Derived terms:** {{#each derived_terms.items}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
 {{/if}}

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import yaml from 'js-yaml';
 import {
   wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms,
-  etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
+  etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms, comeronyms, parasynonyms, collocations,
   derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
   partOfSpeech, lexicographicClass, usageNotes, translate, richEntry,
   rhymes, homophones, syllableCount, allImages, audioGallery, audioDetails, exampleDetails,
@@ -161,7 +161,7 @@ const API_METHODS: Record<string, any> = {
   lemma, ipa, pronounce, hyphenate, rhymes, homophones, syllableCount,
   stem, morphology, conjugate, decline, gender, transitivity,
   // Relations & Connectivity
-  synonyms, antonyms, hypernyms, hyponyms,
+  synonyms, antonyms, hypernyms, hyponyms, comeronyms, parasynonyms, collocations,
   derivedTerms, relatedTerms, descendants,
   alternativeForms, seeAlso, anagrams,
   internalLinks, externalLinks,
@@ -184,7 +184,7 @@ const API_GROUPS = [
   { label: 'Morphology', methods: ['stem', 'morphology', 'conjugate', 'decline', 'gender', 'transitivity', 'inflectionTableRef'] },
   { label: 'Hyphenation', methods: ['hyphenate', 'syllableCount'] },
   { label: 'Etymology', methods: ['etymology', 'etymologyChain', 'etymologyCognates', 'etymologyText'] },
-  { label: 'Relations', methods: ['synonyms', 'antonyms', 'hypernyms', 'hyponyms', 'derivedTerms', 'relatedTerms', 'descendants', 'alternativeForms', 'seeAlso', 'anagrams'] },
+  { label: 'Relations', methods: ['synonyms', 'antonyms', 'hypernyms', 'hyponyms', 'comeronyms', 'parasynonyms', 'collocations', 'derivedTerms', 'relatedTerms', 'descendants', 'alternativeForms', 'seeAlso', 'anagrams'] },
   { label: 'Media & Connections', methods: ['image', 'allImages', 'internalLinks', 'externalLinks', 'exampleDetails', 'citations'] },
   { label: 'Wikidata & Global', methods: ['wikidataQid', 'isInstance', 'isSubclass', 'wikipediaLink', 'translate', 'categories', 'langlinks', 'referencesSection'] },
 ];

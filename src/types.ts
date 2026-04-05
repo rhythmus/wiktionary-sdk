@@ -166,6 +166,15 @@ export interface SemanticRelations {
   meronyms?: SemanticRelation[];
   /** For verbs: manner-of-action subtypes (e.g. "sprint" is a troponym of "run"). */
   troponyms?: SemanticRelation[];
+  /**
+   * Words in the same semantic field (complementary or contrastive), per
+   * en.wiktionary `====Comeronyms====` (see `docs/section-inventory.md`).
+   */
+  comeronyms?: SemanticRelation[];
+  /** Near-synonyms with distinct nuance (`====Parasynonyms====`). */
+  parasynonyms?: SemanticRelation[];
+  /** Typical word combinations (`====Collocations====` or list content). */
+  collocations?: SemanticRelation[];
 }
 
 

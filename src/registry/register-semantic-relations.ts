@@ -22,6 +22,9 @@ const RELATION_HEADERS = {
     Holonyms: "holonyms",
     Meronyms: "meronyms",
     Troponyms: "troponyms",
+    Comeronyms: "comeronyms",
+    Parasynonyms: "parasynonyms",
+    Collocations: "collocations",
 } as const;
 
 /** Template and section synonym/antonym/hypernym/hyponym extraction. */

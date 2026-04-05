@@ -131,6 +131,33 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
       </span>
       {{/if}}
 
+      {{#if relations.comeronyms}}
+      <span class="line-label">COM.</span>
+      <span class="relation-group">
+        {{#each relations.comeronyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+
+      {{#if relations.parasynonyms}}
+      <span class="line-label">PAR.</span>
+      <span class="relation-group">
+        {{#each relations.parasynonyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+
+      {{#if relations.collocations}}
+      <span class="line-label">COL.</span>
+      <span class="relation-group">
+        {{#each relations.collocations}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+
       {{#if derived_terms.items}}
       <span class="line-label">DER.</span>
       <span class="relation-group">
@@ -237,6 +264,30 @@ export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = `<div class="wiktionary-entry 
         <span class="line-label">SYN.</span>
         <span class="relation-group">
           {{#each relations.synonyms}}
+          <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{/if}}
+        {{#if relations.comeronyms}}
+        <span class="line-label">COM.</span>
+        <span class="relation-group">
+          {{#each relations.comeronyms}}
+          <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{/if}}
+        {{#if relations.parasynonyms}}
+        <span class="line-label">PAR.</span>
+        <span class="relation-group">
+          {{#each relations.parasynonyms}}
+          <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+          {{/each}}
+        </span>
+        {{/if}}
+        {{#if relations.collocations}}
+        <span class="line-label">COL.</span>
+        <span class="relation-group">
+          {{#each relations.collocations}}
           <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
           {{/each}}
         </span>
@@ -366,6 +417,15 @@ of:
 {{/if}}
 {{#if relations.antonyms}}
 - **Antonyms (ANT):** {{#each relations.antonyms}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if relations.comeronyms}}
+- **Comeronyms (COM):** {{#each relations.comeronyms}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if relations.parasynonyms}}
+- **Parasynonyms (PAR):** {{#each relations.parasynonyms}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if relations.collocations}}
+- **Collocations (COL):** {{#each relations.collocations}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}
 {{/if}}
 {{#if derived_terms.items}}
 - **Derived terms:** {{#each derived_terms.items}}**{{term}}**{{#unless @last}}, {{/unless}}{{/each}}

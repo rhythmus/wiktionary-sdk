@@ -122,6 +122,33 @@
       </span>
       {{/if}}
 
+      {{#if relations.comeronyms}}
+      <span class="line-label">COM.</span>
+      <span class="relation-group">
+        {{#each relations.comeronyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+
+      {{#if relations.parasynonyms}}
+      <span class="line-label">PAR.</span>
+      <span class="relation-group">
+        {{#each relations.parasynonyms}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+
+      {{#if relations.collocations}}
+      <span class="line-label">COL.</span>
+      <span class="relation-group">
+        {{#each relations.collocations}}
+        <span>{{term}}</span>{{#unless @last}}<span class="inline-sep">,</span>{{/unless}}
+        {{/each}}
+      </span>
+      {{/if}}
+
       {{#if derived_terms.items}}
       <span class="line-label">DER.</span>
       <span class="relation-group">

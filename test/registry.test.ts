@@ -100,6 +100,16 @@ describe("DecoderRegistry", () => {
     expect(rel?.synonyms?.length).toBeGreaterThan(0);
   });
 
+  it("extracts Collocations section into semantic_relations.collocations", () => {
+    const wikitext = `{{en-noun}}
+====Collocations====
+* {{l|en|heavy rain}}`;
+    const ctx = makeCtx(wikitext, { lang: "en" });
+    const result = registry.decodeAll(ctx);
+    const rel = (result as any).entry.semantic_relations;
+    expect(rel?.collocations?.[0]?.term).toBe("heavy rain");
+  });
+
   it("decodes only used in to plain gloss and structured only_used_in", () => {
     const ctx = makeCtx("{{head|nl|noun}}\n# {{only used in|nl|sense maken}}", { lang: "nl" });
     const entry = (registry.decodeAll(ctx) as any).entry;

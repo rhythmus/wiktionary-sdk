@@ -163,7 +163,7 @@ Each `Lexeme` contains:
 | `pronunciation` | `Pronunciation` | From `{{IPA}}`, `{{el-IPA}}`, `{{audio}}`, `{{rhymes}}`, `{{homophones}}` |
 | `hyphenation` | `{syllables?, raw}` | From `{{hyphenation}}` |
 | `senses` | `Sense[]` | From `#` / `##` / `#:` lines; includes `qualifier`, `labels`, `topics`, optional structured `only_used_in` |
-| `semantic_relations` | `SemanticRelations` | From `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}`, and section headings (Synonyms, Antonyms, …) matched with the same brace-tolerant heading regex as other section decoders |
+| `semantic_relations` | `SemanticRelations` | From `{{syn}}`, `{{ant}}`, `{{hyper}}`, `{{hypo}}`, and section headings (Synonyms, Antonyms, Coordinate terms, Holonyms, Meronyms, Troponyms, Comeronyms, Parasynonyms, Collocations, …) matched with the same brace-tolerant heading regex as other section decoders; see [section-inventory.md](section-inventory.md) |
 | `etymology` | `EtymologyData` | `chain[]` from `{{inh}}`, `{{der}}`, `{{bor}}`; `cognates[]` from `{{cog}}`; `raw_text` from preamble |
 | `usage_notes` | `string[]` | From `===Usage notes===` section text |
 | `references` | `string[]` | From `====References====` section text |
@@ -189,7 +189,7 @@ Each `Lexeme` contains:
 | `wikidata` | `WikidataEnrichment` | Optional QID, labels, descriptions, sitelinks, media; includes **`instance_of`** (P31) and **`subclass_of`** (P279) QID arrays when claims exist |
 | `source` | `{wiktionary: WiktionarySource}` | Full traceability metadata |
 
-**Implementation note (lexicographic taxonomy):** Full heading coverage lives in `src/lexicographic-headings.ts` (see also [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) README for a comparable checklist). Strict grammatical `PartOfSpeech` values are listed in `PART_OF_SPEECH_VALUES` in `src/types.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
+**Implementation note (lexicographic taxonomy):** Full heading coverage for **lexeme-opening** PoS and morpheme headings lives in `src/lexicographic-headings.ts`. For a **MoS-style checklist** of common *content* sections (synonyms, derived terms, collocations, etc.) and how they map to `Lexeme` fields, see [section-inventory.md](section-inventory.md) (aligned with [wiktionary-scraper’s `english.ts`](https://github.com/LearnRomanian/wiktionary-scraper/blob/main/src/constants/sections/english.ts)). Strict grammatical `PartOfSpeech` values are listed in `PART_OF_SPEECH_VALUES` in `src/types.ts` and in `schema/normalized-entry.schema.json` `$defs.PartOfSpeech`; `test/schema-pos-parity.test.ts` asserts parity. `Lexeme.type` (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`) remains **template-driven** from form-of templates, not from section headings.
 
 **Mandatory traceability** (`WiktionarySource`):
 
@@ -263,20 +263,29 @@ semantic_relations:
     - term: γράμμα
   troponyms:
     - term: χαράζω
+  comeronyms:
+    - term: διαβάζω
+  parasynonyms:
+    - term: σημειώνω
+  collocations:
+    - term: "γράφω επιστολή"
 ```
 
-| Field | Template | Notes |
-|-------|----------|-------|
-| `synonyms` | `{{syn}}` | |
-| `antonyms` | `{{ant}}` | |
-| `hypernyms` | `{{hyper}}` | |
-| `hyponyms` | `{{hypo}}` | |
-| `coordinate_terms` | `{{cot}}` | Peers at the same level (e.g. days of the week) |
-| `holonyms` | `{{hol}}` | Wholes that contain this term as a part |
-| `meronyms` | `{{mer}}` | Parts that make up this term |
-| `troponyms` | `{{tro}}` | Manner-of-action subtypes (e.g. "sprint" for "run") |
+| Field | Inline template | Section heading | Notes |
+|-------|-----------------|-----------------|-------|
+| `synonyms` | `{{syn}}` | `====Synonyms====` | |
+| `antonyms` | `{{ant}}` | `====Antonyms====` | |
+| `hypernyms` | `{{hyper}}` | `====Hypernyms====` | |
+| `hyponyms` | `{{hypo}}` | `====Hyponyms====` | |
+| `coordinate_terms` | *(not yet)* | `====Coordinate terms====` | Peers at the same level (e.g. days of the week). |
+| `holonyms` | *(not yet)* | `====Holonyms====` | Wholes that contain this term as a part. |
+| `meronyms` | *(not yet)* | `====Meronyms====` | Parts that make up this term. |
+| `troponyms` | *(not yet)* | `====Troponyms====` | Manner-of-action subtypes (e.g. "sprint" for "run"). |
+| `comeronyms` | *(not yet)* | `====Comeronyms====` | Same semantic field (complementary / contrastive). |
+| `parasynonyms` | *(not yet)* | `====Parasynonyms====` | Near-synonyms with distinct nuance. |
+| `collocations` | *(not yet)* | `====Collocations====` | Typical combinations; list lines use the same `{{l}}` / `{{link}}` extraction as other relation sections. |
 
-All share the same shape: `term` (required), `qualifier?` from `q=` named param, `sense_id?` from `sense=`.
+For `{{syn}}` / `{{ant}}` / `{{hyper}}` / `{{hypo}}`, list items share the same shape: `term` (required), `qualifier?` from `q=` named param, `sense_id?` from `id=` / `sense=` when present. Section-sourced rows use `term` and optional `qualifier` from template gloss parameters where available.
 
 ### 3.5 Etymology data
 
@@ -726,7 +735,7 @@ interface TemplateDecoder {
 5. **Form-of** (extended): the `form-of` decoder matches **`isFormOfTemplateName()`** — the historical `FORM_OF_TEMPLATES` / `VARIANT_TEMPLATES` sets, per-lang `{{xx-verb form of|…}}`, **and** the large en.wiktionary [Category:Form-of templates](https://en.wiktionary.org/wiki/Category:Form-of_templates) family (names ending in ` … of`, plus `rfform`, `IUPAC-*`, etc.). Produces `form_of.label` from `TAG_LABEL_MAP` / template name. **`isVariantFormOfTemplateName()`** distinguishes `FORM_OF` (spelling/lexical variant) from `INFLECTED_FORM` (grammatical inflection). `only used in` is **not** treated as lemma `form_of`; it is handled on sense lines.
 6. **Translations**: parses `====Translations====` sections for `t`, `t+`, `tt`, `tt+`, `t-simple`.
 7. **Senses**: parses `#` / `##` / `#:` lines; now extracts `qualifier` from parenthetical text and `labels`/`topics` from `{{lb|...}}` templates on definition lines.
-8. **Semantic relations**: `syn`, `ant`, `hyper`, `hypo`, and now also `cot` (coordinate terms), `hol` (holonyms), `mer` (meronyms), `tro` (troponyms); section-based extraction uses a heading regex tolerant of variable `=` counts (`====Synonyms====`, etc.), not a brittle `==Title==` substring match.
+8. **Semantic relations**: inline `syn`, `ant`, `hyper`, `hypo`; section lists for Synonyms, Antonyms, Hypernyms, Hyponyms, Coordinate terms, Holonyms, Meronyms, Troponyms, Comeronyms, Parasynonyms, and Collocations (brace-tolerant `====…====` headings; `{{l}}` / `{{link}}` on list lines). Inline `{{cot}}`, `{{hol}}`, `{{mer}}`, `{{tro}}` are **not** decoded into structured fields yet.
 9. **Etymology v2**: produces `chain[]` (from `inh`, `der`, `bor`) and `cognates[]` (from `cog`) as separate arrays; now supports compositional templates like **`affix`**, **`compound`**, **`back-formation`**, and **`clipping`**.
 10. **Usage notes**: extracts `===Usage notes===` section text.
 11. **References** (new): extracts `====References====` section text into `entry.references[]`.

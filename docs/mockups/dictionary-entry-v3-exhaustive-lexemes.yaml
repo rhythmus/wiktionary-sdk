@@ -138,6 +138,15 @@ semantic_relations:
   troponyms:
     - term: "επιστολογραφώ"
       qualifier: "to write letters (manner)"
+  comeronyms:
+    - term: "διαβάζω"
+      qualifier: "reading (peer activity in literacy)"
+  parasynonyms:
+    - term: "σημειώνω"
+      qualifier: "to note down (near-synonym)"
+  collocations:
+    - term: "γράφω επιστολή"
+      qualifier: "write a letter"
 
 derived_terms:
   raw_text: "From Middle Greek γράφω; many scientific compounds."

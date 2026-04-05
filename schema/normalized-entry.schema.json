@@ -403,6 +403,21 @@
           "type": "array",
           "items": { "$ref": "#/$defs/SemanticRelation" },
           "description": "For verbs: manner-of-action subtypes."
+        },
+        "comeronyms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "Terms in the same semantic field (complementary/contrastive); Wiktionary Comeronyms section."
+        },
+        "parasynonyms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "Near-synonyms with distinct nuance; Wiktionary Parasynonyms section."
+        },
+        "collocations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SemanticRelation" },
+          "description": "Typical word combinations; Wiktionary Collocations section."
         }
       },
       "additionalProperties": false
