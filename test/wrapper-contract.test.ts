@@ -34,7 +34,7 @@ import {
   isCategory,
   asLexemeRows,
 } from "../src/index";
-import type { GroupedLexemeResults } from "../src/library";
+import type { GroupedLexemeResults } from "../src/convenience";
 import * as api from "../src/ingress/api";
 
 vi.mock("../src/ingress/api", async (importOriginal) => {

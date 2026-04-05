@@ -6,12 +6,10 @@ export {
     DEFAULT_CACHE_TTL_MS,
     DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS,
 } from "./constants";
-export * from "./library";
+export * from "./convenience";
 export * from "./present/formatter";
 export * from "./present/lexeme-display-groups";
-export * from "./stem";
-export * from "./wrapper-invoke";
-export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./morphology";
+export type { GrammarTraits, ConjugateCriteria, DeclineCriteria } from "./convenience/morphology";
 export type {
   WikiLang,
   LexemeType,

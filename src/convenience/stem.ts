@@ -1,7 +1,7 @@
-import { lemma, mapLexemes } from './library';
-import type { GroupedLexemeResults } from './library';
-import { wiktionary } from "./pipeline/wiktionary-core";
-import type { WikiLang, Lexeme } from './types';
+import { wiktionary } from "../pipeline/wiktionary-core";
+import type { Lexeme, WikiLang } from "../types";
+import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import { lemma } from "./lemma-translate";
 
 export interface VerbStems {
     present?: string[];

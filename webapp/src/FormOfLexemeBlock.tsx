@@ -4,7 +4,7 @@ import { wiktionary } from '@engine/index';
 import type { Lexeme } from '@engine/types';
 import { normalizeWikiLangArg } from '@engine/parse/parser';
 import { format, formatInflectedFormHeadline } from '@engine/present/formatter';
-import { parseMorphologyTags } from '@engine/morphology';
+import { parseMorphologyTags } from '@engine/convenience/morphology';
 import { pickLemmaLexemeFromSecondFetch } from './pick-lemma-lexeme';
 
 /** One inflected/form-of row: own lemma fetch + nested lemma HTML (for merged group cards). */

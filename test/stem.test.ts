@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { stem, stemByLexeme } from "../src/stem";
+import { stem, stemByLexeme } from "../src/convenience/stem";
 import * as coreModule from "../src/pipeline/wiktionary-core";
 import * as api from "../src/ingress/api";
 

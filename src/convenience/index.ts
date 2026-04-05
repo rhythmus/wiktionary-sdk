@@ -1,0 +1,10 @@
+export * from "./grouped-results";
+export * from "./lemma-translate";
+export * from "./relations";
+export * from "./lexical-wrappers";
+export type { ConjugateCriteria, DeclineCriteria, GrammarTraits } from "./morphology";
+export { parseMorphologyTags } from "./morphology";
+export * from "./rich-entry";
+export * from "./page-enrichment";
+export * from "./stem";
+export * from "./wrapper-invoke";

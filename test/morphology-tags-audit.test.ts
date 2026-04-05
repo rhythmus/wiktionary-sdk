@@ -2,7 +2,7 @@
  * Audit §13.8 — parseMorphologyTags combinations.
  */
 import { describe, it, expect } from "vitest";
-import { parseMorphologyTags } from "../src/morphology";
+import { parseMorphologyTags } from "../src/convenience/morphology";
 
 describe("parseMorphologyTags audit (§13.8)", () => {
   it("maps person+number shorthand tags", () => {

@@ -24,7 +24,7 @@
 import { wiktionary } from "../src/index";
 import * as SDK from "../src/index";
 import type { WikiLang, FetchResult } from "../src/types";
-import { invokeWrapperMethod } from "../src/wrapper-invoke";
+import { invokeWrapperMethod } from "../src/convenience/wrapper-invoke";
 import { readFileSync, writeFileSync } from "fs";
 
 interface CliOptions {

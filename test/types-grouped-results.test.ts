@@ -2,7 +2,7 @@
  * Audit §13.10 — compile-time shape checks for GroupedLexemeResults wrappers.
  */
 import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
-import { synonyms, mapLexemes, type GroupedLexemeResults } from "../src/library";
+import { synonyms, mapLexemes, type GroupedLexemeResults } from "../src/convenience";
 import * as api from "../src/ingress/api";
 import type { FetchResult, Lexeme } from "../src/types";
 

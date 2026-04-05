@@ -2,7 +2,7 @@
  * Audit §13.11 — every special-case branch in invokeWrapperMethod.
  */
 import { describe, it, expect, vi } from "vitest";
-import { invokeWrapperMethod } from "../src/wrapper-invoke";
+import { invokeWrapperMethod } from "../src/convenience/wrapper-invoke";
 
 describe("invokeWrapperMethod audit", () => {
   it("routes translate with target and props mode", async () => {

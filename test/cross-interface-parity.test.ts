@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { invokeWrapperMethod } from "../src/wrapper-invoke";
+import { invokeWrapperMethod } from "../src/convenience/wrapper-invoke";
 import { invokeExtractWrapper } from "../cli/index";
 import * as SDK from "../src/index";
 

@@ -2,7 +2,7 @@
  * Audit §13.10 — lemma() and richEntry() orchestration with mocked API.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { lemma, richEntry } from "../src/library";
+import { lemma, richEntry } from "../src/convenience";
 import * as api from "../src/ingress/api";
 
 vi.mock("../src/ingress/api", async (importOriginal) => {

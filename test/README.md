@@ -25,9 +25,9 @@ The engine reaches the network through **`fetchWikitextEnWiktionary`**, **`fetch
 
 Then call the **real** `wiktionary()` so the parser and registry run on real wikitext.
 
-### Stubbing `wiktionary` in library/morphology/stem tests
+### Stubbing `wiktionary` in convenience tests
 
-**`library.ts`**, **`morphology.ts`**, and **`stem.ts`** import **`wiktionary`** from **`pipeline/wiktionary-core.ts`**. To replace it with `vi.fn()`, use:
+**`src/convenience/*.ts`** (wrappers, **`morphology.ts`**, **`stem.ts`**) import **`wiktionary`** from **`pipeline/wiktionary-core.ts`**. To replace it with `vi.fn()`, use:
 
 `vi.mock("../src/pipeline/wiktionary-core", async (importOriginal) => ({ ...(await importOriginal()), wiktionary: vi.fn() }))`
 

@@ -1,5 +1,5 @@
-import type { GrammarTraits } from "../morphology";
-import type { WordStems } from "../stem";
+import type { GrammarTraits } from "../convenience/morphology";
+import type { WordStems } from "../convenience/stem";
 import Handlebars from "handlebars";
 import { SCHEMA_VERSION } from "../types";
 import type { Sense, RichEntry, InflectionTable, EtymologyData, EtymologyStep, Lexeme, FetchResult } from "../types";

@@ -24,7 +24,7 @@ import {
     wikipediaLink,
     partOfSpeech,
     usageNotes
-} from "../src/library";
+} from "../src/convenience";
 import * as coreModule from "../src/pipeline/wiktionary-core";
 import * as apiModule from "../src/ingress/api";
 

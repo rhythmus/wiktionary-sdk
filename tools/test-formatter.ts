@@ -1,5 +1,5 @@
 import { format, registerStyle } from "../src/present/formatter";
-import { GrammarTraits } from "../src/morphology";
+import { GrammarTraits } from "../src/convenience/morphology";
 
 async function test() {
     console.log("--- Testing Formatter (Empty Results & Styles) ---\n");

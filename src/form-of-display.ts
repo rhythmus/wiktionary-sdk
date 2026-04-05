@@ -1,4 +1,4 @@
-import { parseMorphologyTags } from "./morphology";
+import { parseMorphologyTags } from "./convenience/morphology";
 import type { Lexeme } from "./types";
 
 /**

@@ -1,9 +1,9 @@
-import { parse } from 'node-html-parser';
-import { lemma, mapLexemes } from './library';
-import type { GroupedLexemeResults } from './library';
-import { wiktionary } from "./pipeline/wiktionary-core";
-import { mwFetchJson } from "./ingress/api";
-import type { WikiLang, Lexeme } from './types';
+import { parse } from "node-html-parser";
+import { mwFetchJson } from "../ingress/api";
+import { wiktionary } from "../pipeline/wiktionary-core";
+import type { Lexeme, WikiLang } from "../types";
+import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
+import { lemma } from "./lemma-translate";
 
 export interface ConjugateCriteria {
     person?: "1" | "2" | "3";

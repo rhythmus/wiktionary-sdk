@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { conjugate, decline } from "../src/morphology";
+import { conjugate, decline } from "../src/convenience/morphology";
 import * as coreModule from "../src/pipeline/wiktionary-core";
 import * as apiModule from "../src/ingress/api";
-import { asLexemeRows } from "../src/library";
+import { asLexemeRows } from "../src/convenience";
 
 vi.mock("../src/pipeline/wiktionary-core", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/pipeline/wiktionary-core")>();
@@ -85,7 +85,7 @@ describe("morphology conjugate", () => {
         };
         vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
 
-        const { morphology } = await import("../src/morphology");
+        const { morphology } = await import("../src/convenience/morphology");
         const results = await morphology("έγραψα");
 
         expect(asLexemeRows(results as any)[0].value).toEqual({

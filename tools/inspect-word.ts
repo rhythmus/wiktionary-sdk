@@ -2,7 +2,7 @@ import {
     lemma, ipa, hyphenate, synonyms, antonyms, derivedTerms, relatedTerms, 
     partOfSpeech, etymology, morphology, conjugate, decline, pronounce, 
     translate, richEntry 
-} from "../src/library";
+} from "../src/convenience";
 import { format } from "../src/present/formatter";
 
 async function inspect(word: string, lang: any = "el") {
