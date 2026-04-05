@@ -4,6 +4,18 @@ This document provides specialized context for AI coding assistants working on t
 
 ---
 
+## Project stage: alpha — no backward-compatibility mandate
+
+**Directive (strong):** The SDK is **alpha**. There are **no external production users** who must be shielded from churn in **file paths**, **internal module layout**, **non-documented imports**, or **incidental APIs**.
+
+- **Do not** refuse or defer a structural refactor solely for “backward compatibility” of repo layout or deep import paths. Prefer **clarity, modularity, and maintainability** when they conflict with leaving old paths in place.
+- **Do** preserve intentional **public contracts**: the **`wiktionary-sdk` package entry** (today `src/index.ts` → built `dist`), **documented** shapes (`Lexeme`, `FetchResult`, …), **`SCHEMA_VERSION`**, **JSON Schema** parity (`schema/src/` → `build:schema`), and **test + CI green** after each change.
+- **Do** keep **CLI / webapp / library parity** (§4) when adding or moving **user-facing** convenience entrypoints.
+
+When in doubt: ship the refactor behind **green `npm run test:ci`**, updated **types/schema/docs**, and a **clear commit** — not behind compatibility shims unless a shim is explicitly requested for a release tag.
+
+---
+
 ## 🎯 Core Mission
 **Source-faithful extraction over linguistic inference.**
 We extract what is *explicitly* in the Wikitext. We do not guess stems, complete paradigms, or infer data not found in template parameters.
@@ -41,7 +53,7 @@ The engine is a decentralized registry of pure functions (`TemplateDecoder`). **
 A custom parser handles nested `{{...}}` structures. 
 - **Context**: Standard regex is insufficient for Wikitext. Always use the provided parser to extract `TemplateCall` objects.
 
-### 3. Entry Types (`src/types.ts`)
+### 3. Entry Types (`src/types.ts`; may move under `src/model/` per refactor plan)
 - `LEXEME`: A lemma (e.g., γράφω).
 - `INFLECTED_FORM`: A specific form (e.g., έγραψε) that maps to a lemma.
 
@@ -207,4 +219,5 @@ When roadmap items ship, update **`CHANGELOG.md`** (versioned notes + roadmap hi
 - [Wiktionary SDK spec](docs/wiktionary-sdk-spec.md) (ground truth)
 - [Form-of display & MediaWiki parse enrichment](docs/form-of-display-and-mediawiki-parse.md) (Lua vs wikitext, Spanish case, parse API rationale, what not to do)
 - [Query result dimensional matrix](docs/query-result-dimensional-matrix.md) (combinatorics: languages, PoS, etymologies, lexeme types, morph richness, fuzzy merge)
-- [Staged implementation plan](docs/STAGED_IMPLEMENTATION_PLAN.md) (remaining engineering + product backlog; delivered stages in `CHANGELOG.md`)
+- [Roadmap / staged product backlog](docs/ROADMAP.md) (remaining engineering + product work; delivered stages in `CHANGELOG.md`)
+- [**Modular `src/` layout refactor (phased)**](docs/src-layout-refactor-plan.md) (ingress → parse → decode → pipeline → present → convenience → model split; alpha-era, no path-compat obligation)
