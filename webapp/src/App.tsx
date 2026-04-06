@@ -142,15 +142,28 @@ function filterMergedStackIndices(results: Lexeme[], indices: number[]): number[
 }
 
 const PlainLexemeHtmlBlock: React.FC<{ lexeme: Lexeme }> = ({ lexeme }) => {
-  const html = useMemo(() => {
+  const rendered = useMemo(() => {
     try {
-      return format(lexeme, { mode: 'html-fragment' });
+      return { html: format(lexeme, { mode: 'html-fragment' }), error: null as string | null };
     } catch (e) {
       console.error('Format error:', e);
-      return '';
+      return {
+        html: '',
+        error: e instanceof Error ? e.message : 'Unknown formatter error',
+      };
     }
   }, [lexeme]);
-  return <div className="dict-merged-lexeme-block" dangerouslySetInnerHTML={{ __html: html }} />;
+  if (rendered.error) {
+    return (
+      <div className="dict-merged-lexeme-block">
+        <div className="app-error-banner" style={{ margin: 0 }}>
+          <AlertCircle size={16} />
+          Unable to render this lexeme block: {rendered.error}
+        </div>
+      </div>
+    );
+  }
+  return <div className="dict-merged-lexeme-block" dangerouslySetInnerHTML={{ __html: rendered.html }} />;
 };
 
 // ── SDK method registry ──────────────────────────────────────────────────────
@@ -585,7 +598,7 @@ const App: React.FC = () => {
             query: q,
             lang: compareLang,
             pos: prefPos,
-            enrich: true,
+            enrich: false,
             debugDecoders: debugMode,
             matchMode,
           });
@@ -1239,7 +1252,7 @@ const App: React.FC = () => {
             <button
               className={`dk-icon-btn${compareMode ? ' active-emerald' : ''}`}
               onClick={() => { setCompareMode((v) => !v); if (!compareMode && results.length > 0) handleSearch(); }}
-              title="Toggle comparison view"
+              title="Toggle comparison view (secondary fetch runs with enrich: false)"
             >
               <Columns2 size={11} /> Compare
             </button>
