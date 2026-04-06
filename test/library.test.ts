@@ -18,6 +18,7 @@
  * - translate(mode:senses, target=fr): explicit native-senses scrape branch behavior
  * - derive/related/hyper/hypo exact arrays: fixture currently does not mirror
  *   the synthetic target terms used by these assertions.
+ * - etymology chain mapping from lemma fixture
  * - pronounce() audio-url prioritization and wikidata/image/wikipediaLink:
  *   require explicit media/entity
  *   payload shapes that are currently synthetic in this file.
@@ -366,11 +367,17 @@ describe("convenience wrappers", () => {
     });
 
     it("etymology should return structured graph mapping macros to BCP-47 / labels", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         const result = await etymology("έγραψε", "el");
         expect(rows<any>(result)[0].value).toEqual([
             { lang: "grc", form: "γράφω" },
-            { lang: "Proto-Greek", form: "*grápʰō" },
+            { lang: "Proto-Greek", form: "*grəpʰō" },
             { lang: "PIE", form: "*gerbʰ-" }
         ]);
     });
