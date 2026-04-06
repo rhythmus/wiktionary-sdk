@@ -13,6 +13,14 @@ This document explains how tests are organized, how to mock Wiktionary/Wikidata 
 | `npm run refresh-recording` | Optional: `tsx tools/refresh-api-recording.ts [title]` to refresh `test/fixtures/api-recordings/minimal-query.json` from the API (review diff before commit). |
 | `npm run report:form-of` | Optional (network): `tsx tools/form-of-template-report.ts` — compares en.wiktionary Category:Form-of templates to `isFormOfTemplateName()`; writes `tools/form-of-template-report.md`. |
 
+### `test:network` on Windows / CI shells
+
+`npm run test:network` is portable, but if you need to run the env-gated test directly:
+
+- **bash/zsh**: `WIKT_TEST_LIVE=1 vitest run test/network-replay.test.ts`
+- **PowerShell**: `$env:WIKT_TEST_LIVE=1; vitest run test/network-replay.test.ts`
+- **cmd.exe**: `set WIKT_TEST_LIVE=1 && vitest run test/network-replay.test.ts`
+
 ## Mocking: prefer stubbing `src/api`
 
 The engine reaches the network through **`fetchWikitextEnWiktionary`**, **`fetchWikidataEntity`**, and **`mwFetchJson`** in `src/api.ts`.
@@ -95,6 +103,16 @@ Modules under test mirror extractions from **`webapp/src/App.tsx`**:
 - **`test/fixtures/api-recordings/minimal-query.json`** — synthetic MediaWiki `query` JSON.
 - **`test/network-replay.test.ts`** — asserts **`normalizeWiktionaryQueryPage`** (exported from `src/api.ts`) matches the shape used by **`fetchWikitextEnWiktionary`**.
 - **Live block** — skipped unless `WIKT_TEST_LIVE` is set (`npm run test:network`).
+
+### Refresh recording checklist (`npm run refresh-recording`)
+
+When updating `test/fixtures/api-recordings/minimal-query.json`:
+
+1. Keep the fixture minimal (single title path; avoid broad captures).
+2. Verify no secrets/tokens/headers are introduced.
+3. Check that text stays NFC-normalized (no accidental Unicode drift).
+4. Review diff size and structure; avoid unrelated fixture churn.
+5. Re-run `npm run test -- test/network-replay.test.ts` before committing.
 
 ## Performance tests
 
