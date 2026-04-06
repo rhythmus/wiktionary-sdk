@@ -3,7 +3,7 @@ import { mwFetchJson } from "../ingress/api";
 import { wiktionary } from "../pipeline/wiktionary-core";
 import type { Lexeme, WikiLang } from "../model";
 import { mapLexemes, type GroupedLexemeResults } from "./grouped-results";
-import { warnConjugate, warnDecline, warnMorphologyTraits, withExtractionSupport } from "./extraction-support";
+import { warnDecline, warnMorphologyTraits, withExtractionSupport } from "./extraction-support";
 import { lemma } from "./lemma-translate";
 
 export interface ConjugateCriteria {
