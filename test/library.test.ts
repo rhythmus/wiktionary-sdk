@@ -4,6 +4,8 @@
  *
  * Fixture-backed in this file:
  * - translate gloss path (Greek verb fixture)
+ * - translate gloss empty-path from inflected-only fixture
+ * - translate(mode:senses,target=en) from lemma fixture
  * - lemma resolution from inflected fixture
  * - synonyms basic extraction (Greek verb fixture)
  * - antonyms extraction (Greek verb fixture)
@@ -11,7 +13,7 @@
  * - partOfSpeech / usageNotes baseline extraction
  *
  * Mock-result only (current rationale):
- * - translate(mode:senses, target=en|fr): explicit native-senses branch behavior
+ * - translate(mode:senses, target=fr): explicit native-senses scrape branch behavior
  * - derive/related/hyper/hypo exact arrays: fixture currently does not mirror
  *   the synthetic target terms used by these assertions.
  * - pronounce()/wikidata/image/wikipediaLink: require explicit media/entity
@@ -156,50 +158,21 @@ describe("translate library function", () => {
     });
 
     it("should return empty array if no LEXEME is found in gloss mode", async () => {
-        const mockResult = {
-            schema_version: "1.0",
-            rawLanguageBlock: "",
-            notes: [],
-            lexemes: [
-                {
-                    id: "test:verb:εγραψε",
-                    language: "el",
-                    type: "INFLECTED_FORM",
-                    form: "έγραψε",
-                    part_of_speech_heading: "Verb"
-                }
-            ]
-        };
-        
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        mockFixturePages({ "έγραψε": inflected });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
 
         const resultNl = await translate("έγραψε", "el", "nl", { mode: "gloss" });
         expect(rows<string[]>(resultNl).every(r => r.value.length === 0)).toBe(true);
     });
 
     it("should extract English senses via wiktionary when mode is 'senses' and target is 'en'", async () => {
-        const mockResult = {
-            schema_version: "1.0",
-            rawLanguageBlock: "",
-            notes: [],
-            lexemes: [
-                {
-                    id: "test:verb:γραφω",
-                    language: "el",
-                    type: "LEXEME",
-                    form: "γράφω",
-                    part_of_speech_heading: "Verb",
-                    senses: [
-                        { gloss: "to write, pen" },
-                        { gloss: "to record" }
-                    ]
-                }
-            ]
-        };
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const lemmaPage = readFileSync(fixturePath("translations-multi.wikitext"), "utf-8");
+        mockFixturePages({ "γράφω": lemmaPage });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
 
         const resultEn = await translate("γράφω", "el", "en", { mode: "senses" });
-        expect(rows<string[]>(resultEn)[0].value).toEqual(["to write, pen", "to record"]);
+        expect(rows<string[]>(resultEn)[0].value).toEqual(["to write"]);
     });
 
     it("should scrape fr.wiktionary directly when mode is 'senses' and target is 'fr'", async () => {
