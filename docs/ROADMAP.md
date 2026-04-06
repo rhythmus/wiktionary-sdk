@@ -268,7 +268,7 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 
 ### 7.6 CHANGELOG discipline
 
-- [ ] When shipping phases above, append user-visible testing/infra notes under the next version in **`CHANGELOG.md`** (Keep a Changelog style).
+- [x] When shipping phases above, append user-visible testing/infra notes under the next version in **`CHANGELOG.md`** (Keep a Changelog style).
 
 ### 7.7 API recording refresh
 
@@ -276,7 +276,7 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 
 ### 7.8 Optional: shared fixture helper
 
-- [ ] Reduce duplication between **`readme_examples.test.ts`** and goldens via e.g. **`test/helper/fixture-fetch.ts`**.
+- [x] Reduce duplication between **`readme_examples.test.ts`** and goldens via e.g. **`test/helper/fixture-fetch.ts`**.
 
 ### 7.9 Audit §13 follow-through
 

@@ -29,7 +29,8 @@ for its output schema (see `VERSIONING.md`).
 - **Webapp compare and card UX:** compare fetch runs with `enrich: false` (tooltip updated), and plain lexeme formatter failures now render an inline error block instead of a blank card.
 - **Webapp structure:** extracted `PlainLexemeHtmlBlock` and lexeme pill-group helper logic from `App.tsx` into dedicated modules for behavior-neutral component thinning.
 - **Test docs:** `test/README.md` now documents cross-shell `WIKT_TEST_LIVE` invocation and a `refresh-recording` review checklist.
-- **Library test strategy:** `test/library.test.ts` now includes a first fixture-backed migration slice (translate gloss + synonyms) while retaining explicit mock-result cases where fixture parity is not yet wired.
+- **Library test strategy:** `test/library.test.ts` fixture-backed coverage was expanded (including phonetic and etymology paths), and mock-only cases are now explicitly documented in `test/README.md` via a wrapper coverage matrix.
+- **Shared test fixture helper:** extracted reusable fixture-loading/API-stub utilities to `test/helper/fixture-fetch.ts`, and migrated `test/readme_examples.test.ts` plus `test/golden/entry-snapshots.test.ts` to reduce duplication while preserving behavior.
 
 ---
 
