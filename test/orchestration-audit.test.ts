@@ -147,6 +147,68 @@ describe("orchestration audit (§13.1)", () => {
     expect(priLangs.indexOf("el")).toBeLessThan(priLangs.indexOf("grc"));
   });
 
+  it("sort: priority accepts custom language ranks and applies secondary keys", async () => {
+    const wt = `==Greek==
+===Etymology 2===
+===Verb===
+# el verb sense
+===Etymology 1===
+===Noun===
+# el noun sense
+==Ancient Greek==
+===Etymology 2===
+===Verb===
+# grc verb sense
+===Etymology 1===
+===Noun===
+# grc noun sense
+`;
+    vi.mocked(api.fetchWikitextEnWiktionary).mockResolvedValue(mockPage("mix", wt));
+
+    const pri = await wiktionary({
+      query: "mix",
+      lang: "Auto",
+      enrich: false,
+      sort: {
+        strategy: "priority",
+        priorities: { grc: 1, el: 2 },
+      },
+    });
+
+    const langsAndKeys = pri.lexemes.map((l) => ({
+      language: l.language,
+      ety: l.etymology_index ?? 999,
+      pos: l.part_of_speech_heading,
+    }));
+    expect(langsAndKeys[0].language).toBe("grc");
+    expect(langsAndKeys[1].language).toBe("grc");
+    expect(langsAndKeys[2].language).toBe("el");
+    expect(langsAndKeys[3].language).toBe("el");
+    expect(langsAndKeys[0].ety).toBeLessThanOrEqual(langsAndKeys[1].ety);
+    expect(langsAndKeys[2].ety).toBeLessThanOrEqual(langsAndKeys[3].ety);
+  });
+
+  it("sort: priority applies PoS heading as secondary key within same language + etymology", async () => {
+    const wt = `==Greek==
+===Etymology 1===
+===Verb===
+# el verb sense
+===Noun===
+# el noun sense
+`;
+    vi.mocked(api.fetchWikitextEnWiktionary).mockResolvedValue(mockPage("mix-pos", wt));
+
+    const pri = await wiktionary({
+      query: "mix-pos",
+      lang: "el",
+      enrich: false,
+      sort: "priority",
+    });
+
+    const headings = pri.lexemes.map((l) => l.part_of_speech_heading);
+    expect(headings).toEqual(["Noun", "Verb"]);
+  });
+
   it("pos filter keeps only matching PoS blocks", async () => {
     const wt = `==English==
 ===Noun===

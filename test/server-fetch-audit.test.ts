@@ -54,6 +54,27 @@ describe("buildApiFetchResponse", () => {
     );
   });
 
+  it("forwards langPriorities as structured sort configuration", async () => {
+    const stub = vi.fn().mockResolvedValue({
+      schema_version: "3.0.0",
+      rawLanguageBlock: "",
+      lexemes: [],
+      notes: [],
+    } satisfies FetchResult);
+    await buildApiFetchResponse(
+      new URL("http://localhost/api/fetch?query=dog&lang=en&sort=priority&langPriorities=grc=1,el=2,en=3"),
+      { wiktionaryFn: stub as any },
+    );
+    expect(stub).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sort: {
+          strategy: "priority",
+          priorities: { grc: 1, el: 2, en: 3 },
+        },
+      }),
+    );
+  });
+
   it("maps legacy pos= to preferredPos and uses filterPos for pos filter", async () => {
     const stub = vi.fn().mockResolvedValue({
       schema_version: "3.0.0",

@@ -1,6 +1,7 @@
 import { format } from '@engine/present/formatter';
 import { invokeWrapperMethod as defaultInvoke, wiktionary } from '@engine/index';
 import type { WikiLang } from '@engine/model';
+import type { LexemeSortOption } from '@engine/index';
 
 export type PlaygroundApiExecuteDeps = {
   apiMethod: string;
@@ -13,7 +14,7 @@ export type PlaygroundApiExecuteDeps = {
   enrich?: boolean;
   debugDecoders?: boolean;
   matchMode?: 'strict' | 'fuzzy';
-  sort?: 'source' | 'priority';
+  sort?: LexemeSortOption;
   /** Injected for tests */
   invokeWrapper?: typeof defaultInvoke;
 };

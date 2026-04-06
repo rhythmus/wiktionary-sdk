@@ -1,4 +1,5 @@
 export { wiktionary, wiktionaryRecursive, stripCombiningMarksForPageTitle } from "./pipeline/wiktionary-core";
+export type { LexemeSortOption, LexemeSortStrategy } from "./pipeline/wiktionary-core";
 
 export {
     LANG_PRIORITY,

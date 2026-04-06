@@ -22,7 +22,7 @@ Each **lexeme** in `FetchResult.lexemes` is keyed in the pipeline by the Cartesi
 | **H. Form-of / morph richness** | `form_of`, `senses[].subsenses`, `display_morph_lines` | Plain lemma card vs template-only stub vs multi-line morph (wikitext `##`, tags, abbrev, or `mediawiki_parse`). |
 | **I. Lemma resolution** | Second `wiktionaryRecursive` for unique `(lang, lemma)` | Only for `INFLECTED_FORM` with `form_of.lemma`; deduped; cycle guard; lemma page may be missing. |
 | **J. Enrichment** | `enrich` | Wikidata on **lemma** lexemes; `display_morph_lines` via `action=parse` on **inflected** stubs when gated. |
-| **K. Ordering** | `sort: "source" \| "priority"` | Source order vs language-priority reorder of merged array. |
+| **K. Ordering** | `sort: "source" \| "priority" \| { strategy, priorities? }` | Source order vs language-priority reorder of merged array; caller may override priority ranks. |
 
 The **simplest** case is one point in each axis: existing page, strict match, one language, one etymology, one PoS, type `LEXEME`, no form_of, no extra fetches.
 

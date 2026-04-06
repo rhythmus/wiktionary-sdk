@@ -299,11 +299,11 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 
 | # | Todo |
 |---|------|
-| 8.1 | Design **API shape** (TypeScript + CLI + REST): e.g. `sort: { strategy: "priority", priorities: Record<string, number> }` and `--lang-priorities el=1,grc=2,…`. Update spec §1 / §12.28. |
-| 8.2 | Implement comparator in engine module (post–Phase 3); wire defaults via Phase 2.3 constants. |
-| 8.3 | **Secondary sort keys:** same language → `etymology_index` asc → PoS heading; optional hooks for domain consumers. |
-| 8.4 | **CLI & webapp:** sort strategy toggle; document vs **`sort: "source"`** default. |
-| 8.5 | **Tests:** matrix-style multi-language fixtures for ordering. |
+| 8.1 | **Done** — API shape supports `sort: { strategy: "priority", priorities: Record<string, number> }` while keeping string shorthand; CLI adds `--lang-priorities`; REST accepts `langPriorities=el=1,grc=2,...`; spec §1 / §12.28 updated. |
+| 8.2 | **Done** — comparator centralized in `wiktionary-core` with normalized sort option defaults from `LANG_PRIORITY`. |
+| 8.3 | **Done** — secondary keys implemented for priority sort: same language → `etymology_index` asc → `part_of_speech_heading` alphabetical. |
+| 8.4 | **Done** — CLI and webapp expose source vs priority strategy; webapp/search + playground pass sort strategy through; docs clarify default `source`. |
+| 8.5 | **Done** — ordering tests extended with multi-language/custom-rank and same-language secondary-key assertions. |
 
 **Risk:** Medium (API design). **Depends on:** Phases 2–3.
 

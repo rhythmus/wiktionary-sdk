@@ -31,6 +31,7 @@ for its output schema (see `VERSIONING.md`).
 - **Test docs:** `test/README.md` now documents cross-shell `WIKT_TEST_LIVE` invocation and a `refresh-recording` review checklist.
 - **Library test strategy:** `test/library.test.ts` fixture-backed coverage was expanded (including phonetic and etymology paths), and mock-only cases are now explicitly documented in `test/README.md` via a wrapper coverage matrix.
 - **Shared test fixture helper:** extracted reusable fixture-loading/API-stub utilities to `test/helper/fixture-fetch.ts`, and migrated `test/readme_examples.test.ts` plus `test/golden/entry-snapshots.test.ts` to reduce duplication while preserving behavior.
+- **Configurable priority sort:** `wiktionary({ sort })` now accepts structured sort options (`{ strategy: "priority", priorities }`) in addition to string shorthand, with deterministic secondary keys (`etymology_index`, then PoS heading). CLI adds `--lang-priorities`, REST accepts `langPriorities=el=1,grc=2,...`, and webapp exposes source/priority strategy toggles.
 
 ---
 

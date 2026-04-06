@@ -16,6 +16,7 @@
  *   --target, -t     Target language (used for translate, wikipediaLink)
  *   --props          JSON object string to pass criteria/options
  *   --sort, -s       Lexeme sort order: source | priority (default: source)
+ *   --lang-priorities Comma map for priority sort (e.g. el=1,grc=2,en=3)
  *   --batch, -b      Path to a CSV or JSON file with terms to process
  *   --output, -o     Output file path (default: stdout)
  *   --help, -h       Show this help message
@@ -24,6 +25,7 @@
 import { wiktionary } from "../src/index";
 import * as SDK from "../src/index";
 import type { WikiLang, FetchResult } from "../src/model";
+import type { LexemeSortOption, LexemeSortStrategy } from "../src/index";
 import { invokeWrapperMethod } from "../src/convenience/wrapper-invoke";
 import { readFileSync, writeFileSync } from "fs";
 
@@ -33,7 +35,8 @@ interface CliOptions {
   format: "yaml" | "json" | "ansi";
   preferredPos?: string;
   enrich: boolean;
-  sort: "source" | "priority";
+  sort: LexemeSortStrategy;
+  langPriorities?: Record<string, number>;
   extract?: string;
   targetLang?: string;
   props?: any;
@@ -106,6 +109,14 @@ function parseArgs(argv: string[]): CliOptions {
         process.exit(1);
       }
       opts.sort = s;
+    } else if (arg === "--lang-priorities") {
+      const raw = args[++i];
+      const parsed = parseLangPriorities(raw);
+      if (!parsed) {
+        console.error(`Invalid --lang-priorities value: ${raw}. Use format like el=1,grc=2,en=3`);
+        process.exit(1);
+      }
+      opts.langPriorities = parsed;
     } else if (arg === "--batch" || arg === "-b") {
       opts.batchFile = args[++i];
     } else if (arg === "--output" || arg === "-o") {
@@ -138,6 +149,9 @@ Options:
   --extract, -x <fn> Call specific explicit function (e.g. stem, conjugate, ipa, synonyms)
   --target, -t <lng> Output target language for translation functions
   --props <json>     JSON payload for nested options/criteria (e.g. conjugate criteria)
+  --sort, -s <mode>  Lexeme sort order: source | priority (default: source)
+  --lang-priorities <map>
+                     Override language ranks for priority sort (e.g. el=1,grc=2,en=3)
   --batch, -b <file> Batch file (one term per line, or JSON array)
   --output, -o <file> Write output to file instead of stdout
   --help, -h         Show this help
@@ -149,8 +163,29 @@ Examples:
   wiktionary-sdk Σωκράτης --extract isInstance --props '{"qid":"Q5"}'
   wiktionary-sdk γράφω --extract rhymes
   wiktionary-sdk γράφω --lang el --format json
+  wiktionary-sdk γράφω --sort priority --lang-priorities el=1,en=2,grc=3
   wiktionary-sdk --batch terms.txt --format yaml --output results.yaml
 `);
+}
+
+function parseLangPriorities(raw: string | undefined): Record<string, number> | null {
+  if (!raw) return null;
+  const out: Record<string, number> = {};
+  for (const chunk of raw.split(",")) {
+    const trimmed = chunk.trim();
+    if (!trimmed) continue;
+    const [langRaw, rankRaw] = trimmed.split("=");
+    if (!langRaw || !rankRaw) return null;
+    const rank = Number(rankRaw.trim());
+    if (!Number.isFinite(rank)) return null;
+    out[langRaw.trim()] = rank;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function buildSortOption(opts: Pick<CliOptions, "sort" | "langPriorities">): LexemeSortOption {
+  if (opts.sort !== "priority" || !opts.langPriorities) return opts.sort;
+  return { strategy: "priority", priorities: opts.langPriorities };
 }
 
 function loadBatchTerms(filePath: string): string[] {
@@ -221,7 +256,7 @@ async function main(): Promise<void> {
             lang: opts.lang,
             preferredPos: opts.preferredPos,
             enrich: opts.enrich,
-            sort: opts.sort,
+            sort: buildSortOption(opts),
           });
       }
       

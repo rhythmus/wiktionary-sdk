@@ -40,6 +40,14 @@ import { deepMerge, commonsThumbUrl, parallelMap } from "../infra/utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
 import { LANG_PRIORITY } from "../infra/constants";
 
+export type LexemeSortStrategy = "source" | "priority";
+export type LexemeSortOption =
+    | LexemeSortStrategy
+    | {
+        strategy: LexemeSortStrategy;
+        priorities?: Record<string, number>;
+    };
+
 function wikidataSitelinkUrl(site: string | undefined, title: string | undefined): string | undefined {
     if (!site || !title || !site.endsWith("wiki")) return undefined;
     const lang = site.slice(0, -4);
@@ -70,7 +78,7 @@ export async function wiktionary(
         preferredPos?: string;
         enrich?: boolean;
         debugDecoders?: boolean;
-        sort?: "source" | "priority";
+        sort?: LexemeSortOption;
         matchMode?: "strict" | "fuzzy";
         /** Max concurrent lemma-resolution fetches (default: unlimited). */
         lemmaFetchConcurrency?: number;
@@ -78,11 +86,12 @@ export async function wiktionary(
         formOfParseConcurrency?: number;
     },
 ): Promise<FetchResult> {
+    const normalizedSort = normalizeSortOption(opts.sort);
     const normalizedOpts = {
         ...opts,
         lang: opts.lang || "Auto",
         pos: opts.pos || "Auto",
-        sort: opts.sort || "source",
+        sort: normalizedSort,
         matchMode: opts.matchMode || "strict",
     };
 
@@ -135,14 +144,15 @@ export async function wiktionary(
         notes.push(`No strict or fuzzy variants matched for "${normalizedOpts.query}".`);
     }
 
+    const sortedFuzzy = sortLexemesWithDebug(mergedLexemes, includeDebug ? mergedDebug : undefined, normalizedSort);
     const out: FetchResult = {
         schema_version: SCHEMA_VERSION,
         rawLanguageBlock,
-        lexemes: mergedLexemes,
+        lexemes: sortedFuzzy.lexemes,
         notes,
         metadata,
     };
-    if (includeDebug) out.debug = mergedDebug;
+    if (includeDebug) out.debug = sortedFuzzy.debug;
     return out;
 }
 
@@ -189,7 +199,7 @@ export async function wiktionaryRecursive({
     preferredPos?: string;
     enrich?: boolean;
     debugDecoders?: boolean;
-    sort?: "source" | "priority";
+    sort?: LexemeSortOption;
     lemmaFetchConcurrency?: number;
     formOfParseConcurrency?: number;
     _visited: Set<string>;
@@ -510,22 +520,19 @@ export async function wiktionaryRecursive({
         }
     }
 
-    if (sort === "priority") {
-        merged.sort((a, b) => {
-            if (a.language !== b.language) {
-                const pA = LANG_PRIORITY[a.language] || 100;
-                const pB = LANG_PRIORITY[b.language] || 100;
-                if (pA !== pB) return pA - pB;
-                return a.language.localeCompare(b.language);
-            }
-            return a.part_of_speech_heading.localeCompare(b.part_of_speech_heading);
-        });
-    }
+    const normalizedSort = normalizeSortOption(sort);
+    const sortedMerged = sortLexemesWithDebug(
+        merged,
+        debugDecoders && allDebugEvents.length > 0
+            ? allDebugEvents.concat(Array.from({ length: resolvedLexemes.length }, () => [] as DecoderDebugEvent[]))
+            : undefined,
+        normalizedSort,
+    );
 
     const out: FetchResult = {
         schema_version: SCHEMA_VERSION,
         rawLanguageBlock: lang === "Auto" ? qPage.wikitext : searchSections[0]?.block || "",
-        lexemes: merged,
+        lexemes: sortedMerged.lexemes,
         notes: resolvedPageTitleNote && debugDecoders ? [resolvedPageTitleNote] : [],
         metadata: {
             categories: (qPage as any).categories || [],
@@ -533,11 +540,59 @@ export async function wiktionaryRecursive({
             info: (qPage as any).info || {},
         },
     };
-    if (debugDecoders && allDebugEvents.length > 0) {
-        const padding = Array.from({ length: resolvedLexemes.length }, () => [] as DecoderDebugEvent[]);
-        out.debug = allDebugEvents.concat(padding);
+    if (debugDecoders && sortedMerged.debug) {
+        out.debug = sortedMerged.debug;
     }
     return out;
+}
+
+function normalizeSortOption(sort: LexemeSortOption | undefined): { strategy: LexemeSortStrategy; priorities: Record<string, number> } {
+    if (!sort) {
+        return { strategy: "source", priorities: LANG_PRIORITY };
+    }
+    if (typeof sort === "string") {
+        return { strategy: sort, priorities: LANG_PRIORITY };
+    }
+    return {
+        strategy: sort.strategy,
+        priorities: { ...LANG_PRIORITY, ...(sort.priorities ?? {}) },
+    };
+}
+
+function languagePriority(lang: string, priorities: Record<string, number>): number {
+    return priorities[lang] ?? 100;
+}
+
+function compareLexemesForPriority(a: Lexeme, b: Lexeme, priorities: Record<string, number>): number {
+    if (a.language !== b.language) {
+        const pA = languagePriority(a.language, priorities);
+        const pB = languagePriority(b.language, priorities);
+        if (pA !== pB) return pA - pB;
+        return a.language.localeCompare(b.language);
+    }
+    const etA = a.etymology_index ?? Number.MAX_SAFE_INTEGER;
+    const etB = b.etymology_index ?? Number.MAX_SAFE_INTEGER;
+    if (etA !== etB) return etA - etB;
+    return a.part_of_speech_heading.localeCompare(b.part_of_speech_heading);
+}
+
+function sortLexemesWithDebug(
+    lexemes: Lexeme[],
+    debugRows: DecoderDebugEvent[][] | undefined,
+    sort: { strategy: LexemeSortStrategy; priorities: Record<string, number> },
+): { lexemes: Lexeme[]; debug?: DecoderDebugEvent[][] } {
+    if (sort.strategy !== "priority") {
+        return debugRows ? { lexemes, debug: debugRows } : { lexemes };
+    }
+    const rows = lexemes.map((lexeme, idx) => ({
+        lexeme,
+        debug: debugRows?.[idx] ?? [],
+    }));
+    rows.sort((a, b) => compareLexemesForPriority(a.lexeme, b.lexeme, sort.priorities));
+    return {
+        lexemes: rows.map((r) => r.lexeme),
+        ...(debugRows ? { debug: rows.map((r) => r.debug) } : {}),
+    };
 }
 
 function guessLexemeTypeFromTemplates(templates: any[]) {

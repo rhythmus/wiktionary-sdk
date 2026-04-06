@@ -12,6 +12,7 @@ import {
   citations, descendants, referencesSection, etymologyChain, etymologyCognates, etymologyText,
   categories, langlinks, inflectionTableRef, gender, transitivity,
 } from '@engine/index';
+import type { LexemeSortStrategy } from '@engine/index';
 import { ENTRY_CSS } from '@engine/present/templates/templates';
 import { SHARED_COPY } from './shared-copy.generated';
 import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/model';
@@ -112,6 +113,11 @@ const MATCH_OPTIONS = [
   { value: 'strict', label: 'Strict match', narrow: 'St' },
 ] as const;
 
+const SORT_OPTIONS: Array<{ value: LexemeSortStrategy; label: string; narrow: string }> = [
+  { value: 'source', label: 'Source order', narrow: 'Src' },
+  { value: 'priority', label: 'Priority order', narrow: 'Pri' },
+];
+
 // Removed duplicate langName helper
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -150,6 +156,7 @@ function playgroundTypescriptSnippet(
   apiPropsRaw: string,
   matchMode: 'strict' | 'fuzzy',
   debugDecoders: boolean,
+  sortStrategy: LexemeSortStrategy,
 ): string {
   const q = JSON.stringify(query || '');
   const langLit = JSON.stringify(lang);
@@ -159,7 +166,8 @@ function playgroundTypescriptSnippet(
     const importLine = `import { wiktionary } from "wiktionary-sdk";`;
     const mm = JSON.stringify(matchMode);
     const dbg = debugDecoders ? 'true' : 'false';
-    return `${importLine}\n\nawait wiktionary({ query: ${q}, lang: ${langLit}, pos: ${posLit}, enrich: true, debugDecoders: ${dbg}, matchMode: ${mm}, sort: "source" });`;
+    const sort = JSON.stringify(sortStrategy);
+    return `${importLine}\n\nawait wiktionary({ query: ${q}, lang: ${langLit}, pos: ${posLit}, enrich: true, debugDecoders: ${dbg}, matchMode: ${mm}, sort: ${sort} });`;
   }
 
   let props: Record<string, unknown> | undefined;
@@ -267,8 +275,18 @@ function buildPlaygroundTsSource(
   apiLoading: boolean,
   matchMode: 'strict' | 'fuzzy',
   debugDecoders: boolean,
+  sortStrategy: LexemeSortStrategy,
 ): string {
-  const base = playgroundTypescriptSnippet(method, query, lang, prefPos, apiProps, matchMode, debugDecoders);
+  const base = playgroundTypescriptSnippet(
+    method,
+    query,
+    lang,
+    prefPos,
+    apiProps,
+    matchMode,
+    debugDecoders,
+    sortStrategy,
+  );
   return `${base}\n\n${playgroundResultAppendix(apiResult, apiLoading)}`;
 }
 
@@ -278,12 +296,14 @@ function buildPlaygroundCurlSnippet(
   lang: WikiLang,
   prefPos: string,
   apiProps: string,
+  sortStrategy: LexemeSortStrategy,
 ): string {
   const base = 'http://localhost:3000/api/fetch';
   const params = new URLSearchParams();
   params.set('query', query || '…');
   if (lang && lang !== 'Auto') params.set('lang', lang);
   if (prefPos && prefPos !== 'Auto') params.set('pos', prefPos);
+  params.set('sort', sortStrategy);
   if (method && method !== 'wiktionary') params.set('extract', method);
 
   if (apiProps.trim()) {
@@ -380,6 +400,7 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<WikiLang>('Auto');
   const [prefPos, setPrefPos] = useState('Auto');
   const [matchMode, setMatchMode] = useState<'strict' | 'fuzzy'>('fuzzy');
+  const [sortStrategy, setSortStrategy] = useState<LexemeSortStrategy>('source');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Lexeme[]>([]);
   const [rawBlock, setRawBlock] = useState('');
@@ -447,7 +468,15 @@ const App: React.FC = () => {
     setError(null);
     setSelectedEntryIdx(0);
     try {
-      const res = await wiktionary({ query: q, lang, pos: prefPos, enrich: true, debugDecoders: debugMode, matchMode });
+      const res = await wiktionary({
+        query: q,
+        lang,
+        pos: prefPos,
+        enrich: true,
+        debugDecoders: debugMode,
+        matchMode,
+        sort: sortStrategy,
+      });
       setResults(res.lexemes);
       setRawBlock(res.rawLanguageBlock);
       setDebugEvents(res.debug ?? []);
@@ -463,6 +492,7 @@ const App: React.FC = () => {
             enrich: false,
             debugDecoders: debugMode,
             matchMode,
+            sort: sortStrategy,
           });
           setCompareResults(cRes.lexemes);
           setCompareRawBlock(cRes.rawLanguageBlock);
@@ -481,7 +511,7 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [lang, prefPos, matchMode, compareMode, compareLang, debugMode]);
+  }, [lang, prefPos, matchMode, compareMode, compareLang, debugMode, sortStrategy]);
 
   const handleApiExecute = useCallback(async (queryOverride?: string) => {
     const qEff = (queryOverride ?? query).trim();
@@ -496,7 +526,7 @@ const App: React.FC = () => {
       enrich: true,
       debugDecoders: debugMode,
       matchMode,
-      sort: 'source',
+      sort: sortStrategy,
     });
     if (!out.ok && out.error === 'invalid_json') {
       setApiResult({ error: 'Invalid JSON' });
@@ -515,7 +545,7 @@ const App: React.FC = () => {
       setApiFormatted(out.formatted);
     }
     setApiLoading(false);
-  }, [apiMethod, apiProps, query, lang, prefPos, matchMode, debugMode]);
+  }, [apiMethod, apiProps, query, lang, prefPos, matchMode, debugMode, sortStrategy]);
 
   const runWiktionaryForUiRef = useRef(runWiktionaryForUi);
   runWiktionaryForUiRef.current = runWiktionaryForUi;
@@ -654,13 +684,24 @@ const App: React.FC = () => {
 
   const playgroundTsSource = useMemo(
     () =>
-      buildPlaygroundTsSource(apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode),
-    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode],
+      buildPlaygroundTsSource(
+        apiMethod,
+        query,
+        lang,
+        prefPos,
+        apiProps,
+        apiResult,
+        apiLoading,
+        matchMode,
+        debugMode,
+        sortStrategy,
+      ),
+    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode, sortStrategy],
   );
 
   const playgroundCurlSource = useMemo(
-    () => buildPlaygroundCurlSnippet(apiMethod, query, lang, prefPos, apiProps),
-    [apiMethod, query, lang, prefPos, apiProps],
+    () => buildPlaygroundCurlSnippet(apiMethod, query, lang, prefPos, apiProps, sortStrategy),
+    [apiMethod, query, lang, prefPos, apiProps, sortStrategy],
   );
 
   // Release restored/fixed heights when new content arrives so windows can
@@ -755,6 +796,18 @@ const App: React.FC = () => {
                   </option>
                 ))}
               </select>
+              <select
+                className="bar-select-match"
+                aria-label="Sort strategy"
+                value={sortStrategy}
+                onChange={(e) => setSortStrategy(e.target.value as LexemeSortStrategy)}
+              >
+                {SORT_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {narrowSearchBar ? s.narrow : s.label}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
           <button type="submit" className="fetch-btn" disabled={loading}>
@@ -797,6 +850,18 @@ const App: React.FC = () => {
               {MATCH_OPTIONS.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="bar-select-match"
+              aria-label="Sort strategy"
+              value={sortStrategy}
+              onChange={(e) => setSortStrategy(e.target.value as LexemeSortStrategy)}
+            >
+              {SORT_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </select>

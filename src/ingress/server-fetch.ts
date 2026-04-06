@@ -31,6 +31,21 @@ function parseSort(raw: string | null): "source" | "priority" {
   return raw?.toLowerCase() === "priority" ? "priority" : "source";
 }
 
+function parseLangPriorities(raw: string | null): Record<string, number> | undefined {
+  if (!raw) return undefined;
+  const out: Record<string, number> = {};
+  for (const chunk of raw.split(",")) {
+    const trimmed = chunk.trim();
+    if (!trimmed) continue;
+    const [langRaw, rankRaw] = trimmed.split("=");
+    if (!langRaw || !rankRaw) continue;
+    const rank = Number(rankRaw.trim());
+    if (!Number.isFinite(rank)) continue;
+    out[langRaw.trim()] = rank;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function parseOptionalPositiveInt(raw: string | null): number | undefined {
   if (raw == null || raw === "") return undefined;
   const n = Number(raw);
@@ -59,6 +74,7 @@ export async function buildApiFetchResponse(
   const enrich = parseEnrichParam(url.searchParams.get("enrich"));
   const matchMode = parseMatchMode(url.searchParams.get("matchMode"));
   const sort = parseSort(url.searchParams.get("sort"));
+  const sortPriorities = parseLangPriorities(url.searchParams.get("langPriorities"));
   const debugDecoders = parseDebugDecodersParam(url.searchParams.get("debugDecoders"));
   const lemmaFetchConcurrency = parseOptionalPositiveInt(url.searchParams.get("lemmaFetchConcurrency"));
   const formOfParseConcurrency = parseOptionalPositiveInt(url.searchParams.get("formOfParseConcurrency"));
@@ -79,7 +95,7 @@ export async function buildApiFetchResponse(
       preferredPos,
       enrich,
       matchMode,
-      sort,
+      sort: sortPriorities ? { strategy: sort, priorities: sortPriorities } : sort,
       debugDecoders,
       ...(lemmaFetchConcurrency != null ? { lemmaFetchConcurrency } : {}),
       ...(formOfParseConcurrency != null ? { formOfParseConcurrency } : {}),

@@ -1,7 +1,7 @@
 /**
  * Lightweight HTTP API wrapper for the Wiktionary SDK engine.
  *
- * GET /api/fetch?query=<term>&lang=<code>&pos=<legacy preferredPos>&filterPos=<pos filter>&preferredPos=<...>&matchMode=strict|fuzzy&sort=source|priority&debugDecoders=true&enrich=<bool>&format=<yaml|json>
+ * GET /api/fetch?query=<term>&lang=<code>&pos=<legacy preferredPos>&filterPos=<pos filter>&preferredPos=<...>&matchMode=strict|fuzzy&sort=source|priority&langPriorities=el=1,grc=2&debugDecoders=true&enrich=<bool>&format=<yaml|json>
  * GET /api/health
  *
  * Run:  npx tsx server.ts

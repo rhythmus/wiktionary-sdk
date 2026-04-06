@@ -18,14 +18,13 @@ Given:
 - `pos: string` (optional; defaults to `"Auto"`)
 - optional disambiguators:
   - `enrich_wikidata?: boolean` (lemma-only)
-  - `sort?: "source" | "priority"` (defaults to `"source"`)
+  - `sort?: "source" | "priority" | { strategy: "source" | "priority", priorities?: Record<string, number> }` (defaults to `"source"`)
     - `"source"`: preserve the order in which language sections and PoS blocks
       appear in the Wiktionary source markup. This is the default, honoring
       the principle of source-faithful extraction.
-    - `"priority"`: apply a hardcoded language-priority heuristic
-      (`el` > `grc` > `en`; all others at equal rank), then sort
-      alphabetically within the same tier. Useful when the caller wants
-      Modern Greek results first regardless of source order.
+    - `"priority"`: apply language-priority ordering (default map:
+      `el` > `grc` > `en`; caller map can override), then apply
+      secondary keys within language (`etymology_index` asc, then PoS heading).
   - `matchMode?: "strict" | "fuzzy"` (defaults to `"strict"`)
     - `"strict"`: single fetch for the query string (existing behaviour).
     - `"fuzzy"`: try normalised query variants (e.g. combining-mark stripping), merge deduplicated lexemes, and append human-readable notes when a variant produced results.
@@ -55,7 +54,7 @@ The **canonical** async function for full extraction is **`wiktionary()`**, expo
 | `preferredPos` | `string?` | — | When resolving lemma pages with multiple `LEXEME` rows, prefer rows matching the same query (strict `part_of_speech` or section slug); sets `preferred: true` on matches. |
 | `enrich` | `boolean` | `true` | If `true`: Wikidata enrichment for lemma lexemes **and** optional **form-of** `display_morph_lines` via `action=parse` (see §3.5d, `src/form-of-parse-enrich.ts`). If `false`, both paths are skipped. |
 | `debugDecoders` | `boolean` | `false` | Populate `FetchResult.debug` with per-lexeme `DecoderDebugEvent[]` from the registry. |
-| `sort` | `"source"` \| `"priority"` | `"source"` | Lexeme ordering after merge (see §12.28). |
+| `sort` | `"source"` \| `"priority"` \| `{ strategy, priorities? }` | `"source"` | Lexeme ordering after merge (see §12.28). |
 | `matchMode` | `"strict"` \| `"fuzzy"` | `"strict"` | Strict: single page fetch for `query`. Fuzzy: union of deduplicated lexemes across NFC, lowercased, and combining-mark-stripped variants (`stripCombiningMarksForPageTitle`), with `notes` explaining variants (see `src/index.ts`). |
 
 **Internal recursion:** `wiktionaryRecursive()` performs the actual work: page fetch, section walk, decode, optional form-of parse batch, lemma fetches for `INFLECTED_FORM`, Wikidata attachment, then merge of primary + resolved lemma lexemes. A visited set keyed by `` `${lang}:${title}` `` prevents infinite lemma cycles.
@@ -1175,13 +1174,18 @@ relevant language first regardless of source order.
 - `"source"` (default): preserves the order in which language sections
   appear in the Wiktionary source markup. For "γράφω", this gives
   `[Ancient Greek, Greek, Italiot Greek]`.
-- `"priority"`: applies a hardcoded heuristic (`el` > `grc` > `en`, then
-  alphabetical), yielding `[Greek, Ancient Greek, Italiot Greek]`.
+- `"priority"`: applies a language-priority heuristic (`el` > `grc` > `en`
+  by default), yielding `[Greek, Ancient Greek, Italiot Greek]` for that map.
+- `{ strategy: "priority", priorities: { ... } }`: caller-supplied rank map
+  for product-specific ordering (e.g. `grc` first for historical corpora).
+
+Within the same language tier, secondary keys are deterministic:
+1. `etymology_index` ascending
+2. `part_of_speech_heading` alphabetical
 
 **Design choice:** Source order is the default because it honors the
-"source-faithful extraction" principle. Priority sorting is opt-in. The
-priority map is minimal and intentionally limited; a future roadmap item
-(Stage 23) covers configurable priority maps and secondary sort keys.
+"source-faithful extraction" principle. Priority sorting remains opt-in,
+and is now configurable without changing extraction semantics.
 
 #### 12.28.1 Extraction support transparency (`support_warning`)
 
@@ -1688,7 +1692,7 @@ Per-lexeme **`categories`** are filtered in `index.ts` with a substring heuristi
 
 The codebase is deliberately modular so the following extensions can be pursued without breaking the “source-faithful decoder registry” invariant:
 
-1. **Configurable language priority**: Replace the hardcoded `LANG_PRIORITY` map in `wiktionary({ sort: "priority" })` with caller-supplied ordering or locale profiles (see §12.28).
+1. **Language-priority profiles**: Build higher-level presets/locales on top of configurable `wiktionary({ sort: { strategy: "priority", priorities } })` (see §12.28).
 2. **REST/CLI parity**: Thread `matchMode`, `sort`, `debugDecoders`, and true `pos` filter through `server.ts` query params; align default `lang` with library (`Auto` vs `el`).
 3. **Non–en.wiktionary wikis**: Introduce a site parameter (e.g. `el.wiktionary.org`) with separate normalizers; most of the pipeline (brace-aware parse, registry) is reusable, but section headings and template families differ.
 4. **Decoder expansion**: Continue category-driven coverage (`template-introspect`, `report:form-of`); keep **one registration per `id`**, evidence in fixtures or allowlist (`decoder-coverage.test.ts`).

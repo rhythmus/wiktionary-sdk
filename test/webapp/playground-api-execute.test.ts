@@ -76,6 +76,7 @@ describe("runPlaygroundApiExecute", () => {
       apiMethods: {},
       matchMode: "strict",
       debugDecoders: true,
+      sort: { strategy: "priority", priorities: { grc: 1, el: 2 } },
     });
     expect(out.ok).toBe(true);
     expect(spy).toHaveBeenCalledWith(
@@ -86,6 +87,7 @@ describe("runPlaygroundApiExecute", () => {
         enrich: true,
         matchMode: "strict",
         debugDecoders: true,
+        sort: { strategy: "priority", priorities: { grc: 1, el: 2 } },
       }),
     );
     spy.mockRestore();
