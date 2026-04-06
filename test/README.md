@@ -98,6 +98,7 @@ Modules under test mirror extractions from **`webapp/src/App.tsx`**:
 
 - **`test/integration-adapters.test.ts`** validates formatter handling of wrapper-row arrays and SDK/Webapp API method parity.
 - **`test/integration-hardening.test.ts`** covers rare PoS heading normalization, formatter sparse-data behavior, and CLI wrapper-route contracts.
+- **`test/translate-lemma-integration.test.ts`** fixture-backed lemma resolution and `translate(..., { mode: "gloss" })` flow from inflected query to lemma-page translations.
 - **`test/cross-interface-parity.test.ts`** enforces shared invocation semantics across SDK direct calls, CLI extract routing, and webapp playground routing.
 - **`test/cli-combinatorics-generator.test.ts`** runs a generated wrapper/argument matrix to catch signature drift as wrappers evolve.
 - **`test/fallback-enrichment-matrix.test.ts`** asserts QID enrichment fallback order (pageprops -> Wiktionary title -> Wikipedia title -> no enrichment).
