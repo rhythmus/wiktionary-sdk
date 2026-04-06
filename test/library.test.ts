@@ -363,9 +363,15 @@ describe("convenience wrappers", () => {
     });
 
     it("hyphenate should return array if requested", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         const res = await hyphenate("έγραψε", "el", { format: "array" });
-        expect(rows<any>(res)[1].value).toEqual(["έ", "γρα", "ψε"]);
+        expect(rows<any>(res)[0].value).toEqual(["έ", "γρα", "ψε"]);
     });
 
     it("hyphenate should return null if no hyphenation found", async () => {

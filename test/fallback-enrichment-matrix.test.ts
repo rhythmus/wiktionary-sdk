@@ -98,5 +98,15 @@ describe("fallback/enrichment matrix", () => {
     expect(api.fetchWikidataEntityByWiktionaryTitle).toHaveBeenCalledWith("dog");
     expect(api.fetchWikidataEntityByWikipediaTitle).toHaveBeenCalledWith("dog");
   });
+
+  it("does not perform any Wikidata lookups when enrich is false", async () => {
+    const res = await wiktionary({ query: "dog", lang: "en", enrich: false });
+    const lex = res.lexemes.find((l) => l.type === "LEXEME");
+    expect(lex).toBeTruthy();
+    expect(lex?.wikidata).toBeUndefined();
+    expect(api.fetchWikidataEntity).not.toHaveBeenCalled();
+    expect(api.fetchWikidataEntityByWiktionaryTitle).not.toHaveBeenCalled();
+    expect(api.fetchWikidataEntityByWikipediaTitle).not.toHaveBeenCalled();
+  });
 });
 
