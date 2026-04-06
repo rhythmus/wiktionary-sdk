@@ -72,6 +72,11 @@ export interface TranslationOptions {
      * "senses" -> Returns full prose definitions by hitting the target's native Wiktionary domain.
      */
     mode?: "gloss" | "senses";
+    /**
+     * Optional hook for native-senses fetch failures (non-en target wikis).
+     * When omitted, a warning is logged and an empty list is returned.
+     */
+    onError?: (error: unknown, context: { query: string; sourceLang: WikiLang; targetLang: string }) => void;
 }
 
 /**
@@ -95,7 +100,7 @@ export async function translate(
                 return withExtractionSupport(glosses, warnSensesList(lexeme, glosses, "Senses"));
             });
         } else {
-            const senses = await getNativeSenses(lemmaStr, sourceLang, targetLang);
+            const senses = await getNativeSenses(lemmaStr, sourceLang, targetLang, options.onError);
             return groupRows([
                 {
                     lexeme_id: "native-senses",
@@ -122,7 +127,12 @@ export async function translate(
     });
 }
 
-async function getNativeSenses(query: string, sourceLang: WikiLang, targetLang: string): Promise<string[]> {
+async function getNativeSenses(
+    query: string,
+    sourceLang: WikiLang,
+    targetLang: string,
+    onError?: (error: unknown, context: { query: string; sourceLang: WikiLang; targetLang: string }) => void,
+): Promise<string[]> {
     try {
         const origin = `https://${targetLang}.wiktionary.org/w/api.php`;
         const j = await mwFetchJson(origin, {
@@ -169,10 +179,11 @@ async function getNativeSenses(query: string, sourceLang: WikiLang, targetLang: 
         }
         return out;
     } catch (e) {
-        console.error(
-            `[lightweight-scraper] Failed to fetch native senses for ${query} on ${targetLang}.wiktionary:`,
-            e,
-        );
+        if (onError) {
+            onError(e, { query, sourceLang, targetLang });
+        } else {
+            console.warn(`[native-senses] Failed to fetch for ${query} on ${targetLang}.wiktionary`, e);
+        }
         return [];
     }
 }

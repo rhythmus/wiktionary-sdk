@@ -184,6 +184,20 @@ describe("translate library function", () => {
         expect(rows<string[]>(resultFr)[0].value[0]).toBe("écrire");
         expect(rows<string[]>(resultFr)[0].value[1]).toBe("dessiner");
     });
+
+    it("should call onError and return empty native-senses result on scrape failure", async () => {
+        const onError = vi.fn();
+        vi.mocked(apiModule.mwFetchJson).mockRejectedValue(new Error("network down"));
+
+        const result = await translate("γράφω", "el", "fr", { mode: "senses", onError });
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ query: "γράφω", sourceLang: "el", targetLang: "fr" }),
+        );
+        expect(rows<string[]>(result)[0].value).toEqual([]);
+    });
 });
 
 describe("convenience wrappers", () => {
