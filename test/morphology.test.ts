@@ -68,6 +68,10 @@ describe("morphology conjugate", () => {
         
         const res3 = await conjugate("έγραψα", { person: "1", number: "singular", tense: "future", aspect: "perfective", voice: "active" });
         expect(res3[0].value).toEqual(["θα γράψω"]);
+        expect(apiModule.mwFetchJson).toHaveBeenCalledWith(
+            "https://en.wiktionary.org/w/api.php",
+            expect.objectContaining({ action: "parse", title: "έγραψα" }),
+        );
     });
 
     it("should extract grammatical properties natively with morphology()", async () => {
@@ -133,6 +137,36 @@ describe("morphology conjugate", () => {
         const res = await conjugate("έγραψες", { number: "plural" });
         expect(res[0].value).toEqual(["γράψατε"]);
     });
+
+    it("should only expand non-el conjugation templates when explicit prefixes are provided", async () => {
+        const mockFetchWiktionaryResult = {
+            lexemes: [{
+                id: "xx:test#E1#verb#LEXEME",
+                language: "xx",
+                type: "LEXEME",
+                form: "test",
+                part_of_speech_heading: "Verb",
+                templates_all: [{
+                    name: "xx-conj-1",
+                    raw: "{{xx-conj-1|...}}",
+                    params: { positional: [], named: {} }
+                }]
+            }],
+        };
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(apiModule.mwFetchJson).mockResolvedValue({
+            parse: { text: { "*": "<table><tr><td>Non-past tenses</td></tr><tr><td>1 sg</td><td>foo</td><td>bar</td></tr></table>" } }
+        });
+
+        const withoutPrefixes = await conjugate("test");
+        expect(withoutPrefixes[0].value).toBeNull();
+
+        const withPrefixes = await conjugate("test", {}, "Auto", { conjugationTemplatePrefixes: ["xx-conj-"] });
+        expect(withPrefixes[0].value).toEqual({
+            active: { indicative: { present: { "1sg": ["foo"] }, past: {} } },
+            passive: { indicative: { present: {}, past: {} } }
+        });
+    });
 });
 
 describe("morphology decline", () => {
@@ -179,5 +213,39 @@ describe("morphology decline", () => {
         
         const res3 = await decline("άνθρωπος", { case: "genitive", number: "singular" });
         expect(res3[0].value).toEqual(["ανθρώπου"]);
+        expect(apiModule.mwFetchJson).toHaveBeenCalledWith(
+            "https://en.wiktionary.org/w/api.php",
+            expect.objectContaining({ action: "parse", title: "άνθρωπος" }),
+        );
+    });
+
+    it("should only expand non-el declension templates when explicit prefixes are provided", async () => {
+        const mockFetchWiktionaryResult = {
+            lexemes: [{
+                id: "xx:test#E1#noun#LEXEME",
+                language: "xx",
+                type: "LEXEME",
+                form: "test",
+                part_of_speech_heading: "Noun",
+                templates_all: [{
+                    name: "xx-decl-1",
+                    raw: "{{xx-decl-1|...}}",
+                    params: { positional: [], named: {} }
+                }]
+            }],
+        };
+        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockFetchWiktionaryResult as any);
+        vi.mocked(apiModule.mwFetchJson).mockResolvedValue({
+            parse: { text: { "*": "<table><tr><th>nominative</th><td>test</td><td>tests</td></tr></table>" } }
+        });
+
+        const withoutPrefixes = await decline("test");
+        expect(withoutPrefixes[0].value).toBeNull();
+
+        const withPrefixes = await decline("test", {}, "Auto", { declensionTemplatePrefixes: ["xx-decl-"] });
+        expect(withPrefixes[0].value).toEqual({
+            singular: { nominative: ["test"] },
+            plural: { nominative: ["tests"] }
+        });
     });
 });

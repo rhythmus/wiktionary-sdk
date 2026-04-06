@@ -5,6 +5,7 @@ import {
     type ConjugateCriteria,
     type DeclineCriteria,
     type GrammarTraits,
+    type MorphologyExpansionOptions,
 } from "./morphology";
 import { wiktionary } from "../pipeline/wiktionary-core";
 import type { LexicographicFamily, PartOfSpeech, WikiLang } from "../model";
@@ -130,8 +131,9 @@ export async function conjugate(
     query: string,
     sourceLang: WikiLang = "Auto",
     criteria: Partial<ConjugateCriteria> = {},
+    options?: MorphologyExpansionOptions,
 ): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
-    return runConjugate(query, criteria, sourceLang);
+    return runConjugate(query, criteria, sourceLang, options);
 }
 
 /**
@@ -142,6 +144,7 @@ export async function decline(
     query: string,
     sourceLang: WikiLang = "Auto",
     criteria: Partial<DeclineCriteria> = {},
+    options?: MorphologyExpansionOptions,
 ): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
-    return runDecline(query, criteria, sourceLang);
+    return runDecline(query, criteria, sourceLang, options);
 }

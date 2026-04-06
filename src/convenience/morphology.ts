@@ -23,6 +23,27 @@ export interface DeclineCriteria {
 
 export interface GrammarTraits extends ConjugateCriteria, DeclineCriteria {}
 
+export interface MorphologyExpansionOptions {
+    /**
+     * Explicit template-name prefixes for paradigm expansion.
+     * Defaults stay Modern Greek-only; pass non-el prefixes intentionally.
+     */
+    conjugationTemplatePrefixes?: string[];
+    /** Explicit template-name prefixes for declension expansion. */
+    declensionTemplatePrefixes?: string[];
+}
+
+const DEFAULT_CONJUGATION_PREFIXES = ["el-conjug-", "el-verb-", "el-conj-"];
+const DEFAULT_DECLENSION_PREFIXES = [
+    "el-noun-",
+    "el-adj-",
+    "el-nM-",
+    "el-nF-",
+    "el-nN-",
+    "el-decl-",
+    "el-proper-noun-",
+];
+
 function cleanCellText(text: string): string[] {
     const parts = text.split(/[,/]/).map(p => p.trim()).filter(Boolean);
     const results: string[] = [];
@@ -85,6 +106,11 @@ export function parseMorphologyTags(tags: string[]): Partial<GrammarTraits> {
     return result;
 }
 
+/**
+ * Wrapper-level fallback defaults for morphology/conjugate/decline criteria.
+ * These defaults are convenience heuristics for empty criteria only and do not
+ * alter normalized extraction or infer unsupported source data.
+ */
 function extractMorphologyFromLexeme(lexeme: Lexeme, query: string): Partial<GrammarTraits> {
     let criteria: Partial<GrammarTraits> = {};
     const qLower = query.toLowerCase();
@@ -131,30 +157,31 @@ export async function morphology(query: string, sourceLang: WikiLang = "Auto", p
     });
 }
 
-function findConjugationTemplate(lexeme: Lexeme): { name: string; raw: string; params: any } | null {
+function findConjugationTemplate(
+    lexeme: Lexeme,
+    prefixes: string[],
+): { name: string; raw: string; params: any } | null {
     const templates = lexeme.templates_all || [];
-    return templates.find((t: any) =>
-        t.name.startsWith("el-conjug-") || t.name.startsWith("el-verb-") || t.name.startsWith("el-conj-")
-    ) as any || null;
+    return templates.find((t: any) => prefixes.some((p) => t.name.startsWith(p))) as any || null;
 }
 
-function findDeclensionTemplate(lexeme: Lexeme): { name: string; raw: string; params: any } | null {
+function findDeclensionTemplate(
+    lexeme: Lexeme,
+    prefixes: string[],
+): { name: string; raw: string; params: any } | null {
     const templates = lexeme.templates_all || [];
-    return templates.find((t: any) =>
-        t.name.startsWith("el-noun-") || t.name.startsWith("el-adj-") ||
-        t.name.startsWith("el-nM-") || t.name.startsWith("el-nF-") ||
-        t.name.startsWith("el-nN-") || t.name.startsWith("el-decl-") ||
-        t.name.startsWith("el-proper-noun-")
-    ) as any || null;
+    return templates.find((t: any) => prefixes.some((p) => t.name.startsWith(p))) as any || null;
 }
 
 async function conjugateSingleLexeme(
     lexeme: Lexeme,
     query: string,
     criteria: Partial<ConjugateCriteria>,
-    _sourceLang: WikiLang
+    _sourceLang: WikiLang,
+    pageTitle: string,
+    templatePrefixes: string[],
 ): Promise<string[] | Record<string, any> | null> {
-    const conjug = findConjugationTemplate(lexeme);
+    const conjug = findConjugationTemplate(lexeme, templatePrefixes);
     if (!conjug) {
         if (lexeme.headword_morphology?.principal_parts) {
             return lexeme.headword_morphology.principal_parts;
@@ -163,7 +190,7 @@ async function conjugateSingleLexeme(
     }
 
     const apiResult = await mwFetchJson("https://en.wiktionary.org/w/api.php", {
-        action: "parse", format: "json", origin: "*", text: conjug.raw, prop: "text", contentmodel: "wikitext"
+        action: "parse", format: "json", origin: "*", title: pageTitle, text: conjug.raw, prop: "text", contentmodel: "wikitext"
     });
 
     if (!apiResult.parse || !apiResult.parse.text) return null;
@@ -225,13 +252,22 @@ async function conjugateSingleLexeme(
 /**
  * Conjugates a verb based on criteria, returning results tagged per lexeme.
  */
-export async function conjugate(query: string, criteria: Partial<ConjugateCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
+export async function conjugate(
+    query: string,
+    criteria: Partial<ConjugateCriteria> = {},
+    sourceLang: WikiLang = "Auto",
+    options?: MorphologyExpansionOptions,
+): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
     const lStr = await lemma(query, sourceLang, "verb");
     const result = await wiktionary({ query: lStr, lang: sourceLang, pos: "verb" });
+    const templatePrefixes =
+        options?.conjugationTemplatePrefixes && options.conjugationTemplatePrefixes.length > 0
+            ? options.conjugationTemplatePrefixes
+            : DEFAULT_CONJUGATION_PREFIXES;
 
     const byId = new Map<string, string[] | Record<string, any> | null>();
     for (const lexeme of result.lexemes) {
-        const value = await conjugateSingleLexeme(lexeme, query, criteria, sourceLang);
+        const value = await conjugateSingleLexeme(lexeme, query, criteria, sourceLang, lStr, templatePrefixes);
         byId.set(lexeme.id, value);
     }
     return mapLexemes(result, (lexeme) => byId.get(lexeme.id) ?? null);
@@ -241,9 +277,11 @@ async function declineSingleLexeme(
     lexeme: Lexeme,
     query: string,
     criteria: Partial<DeclineCriteria>,
-    _sourceLang: WikiLang
+    _sourceLang: WikiLang,
+    pageTitle: string,
+    templatePrefixes: string[],
 ): Promise<string[] | Record<string, any> | null> {
-    const nominalTpl = findDeclensionTemplate(lexeme);
+    const nominalTpl = findDeclensionTemplate(lexeme, templatePrefixes);
     if (!nominalTpl) {
         if (lexeme.headword_morphology?.principal_parts?.stem) {
             return { singular: { nominative: [lexeme.headword_morphology.principal_parts.stem] } };
@@ -252,7 +290,7 @@ async function declineSingleLexeme(
     }
 
     const apiResult = await mwFetchJson("https://en.wiktionary.org/w/api.php", {
-        action: "parse", format: "json", origin: "*", text: nominalTpl.raw, prop: "text", contentmodel: "wikitext"
+        action: "parse", format: "json", origin: "*", title: pageTitle, text: nominalTpl.raw, prop: "text", contentmodel: "wikitext"
     });
 
     if (!apiResult.parse || !apiResult.parse.text) return null;
@@ -299,13 +337,22 @@ async function declineSingleLexeme(
 /**
  * Declines a nominal based on criteria, returning results tagged per lexeme.
  */
-export async function decline(query: string, criteria: Partial<DeclineCriteria> = {}, sourceLang: WikiLang = "Auto"): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
+export async function decline(
+    query: string,
+    criteria: Partial<DeclineCriteria> = {},
+    sourceLang: WikiLang = "Auto",
+    options?: MorphologyExpansionOptions,
+): Promise<GroupedLexemeResults<string[] | Record<string, any> | null>> {
     const lStr = await lemma(query, sourceLang);
     const result = await wiktionary({ query: lStr, lang: sourceLang });
+    const templatePrefixes =
+        options?.declensionTemplatePrefixes && options.declensionTemplatePrefixes.length > 0
+            ? options.declensionTemplatePrefixes
+            : DEFAULT_DECLENSION_PREFIXES;
 
     const byId = new Map<string, string[] | Record<string, any> | null>();
     for (const lexeme of result.lexemes) {
-        const value = await declineSingleLexeme(lexeme, query, criteria, sourceLang);
+        const value = await declineSingleLexeme(lexeme, query, criteria, sourceLang, lStr, templatePrefixes);
         byId.set(lexeme.id, value);
     }
     return mapLexemes(result, (lexeme) => {

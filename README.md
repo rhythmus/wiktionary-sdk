@@ -218,9 +218,14 @@ await morphology("έγραψες");
 await conjugate("έγραψες", { number: "plural" }); 
 // [{ value: ["γράψατε"], ... }]
 
+// Optional explicit non-el template prefixes (defaults remain el-* only)
+await conjugate("test", {}, "Auto", { conjugationTemplatePrefixes: ["xx-conj-"] });
+
 // Decline nominals per lexeme
 await decline("άνθρωπος", { case: "genitive", number: "plural" });
 // [{ value: ["ανθρώπων"], ... }]
+
+await decline("test", {}, "Auto", { declensionTemplatePrefixes: ["xx-decl-"] });
 
 // GroupedLexemeResults<WordStems> — structured stems per lexeme; see "Grouped results" below
 await stem("έγραψα");
@@ -362,9 +367,11 @@ format(lineage, { mode: "markdown" }); // "grk-pro ***grépʰō** ← el **γρ�
 
 > [!WARNING]
 > **Architectural Rationale: The `conjugate()` and `decline()` Exception**
-> To support fully inflected paradigm generation (`conjugate()` and `decline()`), the library makes a strict temporary exception to its core _"No HTML Scraping"_ rule. Because Wiktionary uses dynamic Lua module architectures for inflection rendering that are entirely inaccessible via JSON text dumps, we call the MediaWiki `expandtemplates` API to execute Wiktionary's Lua scripts server-side, and then deploy highly localized DOM-parsing against the resulting payload to extract exact grammatical criteria. Conversely, the `stem()` function relies purely on mathematical indexing across parameterized source tags, preserving our explicit 100% data-faithfulness baseline.
+> To support fully inflected paradigm generation (`conjugate()` and `decline()`), the library makes a strict temporary exception to its core _"No HTML Scraping"_ rule. Because Wiktionary uses dynamic Lua module architectures for inflection rendering that are entirely inaccessible via plain JSON dumps, we call MediaWiki `action=parse` on template wikitext (with the page title as context) and then apply narrowly scoped DOM parsing to read table cells. Conversely, `stem()` relies purely on parameterized source tags and does not infer data.
 >
 > For a detailed technical breakdown of this mechanism and the Scribunto Lua runtime, see the [Wiktionary Morphological Engine document](file:///Users/woutersoudan/Desktop/wiktionary-fetch/docs/wiktionary_morphology_engine.md).
+
+`morphology()` smart defaults are wrapper-level fallbacks only (for convenience when criteria are omitted). They do not change normalized extraction contracts or infer unsupported source data.
 
 ### 🎭 Smart Presentation Layer
 

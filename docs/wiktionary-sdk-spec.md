@@ -1678,7 +1678,7 @@ Representative suites (see **`test/README.md`** for tiers and mocking rules):
 
 ### 14.5 Morphology implementation detail (Greek-first)
 
-`conjugate()` / `decline()` currently locate **Modern Greek** paradigm templates by prefix on **`lexeme.templates_all`** (e.g. `el-conjug-`, `el-conj-`, `el-noun-`, `el-decl-`, …). They POST the **verbatim** template invocation to **`action=parse`** without always supplying `title=` (unlike form-of enrichment, which passes the page title for Lua context). This is sufficient for many inflection tables but is a **known coupling** to how el-templates expand. Extending the same pipeline to other languages means generalizing template name sets and, where Lua depends on page context, threading **`title`** into parse calls.
+`conjugate()` / `decline()` locate **Modern Greek** paradigm templates by default on **`lexeme.templates_all`** (e.g. `el-conjug-`, `el-conj-`, `el-noun-`, `el-decl-`, …). Their `action=parse` calls now include **`title`** context so Lua modules that depend on page title can resolve consistently. Non-Greek template families are opt-in via explicit `MorphologyExpansionOptions` prefix arrays (`conjugationTemplatePrefixes`, `declensionTemplatePrefixes`) to avoid silent broadening of extraction scope.
 
 ### 14.6 Category filtering on lexemes
 
@@ -1695,7 +1695,7 @@ The codebase is deliberately modular so the following extensions can be pursued 
 5. **Persistent cache adapters**: Implement L2/L3 `CacheAdapter` for Node (SQLite/disk) or browser (IndexedDB) and document cache invalidation using `revision_id` / `last_modified`.
 6. **Standard lexicographic exports**: TEI Lex-0, **ODXML ([ODict ODXML](https://www.odict.org/docs/xml))** — full schema-compliant serialization alongside TEI; OntoLex-Lemon, LMF, XDXF — mapped in roadmap Stage 24 (Phase 9 of `ROADMAP.md`); would sit beside Handlebars as additional **`FormatterStyle`** or standalone serializers of `Lexeme`.
 7. **Optional schema diagnostics**: Add `wikidata_error` to JSON Schema as an optional string if long-term consumer validation of failed enrichment is desired.
-8. **Morphology beyond Greek**: Parameterize template predicates in `morphology.ts`, reuse `action=parse` with title when Lua modules require it, and add regression fixtures per language.
+8. **Morphology beyond Greek**: Expand and harden non-el template families (currently explicit-prefix opt-in), then add regression fixtures per language.
 9. **Sense disambiguation layer**: Build “Layer 2” consumers (see `docs/TEXT_TO_DICTIONARY_PLAN.md`) that use `FetchResult.lexemes` + metadata to pick senses from running text — explicitly out of scope for the extractor itself.
 
 ---
