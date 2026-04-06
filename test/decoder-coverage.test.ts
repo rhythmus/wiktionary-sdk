@@ -9,22 +9,7 @@ const TEST_ROOT = resolve(__dirname, "..");
 /** Decoders for Greek headword templates not yet present in any fixture or test string. */
 const DECODER_EVIDENCE_ALLOWLIST = new Set<string>([
   "store-raw-templates",
-  "el-pron-head",
-  "el-numeral-head",
-  "el-participle-head",
-  "el-adv-head",
-  "el-art-head",
-  "romanization",
-  "rhymes",
-  /** Section decoders — add ===…=== blocks to fixtures when you want to drop from allowlist. */
-  "alternative-forms",
-  "see-also",
-  "anagrams",
   "wikidata-p31",
-  "nl-adj-head",
-  "nl-verb-head",
-  "de-adj-head",
-  "de-verb-head",
 ]);
 
 function collectTextFiles(dir: string, acc: string[] = []): string[] {
@@ -63,6 +48,18 @@ function hasDecoderEvidence(d: TemplateDecoder, blob: string): boolean {
   }
   if (d.id === "alternative-forms-section") {
     return /={3,}\s*Alternative forms\s*={3,}/im.test(blob);
+  }
+  if (d.id === "alternative-forms") {
+    return /={3,}\s*Alternative forms\s*={3,}/im.test(blob);
+  }
+  if (d.id === "see-also") {
+    return /={3,}\s*See also\s*={3,}/im.test(blob);
+  }
+  if (d.id === "anagrams") {
+    return /={3,}\s*Anagrams\s*={3,}/im.test(blob);
+  }
+  if (d.id === "romanization") {
+    return /\{\{\s*(?:head|el-verb|el-noun|el-adj|grc-noun|grc-verb|fr-verb|de-noun)\b[^}\n]*\|tr\s*=/i.test(blob);
   }
   if (d.id === "el-noun-stems") {
     return /\{\{\s*el-n[MNF]-/i.test(blob);

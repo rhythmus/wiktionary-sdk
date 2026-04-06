@@ -1,0 +1,32 @@
+==Greek==
+===Noun===
+{{head|el|noun|tr=logos}}
+{{el-pron}}
+{{el-numeral}}
+{{el-part}}
+{{el-adv}}
+{{el-art}}
+{{rhymes|el|oɣos}}
+
+====Alternative forms====
+* {{alt|el|λόγος}}
+
+====See also====
+* {{l|el|λέξη}}
+
+====Anagrams====
+* {{l|el|γόλος}}
+
+==Dutch==
+===Adjective===
+{{nl-adj}}
+
+===Verb===
+{{nl-verb}}
+
+==German==
+===Adjective===
+{{de-adj}}
+
+===Verb===
+{{de-verb}}
