@@ -13,6 +13,8 @@ for its output schema (see `VERSIONING.md`).
 - **Extraction support transparency:** optional **`LexemeResult.support_warning`** on grouped convenience output, merged by **`mapLexemes`** from **`withExtractionSupport`** (`src/convenience/extraction-support.ts`). Warnings explain empty/partial extractions when templates suggest a decoder or parse gap (relations, morphology, pronunciation, etymology, translations, examples, etc.). **`format()`** prints **Support:** for grouped wrapper arrays (branch 3b) across text, Markdown, HTML, terminal-HTML, and ANSI.
 - **`stem()` / `extractStemsFromLexeme`:** Ancient Greek **`{{grc-conj}}`** / **`{{grc-decl}}`** stem extraction; expanded Greek Unicode validation (polytonic, breve); structured **`WordStems.support_warning`** when aliases are empty for coverage reasons; **`stem()`** lifts that string to the row so JSON does not duplicate it inside **`value`**. **`STEM_PARADIGM_TEMPLATE_FAMILY_SUMMARY`** exported for messages and docs.
 - **Webapp:** **`wiktionary`** as a playground API method (full fetch with **`enrich`**, **`matchMode`**, **`debugDecoders`**); shared URL/query helpers for initial load and snippets.
+- **Golden snapshots:** Added fixture-backed golden coverage for `γράφω`, `nested-templates`, `translations-multi`, and `nested-pipe-bug` in `test/golden/entry-snapshots.test.ts`.
+- **Decoder coverage corpus evidence:** Added `test/fixtures/wikidata-pageprops.json` so `wikidata-p31` no longer requires allowlisting in `test/decoder-coverage.test.ts`.
 
 ### Changed
 
@@ -23,6 +25,11 @@ for its output schema (see `VERSIONING.md`).
 - **Roadmap (Phase 9 / Stage 24)**: Documented **full ODXML ([ODict ODXML](https://www.odict.org/docs/xml))** export as a first-class deliverable alongside TEI Lex-0 (`docs/ROADMAP.md`, spec §12.10.7, §15 item 6).
 - **Output schema 3.2.0**: `PartOfSpeech` / `PART_OF_SPEECH_VALUES` expanded with [ODict](https://www.odict.org/docs/reference/pos)-aligned standard tags (snake_case) and the full Japanese tag set (hyphens → underscores). JSON Schema `$defs.PartOfSpeech.enum` updated; `lexicographic-headings.ts` English heading mapping unchanged.
 - `docs/ROADMAP.md` now lists **remaining work** only. Delivered multi-stage roadmap history is summarized in [Roadmap history — delivered engineering stages](#roadmap-history--delivered-engineering-stages) below.
+- **Morphology parse context/options:** `conjugate()` / `decline()` now pass `title` in `action=parse` requests, and non-Greek paradigm families require explicit `MorphologyExpansionOptions` prefixes (`conjugationTemplatePrefixes` / `declensionTemplatePrefixes`).
+- **Webapp compare and card UX:** compare fetch runs with `enrich: false` (tooltip updated), and plain lexeme formatter failures now render an inline error block instead of a blank card.
+- **Webapp structure:** extracted `PlainLexemeHtmlBlock` and lexeme pill-group helper logic from `App.tsx` into dedicated modules for behavior-neutral component thinning.
+- **Test docs:** `test/README.md` now documents cross-shell `WIKT_TEST_LIVE` invocation and a `refresh-recording` review checklist.
+- **Library test strategy:** `test/library.test.ts` now includes a first fixture-backed migration slice (translate gloss + synonyms) while retaining explicit mock-result cases where fixture parity is not yet wired.
 
 ---
 
