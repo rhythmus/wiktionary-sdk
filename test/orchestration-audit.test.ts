@@ -104,6 +104,26 @@ describe("orchestration audit (§13.1)", () => {
     expect(ids.size).toBe(res.lexemes.length);
   });
 
+  it("adds fuzzy-variant note when non-primary query contributes lexemes", async () => {
+    const wt = "==English==\n===Verb===\n# fallback hit\n";
+    vi.mocked(api.fetchWikitextEnWiktionary).mockImplementation(async (title: string) => {
+      if (title === "hello") return mockPage("hello", wt);
+      return { exists: false, title, wikitext: "", pageprops: {}, pageid: null } as any;
+    });
+
+    const res = await wiktionary({
+      query: "Hello",
+      lang: "en",
+      enrich: false,
+      matchMode: "fuzzy",
+      debugDecoders: true,
+    });
+
+    expect(res.lexemes.length).toBeGreaterThan(0);
+    expect(res.debug?.length).toBe(res.lexemes.length);
+    expect(res.notes.some((n) => /Fuzzy match: included .* variant query "hello"/.test(n))).toBe(true);
+  });
+
   it("sort: priority orders el before grc when both appear on the page", async () => {
     const wt = `==Ancient Greek==
 ===Verb===
