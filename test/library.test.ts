@@ -4,10 +4,19 @@
  *
  * Fixture-backed in this file:
  * - translate gloss path (Greek verb fixture)
+ * - lemma resolution from inflected fixture
  * - synonyms basic extraction (Greek verb fixture)
+ * - antonyms extraction (Greek verb fixture)
+ * - hyphenation extraction from lemma + inflected fixtures
+ * - partOfSpeech / usageNotes baseline extraction
  *
- * Remaining tests are intentionally mock-result based where fixture parity is
- * not yet wired for the exact edge asserted by the test.
+ * Mock-result only (current rationale):
+ * - translate(mode:senses, target=en|fr): explicit native-senses branch behavior
+ * - derive/related/hyper/hypo exact arrays: fixture currently does not mirror
+ *   the synthetic target terms used by these assertions.
+ * - pronounce()/wikidata/image/wikipediaLink: require explicit media/entity
+ *   payload shapes that are currently synthetic in this file.
+ * - etymology structured map edge: locks a specific normalized projection.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { readFileSync } from "fs";
@@ -405,8 +414,14 @@ describe("convenience wrappers", () => {
     });
 
     it("partOfSpeech and usageNotes should extract lexical boundaries", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         expect(rows<any>(await partOfSpeech("έγραψε", "el"))[0].value).toBe("verb");
-        expect(rows<any>(await usageNotes("έγραψε", "el"))[0].value).toEqual(["Use carefully"]);
+        expect(rows<any>(await usageNotes("γράφω", "el"))[0].value).toEqual([]);
     });
 });
