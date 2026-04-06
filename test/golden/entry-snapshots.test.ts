@@ -1,8 +1,7 @@
-import { readFileSync } from "fs";
-import { resolve } from "path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { wiktionary } from "../../src/index";
 import * as api from "../../src/ingress/api";
+import { stubSingleTitleToFixture } from "../helper/fixture-fetch";
 
 vi.mock("../../src/ingress/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/ingress/api")>();
@@ -12,36 +11,6 @@ vi.mock("../../src/ingress/api", async (importOriginal) => {
     fetchWikidataEntity: vi.fn(),
   };
 });
-
-const FIXTURES = resolve(__dirname, "../fixtures");
-
-function stubTitleToFixture(title: string, basename: string) {
-  const wikitext = readFileSync(resolve(FIXTURES, `${basename}.wikitext`), "utf-8").normalize("NFC");
-  vi.mocked(api.fetchWikitextEnWiktionary).mockImplementation(async (t: string) => {
-    if (t.normalize("NFC") !== title.normalize("NFC")) {
-      return {
-        exists: false,
-        title: t,
-        wikitext: "",
-        pageprops: {},
-        categories: [],
-        langlinks: [],
-        info: {},
-        pageid: null,
-      };
-    }
-    return {
-      exists: true,
-      title,
-      wikitext,
-      pageprops: {},
-      pageid: 1,
-      categories: [],
-      langlinks: [],
-      info: {},
-    };
-  });
-}
 
 /** Stable subset for regression snapshots (no ids, revision fields, or full template dumps). */
 function projectLexemes(lexemes: any[]) {
@@ -80,13 +49,13 @@ describe("golden: fixture → wiktionary (offline)", () => {
   });
 
   it("basic-verb Greek lexeme", async () => {
-    stubTitleToFixture("golden-basic-verb", "basic-verb");
+    stubSingleTitleToFixture(api.fetchWikitextEnWiktionary, "golden-basic-verb", "basic-verb");
     const res = await wiktionary({ query: "golden-basic-verb", lang: "el", enrich: false });
     expect(projectLexemes(res.lexemes)).toMatchSnapshot();
   });
 
   it("form-of-inflected Greek INFLECTED_FORM", async () => {
-    stubTitleToFixture("golden-form-of", "form-of-inflected");
+    stubSingleTitleToFixture(api.fetchWikitextEnWiktionary, "golden-form-of", "form-of-inflected");
     const res = await wiktionary({ query: "golden-form-of", lang: "el", enrich: false });
     const inflected = res.lexemes.filter((e) => e.type === "INFLECTED_FORM");
     expect(
@@ -102,25 +71,25 @@ describe("golden: fixture → wiktionary (offline)", () => {
   });
 
   it("γράφω rich Greek entry", async () => {
-    stubTitleToFixture("γράφω", "γράφω");
+    stubSingleTitleToFixture(api.fetchWikitextEnWiktionary, "γράφω", "γράφω");
     const res = await wiktionary({ query: "γράφω", lang: "el", enrich: false });
     expect(projectLexemes(res.lexemes)).toMatchSnapshot();
   });
 
   it("nested-templates parser stress fixture", async () => {
-    stubTitleToFixture("golden-nested-templates", "nested-templates");
+    stubSingleTitleToFixture(api.fetchWikitextEnWiktionary, "golden-nested-templates", "nested-templates");
     const res = await wiktionary({ query: "golden-nested-templates", lang: "el", enrich: false });
     expect(projectLexemes(res.lexemes)).toMatchSnapshot();
   });
 
   it("translations-multi fixture", async () => {
-    stubTitleToFixture("golden-translations-multi", "translations-multi");
+    stubSingleTitleToFixture(api.fetchWikitextEnWiktionary, "golden-translations-multi", "translations-multi");
     const res = await wiktionary({ query: "golden-translations-multi", lang: "el", enrich: false });
     expect(projectLexemes(res.lexemes)).toMatchSnapshot();
   });
 
   it("nested-pipe-bug regression fixture", async () => {
-    stubTitleToFixture("golden-nested-pipe-bug", "nested-pipe-bug");
+    stubSingleTitleToFixture(api.fetchWikitextEnWiktionary, "golden-nested-pipe-bug", "nested-pipe-bug");
     const res = await wiktionary({ query: "golden-nested-pipe-bug", lang: "el", enrich: false });
     expect(projectLexemes(res.lexemes)).toMatchSnapshot();
   });

@@ -1,31 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 import * as api from "../src/ingress/api";
+import { loadFixtureByWordVariants } from "./helper/fixture-fetch";
 import { 
     wiktionary, lemma, ipa, pronounce, hyphenate, synonyms, antonyms,
     etymology, stem, morphology, conjugate, decline, hypernyms, hyponyms,
     derivedTerms, relatedTerms, wikidataQid, wikipediaLink, image,
     partOfSpeech, usageNotes, translate, format, phonetic, asLexemeRows
 } from "../src/index";
-
-const FIXTURES_DIR = resolve(__dirname, "fixtures");
-
-function loadFixture(word: string): string {
-    const nfdWord = word.normalize("NFD");
-    const nfcWord = word.normalize("NFC");
-    const variants = [nfdWord, nfcWord, word];
-    
-    for (const w of variants) {
-        const p = resolve(FIXTURES_DIR, `${w}.wikitext`);
-        try {
-            const data = readFileSync(p, "utf-8");
-            if (data) return data;
-        } catch {}
-    }
-    console.warn(`Fixture not found for: ${word} (searched variants: ${variants.join(", ")})`);
-    return "";
-}
 
 vi.mock("../src/ingress/api", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../src/ingress/api")>();
@@ -44,7 +25,7 @@ describe("README Usage Examples Compliance", () => {
             title = title.normalize("NFC");
             if (title === "έγραψα") title = "γράφω";
             
-            const wikitext = loadFixture(title).normalize("NFC");
+            const wikitext = loadFixtureByWordVariants(title).normalize("NFC");
             return {
                 exists: wikitext !== "",
                 title,
