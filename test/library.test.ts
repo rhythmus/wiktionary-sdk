@@ -18,11 +18,9 @@
  * - translate(mode:senses, target=fr): explicit native-senses scrape branch behavior
  * - derive/related/hyper/hypo exact arrays: fixture currently does not mirror
  *   the synthetic target terms used by these assertions.
- * - etymology chain mapping from lemma fixture
  * - pronounce() audio-url prioritization and wikidata/image/wikipediaLink:
  *   require explicit media/entity
  *   payload shapes that are currently synthetic in this file.
- * - etymology structured map edge: locks a specific normalized projection.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { readFileSync } from "fs";

@@ -104,6 +104,27 @@ Modules under test mirror extractions from **`webapp/src/App.tsx`**:
 - **`test/fallback-enrichment-matrix.test.ts`** asserts QID enrichment fallback order (pageprops -> Wiktionary title -> Wikipedia title -> no enrichment).
 - **`test/negative-schema-hardening.test.ts`** asserts malformed payloads are rejected by `schema/normalized-entry.schema.json` (generated from `schema/src/*.yaml`; `npm run test:ci` runs `check:schema-artifact` so the JSON matches the YAML).
 
+## Library wrapper coverage matrix
+
+`test/library.test.ts` intentionally mixes fixture-backed and synthetic assertions.
+This matrix is the source of truth for which wrapper groups are currently
+fixture-backed versus mock-result-only.
+
+| Wrapper group | Coverage mode | Notes |
+|---|---|---|
+| `translate` (gloss path) | fixture-backed | Uses fixture-derived pipeline execution. |
+| `translate` (`mode: "senses"`, target `en`) | fixture-backed | Uses fixture-derived lemma page senses. |
+| `translate` (`mode: "senses"`, non-`en`) | mock-result-only | Locks explicit native-senses scrape branch shape. |
+| `lemma` | fixture-backed | Inflected-to-lemma resolution from fixtures. |
+| `synonyms`, `antonyms` | fixture-backed | Real extraction from Greek verb fixtures. |
+| `ipa`, `phonetic` | fixture-backed | Fixture-backed pronunciation extraction. |
+| `hyphenate` | fixture-backed | Covers string and array output modes. |
+| `partOfSpeech`, `usageNotes` | fixture-backed | Baseline lexical boundary assertions. |
+| `etymology` | fixture-backed | Inflected-to-lemma chain path from fixtures. |
+| `derivedTerms` / `derivations`, `relatedTerms`, `hypernyms`, `hyponyms` | mock-result-only | Current fixtures do not provide stable arrays for these exact assertions. |
+| `pronounce` audio URL prioritization | mock-result-only | Requires explicit synthetic media payload. |
+| `wikidataQid`, `image`, `wikipediaLink` | mock-result-only | Requires synthetic entity/media payload shapes. |
+
 ## Parser invariants
 
 `test/parser.invariants.test.ts` checks structural properties of **`parseTemplates(..., true)`** (raw slices, non-overlap, nesting). It does not assert linguistic correctness.
