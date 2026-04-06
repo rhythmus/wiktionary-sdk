@@ -291,7 +291,13 @@ describe("convenience wrappers", () => {
     };
 
     it("lemma should resolve inflected form to lemma or return query", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         expect(await lemma("έγραψε", "el")).toBe("γράφω");
         expect(await lemma("γράφω", "el")).toBe("γράφω");
         expect(await lemma("unknown", "el")).toBe("unknown");
@@ -306,9 +312,11 @@ describe("convenience wrappers", () => {
     });
 
     it("antonyms should return antonyms", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
-        const ants = await antonyms("έγραψε", "el");
-        expect(rows<string[]>(ants)[0].value).toEqual(["σβήνω"]);
+        const write = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({ "γράφω": write });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
+        const ants = await antonyms("γράφω", "el");
+        expect(rows<string[]>(ants)[0].value).toEqual(["ξεγράφω"]);
     });
 
     it("derivedTerms should return derived term items", async () => {
@@ -332,11 +340,17 @@ describe("convenience wrappers", () => {
     });
 
     it("hyphenate should return array of syllables", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         const res1 = await hyphenate("γράφω", "el");
         expect(rows<any>(res1)[0].value).toEqual(["γρά", "φω"]);
         const res2 = await hyphenate("έγραψε", "el");
-        expect(rows<any>(res2)[1].value).toEqual(["έ", "γρα", "ψε"]);
+        expect(rows<any>(res2)[0].value).toEqual(["έ", "γρα", "ψε"]);
     });
 
     it("hyphenate should return array if requested", async () => {
