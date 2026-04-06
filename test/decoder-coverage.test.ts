@@ -9,7 +9,6 @@ const TEST_ROOT = resolve(__dirname, "..");
 /** Decoders for Greek headword templates not yet present in any fixture or test string. */
 const DECODER_EVIDENCE_ALLOWLIST = new Set<string>([
   "store-raw-templates",
-  "wikidata-p31",
 ]);
 
 function collectTextFiles(dir: string, acc: string[] = []): string[] {
@@ -60,6 +59,9 @@ function hasDecoderEvidence(d: TemplateDecoder, blob: string): boolean {
   }
   if (d.id === "romanization") {
     return /\{\{\s*(?:head|el-verb|el-noun|el-adj|grc-noun|grc-verb|fr-verb|de-noun)\b[^}\n]*\|tr\s*=/i.test(blob);
+  }
+  if (d.id === "wikidata-p31") {
+    return /"wikibase_item"\s*:\s*"Q\d+"/.test(blob);
   }
   if (d.id === "el-noun-stems") {
     return /\{\{\s*el-n[MNF]-/i.test(blob);
