@@ -11,12 +11,14 @@
  * - antonyms extraction (Greek verb fixture)
  * - hyphenation extraction from lemma + inflected fixtures
  * - partOfSpeech / usageNotes baseline extraction
+ * - ipa() extraction from lemma + inflected fixtures
  *
  * Mock-result only (current rationale):
  * - translate(mode:senses, target=fr): explicit native-senses scrape branch behavior
  * - derive/related/hyper/hypo exact arrays: fixture currently does not mirror
  *   the synthetic target terms used by these assertions.
- * - pronounce()/wikidata/image/wikipediaLink: require explicit media/entity
+ * - pronounce() audio-url prioritization and wikidata/image/wikipediaLink:
+ *   require explicit media/entity
  *   payload shapes that are currently synthetic in this file.
  * - etymology structured map edge: locks a specific normalized projection.
  */
@@ -376,12 +378,17 @@ describe("convenience wrappers", () => {
     });
 
     it("ipa and pronounce should extract phonetics correctly", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         const ipaRes = await ipa("έγραψε", "el");
-        expect(rows<any>(ipaRes)[0].value).toBe("ˈɣra.fo");
-        expect(rows<any>(ipaRes)[1].value).toBe("ˈe.ɣrap.se");
+        expect(rows<any>(ipaRes)[0].value).toBe("ˈe.ɣrap.se");
         const pronResult = await pronounce("έγραψε", "el");
-        expect(rows<any>(pronResult)[0].value).toBe("https://example.com/audio.ogg");
+        expect(rows<any>(pronResult)[0].value).toBe("ˈe.ɣrap.se");
     });
 
     it("wikidata functions should extract structured qid, image, and wikipedia links", async () => {
