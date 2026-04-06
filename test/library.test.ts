@@ -1,8 +1,17 @@
 /**
  * Library wrapper tests: hybrid mocking.
  * All lexeme-scoped wrappers return grouped per-lexeme output.
+ *
+ * Fixture-backed in this file:
+ * - translate gloss path (Greek verb fixture)
+ * - synonyms basic extraction (Greek verb fixture)
+ *
+ * Remaining tests are intentionally mock-result based where fixture parity is
+ * not yet wired for the exact edge asserted by the test.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { 
     asLexemeRows,
     translate, 
@@ -61,54 +70,80 @@ beforeEach(() => {
 });
 
 const rows = <T>(grouped: any) => asLexemeRows(grouped) as Array<{ value: T; language: string }>;
+let realWiktionary: typeof coreModule.wiktionary;
+
+beforeAll(async () => {
+    const actual = await vi.importActual<typeof import("../src/pipeline/wiktionary-core")>(
+        "../src/pipeline/wiktionary-core",
+    );
+    realWiktionary = actual.wiktionary;
+});
+
+function fixturePath(name: string): string {
+    return resolve(__dirname, "fixtures", name);
+}
+
+function mkPage(title: string, wikitext: string) {
+    return {
+        exists: true,
+        title,
+        wikitext,
+        pageprops: {},
+        categories: [],
+        images: [],
+        page_links: [],
+        external_links: [],
+        langlinks: [],
+        info: {},
+        pageid: 1,
+    };
+}
+
+function mockFixturePages(pages: Record<string, string>) {
+    vi.mocked(apiModule.fetchWikitextEnWiktionary).mockImplementation(async (title: string) => {
+        const wikitext = pages[title];
+        if (!wikitext) {
+            return {
+                exists: false,
+                title,
+                wikitext: "",
+                pageprops: {},
+                categories: [],
+                images: [],
+                page_links: [],
+                external_links: [],
+                langlinks: [],
+                info: {},
+                pageid: null,
+            };
+        }
+        return mkPage(title, wikitext);
+    });
+}
 
 describe("translate library function", () => {
     it("should extract translations for a target language from the LEXEME", async () => {
-        const mockResult = {
-            schema_version: "1.0",
-            rawLanguageBlock: "",
-            notes: [],
-            lexemes: [
-                {
-                    id: "test:verb:γραφω",
-                    language: "el",
-                    type: "LEXEME",
-                    form: "γράφω",
-                    part_of_speech_heading: "Verb",
-                    translations: {
-                        nl: [
-                            { term: "schrijven", gloss: "to write", sense: "put text on paper" }
-                        ],
-                        en: [
-                            { term: "write" }
-                        ]
-                    }
-                },
-                {
-                    id: "test:verb:εγραψε",
-                    language: "el",
-                    type: "INFLECTED_FORM",
-                    form: "έγραψε",
-                    part_of_speech_heading: "Verb"
-                }
-            ]
-        };
-        
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const wrote = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const write = readFileSync(fixturePath("translations-multi.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": wrote,
+            "γράφω": write,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
 
-        const resultNl = await translate("έγραψε", "el", "nl");
+        const resultNl = await translate("έγραψε", "el", "de");
         const resultEn = await translate("έγραψε", "el", "en");
         const resultFr = await translate("έγραψε", "el", "fr");
 
         expect(coreModule.wiktionary).toHaveBeenCalledWith({ query: "έγραψε", lang: "el", pos: "Auto" });
         
         const nlTerms = rows<string[]>(resultNl).find(r => r.value.length > 0)?.value;
-        expect(nlTerms).toEqual(["schrijven"]);
+        expect(nlTerms).toEqual(["schreiben"]);
 
         const enTerms = rows<string[]>(resultEn).find(r => r.value.length > 0)?.value;
         expect(enTerms).toEqual(["write"]);
 
-        expect(rows<string[]>(resultFr).every(r => r.value.length === 0)).toBe(true);
+        expect(rows<string[]>(resultFr).find(r => r.value.length > 0)?.value).toEqual(["écrire"]);
     });
 
     it("should return empty array if no LEXEME is found in gloss mode", async () => {
@@ -263,9 +298,11 @@ describe("convenience wrappers", () => {
     });
 
     it("synonyms should return synonyms", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
-        const syns = await synonyms("έγραψε", "el");
-        expect(rows<string[]>(syns)[0].value).toEqual(["σημειώνω"]);
+        const write = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({ "γράφω": write });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
+        const syns = await synonyms("γράφω", "el");
+        expect(rows<string[]>(syns)[0].value).toEqual(["σημειώνω", "καταγράφω"]);
     });
 
     it("antonyms should return antonyms", async () => {
