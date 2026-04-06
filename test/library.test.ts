@@ -12,6 +12,7 @@
  * - hyphenation extraction from lemma + inflected fixtures
  * - partOfSpeech / usageNotes baseline extraction
  * - ipa() extraction from lemma + inflected fixtures
+ * - phonetic() extraction from lemma + inflected fixtures
  *
  * Mock-result only (current rationale):
  * - translate(mode:senses, target=fr): explicit native-senses scrape branch behavior
@@ -317,10 +318,15 @@ describe("convenience wrappers", () => {
     });
 
     it("phonetic should return correct phonetic", async () => {
-        vi.mocked(coreModule.wiktionary).mockResolvedValue(mockResult as any);
+        const inflected = readFileSync(fixturePath("έγραψε.wikitext"), "utf-8");
+        const lemmaPage = readFileSync(fixturePath("γράφω.wikitext"), "utf-8");
+        mockFixturePages({
+            "έγραψε": inflected,
+            "γράφω": lemmaPage,
+        });
+        vi.mocked(coreModule.wiktionary).mockImplementation((args: any) => realWiktionary(args));
         const res = await phonetic("έγραψε", "el");
-        expect(rows<string | null>(res)[0].value).toBe("ˈɣra.fo");
-        expect(rows<string | null>(res)[1].value).toBe("ˈe.ɣrap.se");
+        expect(rows<string | null>(res)[0].value).toBe("ˈe.ɣrap.se");
     });
 
     it("hyphenate should return array of syllables", async () => {
