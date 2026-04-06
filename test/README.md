@@ -7,6 +7,7 @@ This document explains how tests are organized, how to mock Wiktionary/Wikidata 
 | Script | Purpose |
 |--------|---------|
 | `npm test` / `npm run test:ci` / `npm run test:unit` | Default **offline** suite (excludes `test/bench.test.ts`). |
+| `npm run check:types-schema-sync` | Runs parity checks for `PartOfSpeech` enum/schema sync and grouped-wrapper type shape tests. |
 | `npm run test:perf` | Parser **wall-clock** checks in `test/bench.test.ts` only. |
 | `npm run test:all` | Default suite **then** perf tests. |
 | `npm run test:network` | Runs `test/network-replay.test.ts` with **`WIKT_TEST_LIVE=1`** so the optional live `en.wiktionary.org` check executes (still runs the offline JSON replay first). |

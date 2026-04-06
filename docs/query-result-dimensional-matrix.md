@@ -170,7 +170,7 @@ Use this as a **checklist** for mental simulation: pick one option from each row
 
 7. **Fuzzy merged**  
    B2 + A1  
-   → One logical result set; notes may mention variant title.
+   → One logical result set; notes may mention variant title (e.g. lowercase fallback), with `debug` rows aligned to merged `lexemes` when `debugDecoders` is enabled.
 
 8. **Only form-of stubs (no etym prose)**  
    D1 + F2 + H5  
@@ -192,7 +192,7 @@ Use this as a **checklist** for mental simulation: pick one option from each row
 |---------|----------|
 | Language sections | `extractLanguageSection`, `extractAllLanguageSections` (`parser.ts`) |
 | Etymology × PoS | `splitEtymologiesAndPOS` (`parser.ts`) |
-| Lexeme assembly | `wiktionaryRecursive` (`index.ts`) |
+| Lexeme assembly | `wiktionaryRecursive` (`pipeline/wiktionary-core.ts`) |
 | Form-of + type | `registry.ts` (`form-of` decoder, `isFormOfTemplateName`, …) |
 | Parse morph enrichment | `form-of-parse-enrich.ts` |
 | Formatter / bullets | `formatter.ts`, `entry.html.hbs` |

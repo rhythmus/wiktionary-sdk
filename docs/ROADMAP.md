@@ -239,32 +239,32 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 
 ### 7.1 Library tests — fixture-first
 
-- [ ] Migrate **`test/library.test.ts`** cases from hybrid **`vi.mock("../src/index")`** + API stub to **fixture-backed `wiktionary({ enrich: false })`** where shapes allow.
-- [ ] Where fixtures cannot match (e.g. specific translation rows), **document** each mock-only case in the test file header and **`test/README.md`**.
+- [x] Migrate **`test/library.test.ts`** cases from hybrid **`vi.mock("../src/index")`** + API stub to **fixture-backed `wiktionary({ enrich: false })`** where shapes allow.
+- [x] Where fixtures cannot match (e.g. specific translation rows), **document** each mock-only case in the test file header and **`test/README.md`**.
 
 **Done when:** Every case is either fixture-backed or explicitly listed with rationale.
 
 ### 7.2 Decoder coverage allowlist
 
-- [ ] Add minimal wikitext in shared fixtures / `test/fixtures/decoder-smoke.wikitext` for allowlisted decoders (Greek heads, `romanization`, `rhymes`, section decoders, etc.).
-- [ ] Remove entries from **`DECODER_EVIDENCE_ALLOWLIST`** as evidence lands.
+- [x] Add minimal wikitext in shared fixtures / `test/fixtures/decoder-smoke.wikitext` for allowlisted decoders (Greek heads, `romanization`, `rhymes`, section decoders, etc.).
+- [x] Remove entries from **`DECODER_EVIDENCE_ALLOWLIST`** as evidence lands.
 
 **Done when:** Allowlist is only universal/framework ids plus **one-line comments** for any intentional exceptions.
 
 ### 7.3 Golden snapshots
 
-- [ ] Add goldens (same pattern as `test/golden/entry-snapshots.test.ts`) for additional fixtures, e.g. `γράφω`, `nested-templates`, `translations-multi`, `nested-pipe-bug`.
-- [ ] Document new goldens in **`test/README.md`**.
+- [x] Add goldens (same pattern as `test/golden/entry-snapshots.test.ts`) for additional fixtures, e.g. `γράφω`, `nested-templates`, `translations-multi`, `nested-pipe-bug`.
+- [x] Document new goldens in **`test/README.md`**.
 
 ### 7.4 Stronger library integration tests
 
-- [ ] Prioritize **`translate`** (gloss) with `{{t|…|nl|…}}` and **`lemma`** paths on fixture-derived pipelines.
+- [x] Prioritize **`translate`** (gloss) with `{{t|…|nl|…}}` and **`lemma`** paths on fixture-derived pipelines.
 
 **Done when:** **`test/README.md`** table lists each wrapper group as **fixture-backed** or **mock-result-only**.
 
 ### 7.5 Cross-platform live tests
 
-- [ ] Document **Windows** / CI invocation for `npm run test:network` (`WIKT_TEST_LIVE=1`), or add **`cross-env`** and a portable npm script.
+- [x] Document **Windows** / CI invocation for `npm run test:network` (`WIKT_TEST_LIVE=1`), or add **`cross-env`** and a portable npm script.
 
 ### 7.6 CHANGELOG discipline
 
@@ -272,7 +272,7 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 
 ### 7.7 API recording refresh
 
-- [ ] Document **`npm run refresh-recording`** checklist in **`test/README.md`** (diff size, no secrets, NFC, minimal fixture).
+- [x] Document **`npm run refresh-recording`** checklist in **`test/README.md`** (diff size, no secrets, NFC, minimal fixture).
 
 ### 7.8 Optional: shared fixture helper
 
@@ -280,12 +280,12 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 
 ### 7.9 Audit §13 follow-through
 
-- [ ] Add or extend tests from **`audit.md` §13** where not already covered (fuzzy+debug alignment, corrupt cache JSON, form-of parse gate matrix, etc.).
-- [ ] Optional: CI script asserting **types ↔ JSON Schema** sync (`audit.md` §13.14).
+- [x] Add or extend tests from **`audit.md` §13** where not already covered (fuzzy+debug alignment, corrupt cache JSON, form-of parse gate matrix, etc.).
+- [x] Optional: CI script asserting **types ↔ JSON Schema** sync (`audit.md` §13.14).
 
 ### 7.10 Query matrix maintenance
 
-- [ ] When adding behaviours (e.g. enrichment axes), update **`docs/query-result-dimensional-matrix.md`** §11 and the dimension tables as needed.
+- [x] When adding behaviours (e.g. enrichment axes), update **`docs/query-result-dimensional-matrix.md`** §11 and the dimension tables as needed.
 
 **Risk:** Low. **Can parallelize** with Phases 1–2 where files do not overlap.
 
