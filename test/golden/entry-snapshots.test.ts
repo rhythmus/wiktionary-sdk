@@ -100,4 +100,28 @@ describe("golden: fixture → wiktionary (offline)", () => {
       }))
     ).toMatchSnapshot();
   });
+
+  it("γράφω rich Greek entry", async () => {
+    stubTitleToFixture("γράφω", "γράφω");
+    const res = await wiktionary({ query: "γράφω", lang: "el", enrich: false });
+    expect(projectLexemes(res.lexemes)).toMatchSnapshot();
+  });
+
+  it("nested-templates parser stress fixture", async () => {
+    stubTitleToFixture("golden-nested-templates", "nested-templates");
+    const res = await wiktionary({ query: "golden-nested-templates", lang: "el", enrich: false });
+    expect(projectLexemes(res.lexemes)).toMatchSnapshot();
+  });
+
+  it("translations-multi fixture", async () => {
+    stubTitleToFixture("golden-translations-multi", "translations-multi");
+    const res = await wiktionary({ query: "golden-translations-multi", lang: "el", enrich: false });
+    expect(projectLexemes(res.lexemes)).toMatchSnapshot();
+  });
+
+  it("nested-pipe-bug regression fixture", async () => {
+    stubTitleToFixture("golden-nested-pipe-bug", "nested-pipe-bug");
+    const res = await wiktionary({ query: "golden-nested-pipe-bug", lang: "el", enrich: false });
+    expect(projectLexemes(res.lexemes)).toMatchSnapshot();
+  });
 });

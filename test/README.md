@@ -45,6 +45,15 @@ Tests that import **`wiktionary`** from **`index.ts`** can still **`vi.mock("../
 
 `test/golden/entry-snapshots.test.ts` runs **`wiktionary`** on selected fixtures (API mocked) and compares a **stable projection** of LEXEME / INFLECTED_FORM fields to snapshots in `test/golden/__snapshots__/`.
 
+Current golden fixture set includes:
+
+- `basic-verb`
+- `form-of-inflected` (INFLECTED_FORM projection)
+- `γράφω`
+- `nested-templates`
+- `translations-multi`
+- `nested-pipe-bug`
+
 When you **intentionally** change extraction output:
 
 ```bash
