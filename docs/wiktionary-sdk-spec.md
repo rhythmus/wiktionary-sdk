@@ -551,11 +551,10 @@ The `conjugate()` and `decline()` functions implement a **Smart Override** strat
 - **Lexeme Ordering**: By default (`sort: "source"`), discovered lexemes
   preserve the order in which language sections appear in the Wiktionary
   source markup. When `sort: "priority"` is requested, lexemes are sorted
-  by a hardcoded linguistic-significance heuristic:
-  1. **Greek (`el`)** (Primary target)
-  2. **Ancient Greek (`grc`)**
-  3. **English (`en`)**
-  4. Others (Alphabetical)
+  by a default language rank map (`el`, `grc`, `en`) that callers can
+  override via `sort: { strategy: "priority", priorities }`. Secondary keys
+  are deterministic within each language tier: `etymology_index` ascending,
+  then `part_of_speech_heading` alphabetical.
 - **Unknown language codes:** If `lang` is specified but not found in the mapping (`langToLanguageName()` returns `null`), `wiktionary()` returns early with an empty `lexemes` array and an explanatory `notes` entry.
 
 ### 4.2 Etymology and PoS segmentation — the Wikitext hierarchy problem
@@ -844,6 +843,7 @@ The minimal HTTP wrapper exposes **`GET /api/fetch`** with query parameters
 `query`, `lang` (defaults to `el`, unlike the library default `Auto`),
 `enrich` (default true; set `enrich=false` to disable), optional `format=yaml|json`,
 `matchMode` (`strict` \| `fuzzy`), `sort` (`source` \| `priority`),
+optional `langPriorities` (`el=1,grc=2,...`) for custom priority ordering,
 `debugDecoders` (`true` \| `1` \| `yes`),
 optional `lemmaFetchConcurrency` / `formOfParseConcurrency` (positive integers),
 **`filterPos`** for the same PoS filtering as `wiktionary({ pos })` (default `Auto`),
@@ -851,7 +851,7 @@ and **`preferredPos`** for lemma disambiguation. For backwards compatibility,
 a bare **`pos=`** query argument still maps to **`preferredPos`** only (legacy
 behaviour); use **`filterPos=`** when you need strict PoS filtering.
 
-**Implementation note:** Response assembly lives in **`src/server-fetch.ts`** as **`buildApiFetchResponse(url, deps?)`**, which returns `{ status, headers, body }` so unit tests can inject **`deps.wiktionaryFn`** without listening on a port. **`server.ts`** delegates to that helper. YAML responses use **`Content-Type: text/yaml; charset=utf-8`** so clients treat the payload as UTF-8 explicitly.
+**Implementation note:** Response assembly lives in **`src/ingress/server-fetch.ts`** as **`buildApiFetchResponse(url, deps?)`**, which returns `{ status, headers, body }` so unit tests can inject **`deps.wiktionaryFn`** without listening on a port. **`server.ts`** delegates to that helper. YAML responses use **`Content-Type: text/yaml; charset=utf-8`** so clients treat the payload as UTF-8 explicitly.
 
 **Health:** `GET /api/health` returns a small JSON status object.
 
@@ -1213,13 +1213,13 @@ CLI `--extract`, or webapp Live API Playground). These drifts are subtle:
 they often pass type checks but change runtime semantics.
 
 **Design:** Wrapper invocation is centralized in
-`src/wrapper-invoke.ts` via `invokeWrapperMethod()` and reused by:
+`src/convenience/wrapper-invoke.ts` via `invokeWrapperMethod()` and reused by:
 - `cli/index.ts` (`invokeExtractWrapper`)
 - `webapp/src/playground-api-execute.ts` (`runPlaygroundApiExecute`), called from **`App.tsx`**
 
 The Live API Playground also exposes **`wiktionary`** as a first-class method
 (direct **`wiktionary({ query, lang, pos, … })`** with **`enrich`**, **`matchMode`**,
-and **`debugDecoders`**) so the raw fetch path stays aligned with the wrapper
+**`debugDecoders`**, and **`sort`**) so the raw fetch path stays aligned with the wrapper
 matrix without a separate code path.
 
 The helper enforces canonical signatures for special families:
@@ -1652,8 +1652,8 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 
 | Surface | Location | Notes |
 |---------|----------|-------|
-| **CLI** | `cli/index.ts` | `--extract`, `--props`, `--sort`, `--no-enrich`, batch mode, YAML/JSON/ANSI output. |
-| **HTTP** | `server.ts` | Minimal `GET /api/fetch` (see §11.1); delegates to **`src/server-fetch.ts`**. |
+| **CLI** | `cli/index.ts` | `--extract`, `--props`, `--sort`, `--lang-priorities`, `--no-enrich`, batch mode, YAML/JSON/ANSI output. |
+| **HTTP** | `server.ts` | Minimal `GET /api/fetch` (see §11.1); delegates to **`src/ingress/server-fetch.ts`**. |
 | **Webapp** | `webapp/src/App.tsx` + helpers | Playground, inspector, triple-window codegen; **`runPlaygroundApiExecute`** uses **`invokeWrapperMethod`** like CLI (§12.29). |
 
 ### 14.3 Tooling (`tools/`)
@@ -1675,6 +1675,7 @@ Representative suites (see **`test/README.md`** for tiers and mocking rules):
 - **`registry.test.ts`**, **`decoder-coverage.test.ts`**, **`registry-ids.test.ts`** — decoder behaviour and evidence allowlist.
 - **`library.test.ts`**, **`wrapper-contract.test.ts`**, **`cross-interface-parity.test.ts`** — wrappers and CLI/webapp parity.
 - **`golden/entry-snapshots.test.ts`** — stable projections vs committed snapshots.
+- **`schema-pos-parity.test.ts`**, **`types-grouped-results.test.ts`** — CI parity guards for TypeScript enum/type surfaces vs schema and grouped wrapper result contracts.
 - **`integration*.test.ts`**, **`fallback-enrichment-matrix.test.ts`**, **`negative-schema-hardening.test.ts`** — integration and schema guards.
 - **`network-replay.test.ts`** — optional live/replay path (`WIKT_TEST_LIVE=1`).
 - **`*-audit.test.ts`** — orchestration, API, server-fetch, parser, registry, formatter, form-of, morphology, library, wrapper-invoke audits (see §12.34, `audit.md`).
@@ -1693,7 +1694,7 @@ Per-lexeme **`categories`** are filtered in `index.ts` with a substring heuristi
 The codebase is deliberately modular so the following extensions can be pursued without breaking the “source-faithful decoder registry” invariant:
 
 1. **Language-priority profiles**: Build higher-level presets/locales on top of configurable `wiktionary({ sort: { strategy: "priority", priorities } })` (see §12.28).
-2. **REST/CLI parity**: Thread `matchMode`, `sort`, `debugDecoders`, and true `pos` filter through `server.ts` query params; align default `lang` with library (`Auto` vs `el`).
+2. **REST/CLI parity (continued)**: Keep query-param/flag parity as options evolve (recently: `matchMode`, `sort`, `langPriorities`, `debugDecoders`, true `pos` filter); evaluate whether server default `lang=el` should converge with library default `Auto`.
 3. **Non–en.wiktionary wikis**: Introduce a site parameter (e.g. `el.wiktionary.org`) with separate normalizers; most of the pipeline (brace-aware parse, registry) is reusable, but section headings and template families differ.
 4. **Decoder expansion**: Continue category-driven coverage (`template-introspect`, `report:form-of`); keep **one registration per `id`**, evidence in fixtures or allowlist (`decoder-coverage.test.ts`).
 5. **Persistent cache adapters**: Implement L2/L3 `CacheAdapter` for Node (SQLite/disk) or browser (IndexedDB) and document cache invalidation using `revision_id` / `last_modified`.

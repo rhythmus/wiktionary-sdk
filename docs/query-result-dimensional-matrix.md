@@ -22,7 +22,7 @@ Each **lexeme** in `FetchResult.lexemes` is keyed in the pipeline by the Cartesi
 | **H. Form-of / morph richness** | `form_of`, `senses[].subsenses`, `display_morph_lines` | Plain lemma card vs template-only stub vs multi-line morph (wikitext `##`, tags, abbrev, or `mediawiki_parse`). |
 | **I. Lemma resolution** | Second `wiktionaryRecursive` for unique `(lang, lemma)` | Only for `INFLECTED_FORM` with `form_of.lemma`; deduped; cycle guard; lemma page may be missing. |
 | **J. Enrichment** | `enrich` | Wikidata on **lemma** lexemes; `display_morph_lines` via `action=parse` on **inflected** stubs when gated. |
-| **K. Ordering** | `sort: "source" \| "priority" \| { strategy, priorities? }` | Source order vs language-priority reorder of merged array; caller may override priority ranks. |
+| **K. Ordering** | `sort: "source" \| "priority" \| { strategy, priorities? }` | Source order vs language-priority reorder of merged array; caller may override priority ranks. Priority mode uses secondary keys: `etymology_index` asc then PoS heading (alphabetical). |
 
 The **simplest** case is one point in each axis: existing page, strict match, one language, one etymology, one PoS, type `LEXEME`, no form_of, no extra fetches.
 
@@ -172,7 +172,11 @@ Use this as a **checklist** for mental simulation: pick one option from each row
    B2 + A1  
    → One logical result set; notes may mention variant title (e.g. lowercase fallback), with `debug` rows aligned to merged `lexemes` when `debugDecoders` is enabled.
 
-8. **Only form-of stubs (no etym prose)**  
+8. **Custom priority profile**  
+   K with `{ strategy: "priority", priorities: { grc: 1, el: 2 } }`  
+   → Historical-language-first ordering without changing extraction semantics.
+
+9. **Only form-of stubs (no etym prose)**  
    D1 + F2 + H5  
    → Valid lexeme with empty/minimal etymology chain; **not** an error.
 
