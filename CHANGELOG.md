@@ -34,6 +34,7 @@ for its output schema (see `VERSIONING.md`).
 - **Configurable priority sort:** `wiktionary({ sort })` now accepts structured sort options (`{ strategy: "priority", priorities }`) in addition to string shorthand, with deterministic secondary keys (`etymology_index`, then PoS heading). CLI adds `--lang-priorities`, REST accepts `langPriorities=el=1,grc=2,...`, and webapp exposes source/priority strategy toggles.
 - **Audit follow-through hardening:** orchestration tests now lock fuzzy-variant note emission alongside lexeme/debug alignment, and `test:ci` includes `check:types-schema-sync` so type/schema parity checks are guaranteed in CI rather than optional local runs.
 - **Phase 7 closure docs:** `docs/ROADMAP.md` marks testing/doc debt items complete through 7.10, and `docs/query-result-dimensional-matrix.md` is refreshed for current fuzzy/debug behavior and ordering semantics.
+- **Roadmap cleanup:** fully implemented Phases 0-8 were removed from `docs/ROADMAP.md` and preserved as historical delivery context in this changelog, while the roadmap was restructured into new remaining-only phases (Hardening leftovers, Export formats, Platform expansion).
 
 ---
 
