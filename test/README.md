@@ -77,10 +77,10 @@ Targeted tests that lock in expectations from **`audit.md`** (architecture,
 orchestration, REST surface, parser/registry edges) without inflating the main
 feature tests:
 
-- **`orchestration-audit.test.ts`** — `wiktionary()` / fuzzy / `debugDecoders` padding behaviour.
+- **`orchestration-audit.test.ts`** — `wiktionary()` fuzzy merge notes, custom-priority ordering, and `debugDecoders` alignment/padding behaviour.
 - **`api-fetch-audit.test.ts`** — MediaWiki client shapes used by the engine.
 - **`wrapper-invoke-audit.test.ts`** — `invokeWrapperMethod` argument wiring.
-- **`server-fetch-audit.test.ts`** — `buildApiFetchResponse()` status, YAML `Content-Type`, injectable `wiktionaryFn`.
+- **`server-fetch-audit.test.ts`** — `buildApiFetchResponse()` status, YAML `Content-Type`, `langPriorities` sort forwarding, injectable `wiktionaryFn`.
 - **`parser-audit.test.ts`**, **`registry-markup-formof-audit.test.ts`** — parser + registry invariants tied to audit notes.
 - **`formatter-audit.test.ts`**, **`form-of-parse-enrich-audit.test.ts`**, **`morphology-tags-audit.test.ts`**, **`library-audit.test.ts`** — presentation and enrichment boundaries.
 - **`types-grouped-results.test.ts`** — `GroupedLexemeResults` typing expectations.

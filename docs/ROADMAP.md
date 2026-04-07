@@ -305,6 +305,8 @@ Exact file names are suggestions; keep **`src/decode/registry/`** as the home. *
 | 8.4 | **Done** — CLI and webapp expose source vs priority strategy; webapp/search + playground pass sort strategy through; docs clarify default `source`. |
 | 8.5 | **Done** — ordering tests extended with multi-language/custom-rank and same-language secondary-key assertions. |
 
+**Design note:** The rollout keeps backward compatibility for callers already using string `sort` values (`"source"` / `"priority"`), while adding an object shape only for explicit custom ranking so source-faithful defaults remain unchanged.
+
 **Risk:** Medium (API design). **Depends on:** Phases 2–3.
 
 ---
