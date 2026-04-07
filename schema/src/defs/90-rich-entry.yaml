@@ -32,6 +32,8 @@ RichEntry:
         $ref: '#/$defs/Sense'
     relations:
       $ref: '#/$defs/SemanticRelations'
+    relations_by_sense:
+      $ref: '#/$defs/SemanticRelationsBySense'
     derived_terms:
       $ref: '#/$defs/SectionWithLinks'
     related_terms:

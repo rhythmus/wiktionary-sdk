@@ -1,7 +1,18 @@
+export type RelationSourceEvidence =
+  | "template_id"
+  | "section_scope"
+  | "qualifier_match"
+  | "heuristic";
+
+export type RelationConfidence = "high" | "medium" | "low";
+
 export interface SemanticRelation {
   term: string;
   sense_id?: string;
   qualifier?: string;
+  source_evidence?: RelationSourceEvidence;
+  confidence?: RelationConfidence;
+  matched_sense_id?: string;
 }
 
 export interface SemanticRelations {
@@ -27,3 +38,10 @@ export interface SemanticRelations {
   /** Typical word combinations (`====Collocations====` or list content). */
   collocations?: SemanticRelation[];
 }
+
+export interface SenseSemanticRelations extends SemanticRelations {
+  /** Sense ID this group is linked to. */
+  sense_id: string;
+}
+
+export type SemanticRelationsBySense = Record<string, SemanticRelations>;

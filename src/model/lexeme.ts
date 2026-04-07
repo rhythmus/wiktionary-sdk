@@ -3,7 +3,7 @@ import type { LexicographicFamily } from "./lexicographic";
 import type { PartOfSpeech } from "./part-of-speech";
 import type { Pronunciation, Hyphenation, WikidataEnrichment, WiktionarySource } from "./source-media";
 import type { Sense } from "./sense";
-import type { SemanticRelations } from "./relations";
+import type { SemanticRelations, SemanticRelationsBySense } from "./relations";
 import type { EtymologyData } from "./etymology";
 import type { SectionWithLinks } from "./sections";
 
@@ -66,6 +66,7 @@ export interface Lexeme {
   }>>;
   senses?: Sense[];
   semantic_relations?: SemanticRelations;
+  semantic_relations_by_sense?: SemanticRelationsBySense;
   etymology?: EtymologyData;
   /** From {{l}}/{{link}} in ====Derived terms==== section. */
   derived_terms?: SectionWithLinks;

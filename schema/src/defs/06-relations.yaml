@@ -1,5 +1,18 @@
 # JSON Schema $defs fragment — see tools/schema-def-modules.ts
 
+RelationSourceEvidence:
+  type: string
+  enum:
+    - template_id
+    - section_scope
+    - qualifier_match
+    - heuristic
+RelationConfidence:
+  type: string
+  enum:
+    - high
+    - medium
+    - low
 SemanticRelation:
   type: object
   required:
@@ -9,8 +22,18 @@ SemanticRelation:
       type: string
     sense_id:
       type: string
+      description: Explicit sense anchor from wikitext (template id= parameter).
     qualifier:
       type: string
+    source_evidence:
+      $ref: '#/$defs/RelationSourceEvidence'
+      description: How this relation was linked to a sense.
+    confidence:
+      $ref: '#/$defs/RelationConfidence'
+      description: Confidence of the sense-to-relation link.
+    matched_sense_id:
+      type: string
+      description: Sense ID this relation was resolved to (may differ from source sense_id when heuristic).
   additionalProperties: false
 SemanticRelations:
   type: object
@@ -67,3 +90,10 @@ SemanticRelations:
         $ref: '#/$defs/SemanticRelation'
       description: Typical word combinations; Wiktionary Collocations section.
   additionalProperties: false
+SemanticRelationsBySense:
+  type: object
+  description: >-
+    Sense-grouped projection of semantic relations. Keys are sense IDs (e.g. 'S1'); values
+    contain only the relations linked to that sense.
+  additionalProperties:
+    $ref: '#/$defs/SemanticRelations'

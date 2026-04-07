@@ -76,6 +76,8 @@ Lexeme:
         $ref: '#/$defs/Sense'
     semantic_relations:
       $ref: '#/$defs/SemanticRelations'
+    semantic_relations_by_sense:
+      $ref: '#/$defs/SemanticRelationsBySense'
     etymology:
       $ref: '#/$defs/EtymologyData'
     derived_terms:

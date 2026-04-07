@@ -1,4 +1,4 @@
-import type { SemanticRelations } from "../../model";
+import type { SemanticRelation, SemanticRelations, SectionLinkItem } from "../../model";
 import type { DecoderRegistry } from "./decoder-registry";
 import {
     extractSectionByLevelHeaders,
@@ -27,6 +27,38 @@ const RELATION_HEADERS = {
     Collocations: "collocations",
 } as const;
 
+function parseSenseGlossFromSectionItem(raw: string): string | undefined {
+    const m = raw.match(/^\*\s*\(([^)]+)\)/);
+    return m ? m[1].trim() : undefined;
+}
+
+/**
+ * Enhanced section parser: for each bullet line, extracts parenthetical qualifiers
+ * adjacent to `{{l|…}}` templates and attaches them as `gloss` on the item.
+ */
+function parseSectionRelationItems(
+    sectionRaw: string,
+): Array<SectionLinkItem & { lineQualifier?: string }> {
+    const linkItems = parseSectionLinkTemplates(sectionRaw);
+    if (linkItems.length === 0) return [];
+
+    const lines = sectionRaw.split("\n");
+    const results: Array<SectionLinkItem & { lineQualifier?: string }> = [];
+
+    for (const item of linkItems) {
+        const hostLine = lines.find((l) => l.includes(item.raw));
+        const lineQualifier = hostLine
+            ? parseSenseGlossFromSectionItem(hostLine)
+            : undefined;
+        results.push({
+            ...item,
+            gloss: item.gloss || lineQualifier || undefined,
+            lineQualifier,
+        });
+    }
+    return results;
+}
+
 /** Template and section synonym/antonym/hypernym/hyponym extraction. */
 export function registerSemanticRelations(reg: DecoderRegistry): void {
     reg.register({
@@ -38,7 +70,6 @@ export function registerSemanticRelations(reg: DecoderRegistry): void {
         decode: (ctx) => {
             const relations: SemanticRelations = {};
 
-            // 1. Template-based relations
             for (const t of ctx.templates) {
                 const key = RELATION_TEMPLATES[t.name];
                 if (!key) continue;
@@ -50,25 +81,33 @@ export function registerSemanticRelations(reg: DecoderRegistry): void {
                 const senseId = t.params.named?.["id"] || undefined;
                 if (!relations[key]) relations[key] = [];
                 for (const term of terms) {
-                    relations[key]!.push({ term, sense_id: senseId, qualifier });
+                    const rel: SemanticRelation = { term, qualifier };
+                    if (senseId) {
+                        rel.sense_id = senseId;
+                        rel.source_evidence = "template_id";
+                        rel.confidence = "high";
+                    }
+                    relations[key]!.push(rel);
                 }
             }
 
-            // 2. Section-based relations (====Synonyms====)
             for (const [header, field] of Object.entries(RELATION_HEADERS)) {
                 const section = extractSectionByLevelHeaders(ctx.posBlockWikitext, header);
-                if (section) {
-                    const items = parseSectionLinkTemplates(section.raw);
-                    if (items.length > 0) {
-                        if (!relations[field as keyof SemanticRelations])
-                            relations[field as keyof SemanticRelations] = [];
-                        for (const item of items) {
-                            relations[field as keyof SemanticRelations]!.push({
-                                term: item.term,
-                                qualifier: item.gloss,
-                            });
-                        }
+                if (!section) continue;
+                const items = parseSectionRelationItems(section.raw);
+                if (items.length === 0) continue;
+                if (!relations[field as keyof SemanticRelations])
+                    relations[field as keyof SemanticRelations] = [];
+                for (const item of items) {
+                    const rel: SemanticRelation = {
+                        term: item.term,
+                        qualifier: item.gloss,
+                    };
+                    if (item.lineQualifier || item.gloss) {
+                        rel.source_evidence = "section_scope";
+                        rel.confidence = "medium";
                     }
+                    relations[field as keyof SemanticRelations]!.push(rel);
                 }
             }
 

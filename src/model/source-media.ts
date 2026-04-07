@@ -46,6 +46,27 @@ export interface WikidataEnrichment {
   instance_of?: string[];
   /** Wikidata P279 'Subclass Of' claims (e.g. ['Q34770']). */
   subclass_of?: string[];
+  /** Extra metadata when the resolved QID is a Wikimedia disambiguation page (Q4167410). */
+  disambiguation?: {
+    /** Candidate target pages listed on the disambiguation page, each with resolved QID when available. */
+    candidates: Array<{
+      title: string;
+      qid: string | null;
+      url?: string;
+    }>;
+    /** Best-effort mapping of lexeme sense IDs to candidate QIDs by gloss/title token overlap. */
+    sense_matches?: Array<{
+      sense_id: string;
+      candidate_qid: string;
+      candidate_title: string;
+      score: number;
+      match_reasons?: {
+        title_token_hits?: number;
+        aux_token_hits?: number;
+        title_phrase_hit?: boolean;
+      };
+    }>;
+  };
   /** Present when enrichment failed after a QID was known (best-effort diagnostics). */
   wikidata_error?: string;
 }

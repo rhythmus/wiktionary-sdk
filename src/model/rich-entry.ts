@@ -3,7 +3,7 @@ import type { Lexeme } from "./lexeme";
 import type { Pronunciation, Hyphenation, WikidataEnrichment, WiktionarySource } from "./source-media";
 import type { EtymologyData } from "./etymology";
 import type { Sense } from "./sense";
-import type { SemanticRelations } from "./relations";
+import type { SemanticRelations, SemanticRelationsBySense } from "./relations";
 import type { SectionWithLinks } from "./sections";
 
 /**
@@ -30,6 +30,7 @@ export interface RichEntry {
   etymology?: EtymologyData;
   senses?: Sense[];
   relations?: SemanticRelations;
+  relations_by_sense?: SemanticRelationsBySense;
   derived_terms?: SectionWithLinks;
   related_terms?: SectionWithLinks;
   descendants?: SectionWithLinks;

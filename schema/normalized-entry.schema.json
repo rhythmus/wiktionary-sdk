@@ -207,6 +207,72 @@
       },
       "additionalProperties": false
     },
+    "DisambiguationCandidate": {
+      "type": "object",
+      "required": [
+        "title",
+        "qid"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "qid": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^Q\\d+$"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DisambiguationSenseMatch": {
+      "type": "object",
+      "required": [
+        "sense_id",
+        "candidate_qid",
+        "candidate_title",
+        "score"
+      ],
+      "properties": {
+        "sense_id": {
+          "type": "string"
+        },
+        "candidate_qid": {
+          "type": "string",
+          "pattern": "^Q\\d+$"
+        },
+        "candidate_title": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "match_reasons": {
+          "type": "object",
+          "properties": {
+            "title_token_hits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "aux_token_hits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "title_phrase_hit": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "EtymologyData": {
       "type": "object",
       "properties": {
@@ -683,6 +749,9 @@
         },
         "semantic_relations": {
           "$ref": "#/$defs/SemanticRelations"
+        },
+        "semantic_relations_by_sense": {
+          "$ref": "#/$defs/SemanticRelationsBySense"
         },
         "etymology": {
           "$ref": "#/$defs/EtymologyData"
@@ -1185,6 +1254,23 @@
       },
       "additionalProperties": false
     },
+    "RelationConfidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "RelationSourceEvidence": {
+      "type": "string",
+      "enum": [
+        "template_id",
+        "section_scope",
+        "qualifier_match",
+        "heuristic"
+      ]
+    },
     "RichEntry": {
       "type": "object",
       "required": [
@@ -1229,6 +1315,9 @@
         },
         "relations": {
           "$ref": "#/$defs/SemanticRelations"
+        },
+        "relations_by_sense": {
+          "$ref": "#/$defs/SemanticRelationsBySense"
         },
         "derived_terms": {
           "$ref": "#/$defs/SectionWithLinks"
@@ -1339,10 +1428,23 @@
           "type": "string"
         },
         "sense_id": {
-          "type": "string"
+          "type": "string",
+          "description": "Explicit sense anchor from wikitext (template id= parameter)."
         },
         "qualifier": {
           "type": "string"
+        },
+        "source_evidence": {
+          "$ref": "#/$defs/RelationSourceEvidence",
+          "description": "How this relation was linked to a sense."
+        },
+        "confidence": {
+          "$ref": "#/$defs/RelationConfidence",
+          "description": "Confidence of the sense-to-relation link."
+        },
+        "matched_sense_id": {
+          "type": "string",
+          "description": "Sense ID this relation was resolved to (may differ from source sense_id when heuristic)."
         }
       },
       "additionalProperties": false
@@ -1425,6 +1527,13 @@
         }
       },
       "additionalProperties": false
+    },
+    "SemanticRelationsBySense": {
+      "type": "object",
+      "description": "Sense-grouped projection of semantic relations. Keys are sense IDs (e.g. 'S1'); values contain only the relations linked to that sense.",
+      "additionalProperties": {
+        "$ref": "#/$defs/SemanticRelations"
+      }
     },
     "Sense": {
       "type": "object",
@@ -1646,6 +1755,27 @@
         "fr"
       ]
     },
+    "WikidataDisambiguation": {
+      "type": "object",
+      "required": [
+        "candidates"
+      ],
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DisambiguationCandidate"
+          }
+        },
+        "sense_matches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DisambiguationSenseMatch"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "WikidataEnrichment": {
       "type": "object",
       "required": [
@@ -1692,6 +1822,10 @@
             "pattern": "^Q\\d+$"
           },
           "description": "Wikidata P279 'Subclass Of' claims."
+        },
+        "disambiguation": {
+          "$ref": "#/$defs/WikidataDisambiguation",
+          "description": "Candidate targets and sense hints when qid is a disambiguation item."
         },
         "wikidata_error": {
           "type": "string",

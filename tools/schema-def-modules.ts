@@ -18,6 +18,9 @@ export const SCHEMA_DEF_MODULES: Record<string, readonly string[]> = {
     "WikidataMedia",
     "LabelValue",
     "SitelinkValue",
+    "DisambiguationCandidate",
+    "DisambiguationSenseMatch",
+    "WikidataDisambiguation",
     "WikidataEnrichment",
   ],
   "03-debug-and-library.yaml": [
@@ -40,7 +43,7 @@ export const SCHEMA_DEF_MODULES: Record<string, readonly string[]> = {
     "HeadwordMorphology",
   ],
   "05-senses.yaml": ["Example", "AlternativeForm", "OnlyUsedIn", "Sense"],
-  "06-relations.yaml": ["SemanticRelation", "SemanticRelations"],
+  "06-relations.yaml": ["RelationSourceEvidence", "RelationConfidence", "SemanticRelation", "SemanticRelations", "SemanticRelationsBySense"],
   "07-etymology.yaml": ["EtymologyLink", "EtymologyData"],
   "08-sections-and-paradigm.yaml": ["SectionLinkItem", "SectionWithLinks", "InflectionTable"],
   "90-rich-entry.yaml": ["RichEntry"],

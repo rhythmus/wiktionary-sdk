@@ -64,6 +64,7 @@ export async function richEntry(
                 parasynonyms: lexeme.semantic_relations?.parasynonyms?.map((p) => ({ term: p.term })),
                 collocations: lexeme.semantic_relations?.collocations?.map((c) => ({ term: c.term })),
             },
+            relations_by_sense: lexeme.semantic_relations_by_sense,
             derived_terms: lexeme.derived_terms,
             related_terms: lexeme.related_terms,
             descendants: lexeme.descendants,

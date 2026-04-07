@@ -101,6 +101,67 @@ SitelinkValue:
       type: string
       format: uri
   additionalProperties: false
+DisambiguationCandidate:
+  type: object
+  required:
+    - title
+    - qid
+  properties:
+    title:
+      type: string
+    qid:
+      type:
+        - string
+        - 'null'
+      pattern: ^Q\d+$
+    url:
+      type: string
+      format: uri
+  additionalProperties: false
+DisambiguationSenseMatch:
+  type: object
+  required:
+    - sense_id
+    - candidate_qid
+    - candidate_title
+    - score
+  properties:
+    sense_id:
+      type: string
+    candidate_qid:
+      type: string
+      pattern: ^Q\d+$
+    candidate_title:
+      type: string
+    score:
+      type: number
+    match_reasons:
+      type: object
+      properties:
+        title_token_hits:
+          type: integer
+          minimum: 0
+        aux_token_hits:
+          type: integer
+          minimum: 0
+        title_phrase_hit:
+          type: boolean
+      additionalProperties: false
+  additionalProperties: false
+WikidataDisambiguation:
+  type: object
+  required:
+    - candidates
+  properties:
+    candidates:
+      type: array
+      items:
+        $ref: '#/$defs/DisambiguationCandidate'
+    sense_matches:
+      type: array
+      items:
+        $ref: '#/$defs/DisambiguationSenseMatch'
+  additionalProperties: false
 WikidataEnrichment:
   type: object
   required:
@@ -135,6 +196,9 @@ WikidataEnrichment:
         type: string
         pattern: ^Q\d+$
       description: Wikidata P279 'Subclass Of' claims.
+    disambiguation:
+      $ref: '#/$defs/WikidataDisambiguation'
+      description: Candidate targets and sense hints when qid is a disambiguation item.
     wikidata_error:
       type: string
       description: Optional diagnostic when Wikidata enrichment failed.

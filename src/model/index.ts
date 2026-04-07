@@ -13,7 +13,14 @@ export type {
   WikidataEnrichment,
 } from "./source-media";
 export type { Example, OnlyUsedIn, Sense } from "./sense";
-export type { SemanticRelation, SemanticRelations } from "./relations";
+export type {
+  SemanticRelation,
+  SemanticRelations,
+  SenseSemanticRelations,
+  SemanticRelationsBySense,
+  RelationSourceEvidence,
+  RelationConfidence,
+} from "./relations";
 export type {
   EtymologyLink,
   EtymologyData,
