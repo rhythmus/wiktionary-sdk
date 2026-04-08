@@ -258,7 +258,7 @@ function formatLexemeHtmlFragment(lexeme: Lexeme, options: FormatOptions): strin
     return htmlEntryTemplate(ctx);
 }
 
-function formatHomonymGroupHtml(items: Lexeme[], options: FormatOptions): string {
+export function formatHomonymGroupHtml(items: Lexeme[], options: FormatOptions): string {
     const first = items[0];
     const wikidata = items.find((l) => l.wikidata)?.wikidata ?? first.wikidata;
     const usage_notes = items.find((l) => l.usage_notes?.length)?.usage_notes ?? first.usage_notes;

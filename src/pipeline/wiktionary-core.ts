@@ -716,10 +716,28 @@ export async function wiktionaryRecursive({
                             qid: c.qid,
                             ...(c.url ? { url: c.url } : {}),
                         }));
+                        const originalDisambigQid = lex.wikidata.qid;
                         lex.wikidata.disambiguation = {
+                            source_qid: originalDisambigQid,
                             candidates: publicCandidates,
                             ...(senseMatches.length > 0 ? { sense_matches: senseMatches } : {}),
                         };
+
+                        const DISAMBIG_CONFIDENCE_THRESHOLD = 4;
+                        const confident = senseMatches.filter((m) => m.score >= DISAMBIG_CONFIDENCE_THRESHOLD);
+                        if (confident.length > 0 && lex.senses) {
+                            for (const match of confident) {
+                                const sense = lex.senses.find((s) => s.id === match.sense_id);
+                                if (sense) sense.wikidata_qid = match.candidate_qid;
+                            }
+                            const best = confident.reduce((a, b) => (b.score > a.score ? b : a));
+                            lex.wikidata.qid = best.candidate_qid;
+                            lex.wikidata.instance_of = (lex.wikidata.instance_of || []).filter(
+                                (id) => id !== WIKIDATA_DISAMBIGUATION_QID,
+                            );
+                        } else {
+                            lex.wikidata.disambiguation.unresolved = true;
+                        }
                     }
                 }
             } catch (err: unknown) {

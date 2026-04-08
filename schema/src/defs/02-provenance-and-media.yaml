@@ -153,6 +153,13 @@ WikidataDisambiguation:
   required:
     - candidates
   properties:
+    source_qid:
+      type: string
+      pattern: ^Q\d+$
+      description: Original disambiguation-page QID before it was replaced by a winner.
+    unresolved:
+      type: boolean
+      description: True when no sense matched any candidate above the confidence threshold.
     candidates:
       type: array
       items:

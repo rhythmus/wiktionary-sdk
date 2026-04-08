@@ -34,4 +34,6 @@ export interface Sense {
   topics?: string[];
   examples?: Array<string | Example>;
   subsenses?: Sense[];
+  /** Wikidata QID resolved for this specific sense (from disambiguation matching). */
+  wikidata_qid?: string;
 }

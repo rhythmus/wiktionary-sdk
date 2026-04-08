@@ -181,7 +181,9 @@ describe("fallback/enrichment matrix", () => {
 
     const res = await wiktionary({ query: "write", lang: "en", enrich: true });
     const lex = res.lexemes.find((l) => l.type === "LEXEME");
-    expect(lex?.wikidata?.qid).toBe("Q1215628");
+    expect(lex?.wikidata?.qid).toBe("Q37260");
+    expect(lex?.wikidata?.disambiguation?.source_qid).toBe("Q1215628");
+    expect(lex?.wikidata?.disambiguation?.unresolved).toBeFalsy();
     expect(lex?.wikidata?.disambiguation?.candidates).toEqual([
       {
         title: "Writing",
@@ -198,6 +200,8 @@ describe("fallback/enrichment matrix", () => {
     expect(lex?.wikidata?.disambiguation?.sense_matches?.[0]?.match_reasons).toEqual(
       expect.objectContaining({ title_phrase_hit: true }),
     );
+    expect(lex?.senses?.[0]?.wikidata_qid).toBe("Q37260");
+    expect(lex?.wikidata?.instance_of).not.toContain("Q4167410");
   });
 
   it("uses candidate descriptions/aliases to improve sense mapping", async () => {

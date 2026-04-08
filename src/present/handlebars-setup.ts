@@ -33,6 +33,13 @@ Handlebars.registerHelper("subLetter", (index: number) => {
     return String.fromCharCode(97 + index);
 });
 
+const WIKIDATA_DISAMBIGUATION_QID = "Q4167410";
+
+Handlebars.registerHelper("filterInstanceOf", (items: string[] | undefined) => {
+    if (!Array.isArray(items)) return [];
+    return items.filter((id) => id !== WIKIDATA_DISAMBIGUATION_QID);
+});
+
 Handlebars.registerHelper("toUpperCase", (str: string | undefined) => {
     return str ? str.toUpperCase() : "";
 });

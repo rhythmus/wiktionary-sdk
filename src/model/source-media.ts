@@ -48,6 +48,10 @@ export interface WikidataEnrichment {
   subclass_of?: string[];
   /** Extra metadata when the resolved QID is a Wikimedia disambiguation page (Q4167410). */
   disambiguation?: {
+    /** Original disambiguation-page QID before it was replaced by a winner. */
+    source_qid?: string;
+    /** True when no sense matched any candidate above the confidence threshold. */
+    unresolved?: boolean;
     /** Candidate target pages listed on the disambiguation page, each with resolved QID when available. */
     candidates: Array<{
       title: string;

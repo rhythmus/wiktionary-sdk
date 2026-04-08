@@ -103,4 +103,8 @@ Sense:
       type: array
       items:
         $ref: '#/$defs/Sense'
+    wikidata_qid:
+      type: string
+      pattern: ^Q\d+$
+      description: Wikidata QID resolved for this specific sense (from disambiguation matching).
   additionalProperties: false
