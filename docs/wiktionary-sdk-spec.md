@@ -103,9 +103,11 @@ Used only if `pageprops.wikibase_item` is present.
 
 All API requests are subject to:
 
-- **Rate limiting**: configurable throttle, default 100ms minimum interval (10 req/s) per Wikimedia guidelines. Managed by `src/rate-limiter.ts` (`RateLimiter.throttle()` before each `mwFetchJson` call).
-- **User-Agent**: default string in `src/rate-limiter.ts` (`Wiktionary SDK/1.0` plus repository URL placeholder). Call **`configureRateLimiter({ userAgent, minIntervalMs, proxyUrl })`** before network use to replace the global limiter instance.
-- **Caching**: multi-tier cache (`src/cache.ts`) prevents redundant requests. L1 in-memory with TTL, L2/L3 pluggable for persistent and shared storage. **`configureCache({ l2, l3, defaultTtl })`** replaces the global `TieredCache` before fetches run.
+- **Rate limiting**: configurable throttle, default 200ms minimum interval (5 req/s). Browser contexts cannot set a proper `User-Agent` header, so Wikimedia servers apply stricter limits than the 200 req/s bot guideline; 200ms provides headroom. Managed by `src/ingress/rate-limiter.ts` (`RateLimiter.throttle()` before each `mwFetchJson` call).
+- **HTTP 429 retry**: `mwFetchJson` automatically retries on HTTP 429 (Too Many Requests) up to `maxRetries429` times (default 3, configurable to 0 to disable). Retries honor the `Retry-After` header (integer seconds, capped at 10s) or use exponential backoff (1s, 2s, 4s, capped at 10s). If all retries are exhausted the error propagates.
+- **User-Agent**: default string in `src/ingress/rate-limiter.ts` (`Wiktionary SDK/1.0` plus repository URL placeholder).
+- **Caching**: multi-tier cache (`src/ingress/cache.ts`) prevents redundant requests. L1 in-memory with TTL (configurable `l1MaxEntries` cap), L2/L3 pluggable for persistent and shared storage.
+- **Unified configuration**: **`configureSdk({ rateLimiter?, cache? })`** (`src/ingress/configure.ts`, re-exported from package barrel) sets all infrastructure singletons in one call before any `wiktionary()` invocation. Granular **`configureRateLimiter(config)`** and **`configureCache(opts)`** are also exported for individual subsystem setup. All configuration types (`SdkConfig`, `RateLimiterConfig`, `CacheAdapter`) are exported from the package.
 - **Unicode Normalization**: All Wikitext, page titles, and query strings are normalized to **NFC (Unicode Composed Form)** via `src/api.ts` and `src/index.ts`. This ensures consistent matching of Greek accented characters (e.g., `έ`) across different operating systems (MacOS NFD vs. Linux/Web NFC).
 
 ## 3. Outputs
@@ -853,6 +855,30 @@ Wikidata attachment runs only when `enrich !== false` in `wiktionary()`. It appl
 
 Failures are recorded on the lexeme as **`wikidata_error`** (string message) in the catch path — this field is runtime-only and not part of the formal JSON Schema; consumers should treat it as diagnostic.
 
+### 8.1. Disambiguation resolution
+
+When the resolved Wikidata QID corresponds to a Wikimedia disambiguation page (P31 includes `Q4167410`), the pipeline enters a disambiguation resolution phase:
+
+1. **Candidate discovery:** `fetchWikipediaDisambiguationLinks(title)` retrieves linked Wikipedia articles from the disambiguation page (up to 50 candidates).
+2. **QID + metadata resolution:** Each candidate is resolved to a Wikidata entity via `fetchWikidataEntityByWikipediaTitle`. The entity's English label, description, and aliases are extracted as **match texts** for scoring.
+3. **Sense scoring:** `buildSenseMatchesForDisambiguation` compares each lexeme sense (gloss + labels + topics) against each candidate's title and match texts. Scoring: title-token hit = 2 points, aux-token hit = 1 point, title-phrase match = 4 points. Results are stored in `disambiguation.sense_matches` with `match_reasons`.
+4. **Winner application (confidence threshold >= 4):**
+   - Confident matches (score >= 4) annotate individual senses with **`sense.wikidata_qid`** (the winning candidate QID).
+   - The **top-level `wikidata.qid`** is replaced with the highest-scoring candidate QID.
+   - `Q4167410` is removed from `wikidata.instance_of` (it describes the Wikipedia page structure, not the lexeme's semantics).
+   - The original disambiguation QID is preserved in **`disambiguation.source_qid`** for traceability.
+5. **Unresolved fallback:** If no sense matches any candidate above the threshold, the top-level QID is left as-is and **`disambiguation.unresolved = true`** is set.
+
+**Confidence threshold rationale:** Score >= 4 requires at least two title-token hits (2 × 2), or one title-token hit plus two aux-token hits (2 + 1 + 1), or a single title-phrase match (>= 4). This avoids false positives from single-token coincidences (score 2) while catching most legitimate matches.
+
+**Rendering implications:**
+- `Q4167410` is filtered from `instance_of` pill lists via the `filterInstanceOf` Handlebars helper in both `entry.html.hbs` and `lexeme-homonym-group.html.hbs`.
+- Unresolved disambiguation QIDs render in muted/italic style with a "(disambiguation)" annotation.
+- Per-sense QID pills appear inline after each sense gloss when `sense.wikidata_qid` is set.
+- The webapp deduplicates shared unresolved QIDs across all visible lexemes and hoists them to a single global annotation below the dictionary card ("Wikipedia disambiguation: QID — concept QIDs not resolved to individual senses").
+
+**Schema additions:** `Sense.wikidata_qid` (optional `^Q\d+$` string), `WikidataDisambiguation.source_qid` (optional), `WikidataDisambiguation.unresolved` (optional boolean).
+
 ## 9. Template Coverage Strategy
 
 "100% coverage" is defined as:
@@ -921,11 +947,14 @@ The library follows a strict **"Extraction, not Inference"** policy.
 
 ### 12.4 Multi-Tier Caching
 API responses are cached in a `TieredCache` to avoid redundant network requests:
-- **L1 (Memory):** Fast, transient, always active.
-- **L2 (Persistent):** Pluggable adapter for IndexedDB (browser) or SQLite (Node).
-- **L3 (Shared):** Pluggable adapter for Redis or similar, for service deployments.
+- **L1 (Memory):** Fast, transient, always active. Optional `l1MaxEntries` cap (FIFO eviction).
+- **L2 (Persistent):** Pluggable `CacheAdapter` for IndexedDB (browser), SQLite, or file (Node).
+- **L3 (Shared):** Pluggable `CacheAdapter` for Redis, Memcached, or similar, for service deployments.
 
-This design keeps the engine agnostic — consumers inject adapters at init time.
+Consumers inject adapters at init time via **`configureCache({ l2, l3, defaultTtl, l1MaxEntries })`** or the unified **`configureSdk({ cache: { … } })`**. The `CacheAdapter` interface requires four async methods: `get`, `set`, `delete`, `clear`.
+
+### 12.4.1 HTTP 429 Retry and Rate Limit Configuration
+`mwFetchJson` retries HTTP 429 responses with exponential backoff (§2.4). The retry count is configurable via `RateLimiterConfig.maxRetries429` (default 3). The default rate-limit interval is 200ms (5 req/s); this is more conservative than Wikimedia's 200 req/s bot guideline because browser contexts cannot send proper `User-Agent` headers and thus face stricter server-side limits. Both values are set via **`configureRateLimiter()`** or **`configureSdk()`**.
 
 ### 12.5 Graphical Client as a Verification Tool
 The `/webapp` is not just a demo; it is a **Developer Inspector**.
@@ -943,7 +972,22 @@ When `debugDecoders: true` is passed to `wiktionary()`, each primary lexeme rece
 Derived/Related/Descendants sections are stored with both `raw_text` (verbatim) and `items` (from `{{l}}`/`{{link}}` only). **Design choice:** we do not parse plain wikilinks or free text into structured items; only explicitly templated links are extracted. This keeps the output source-faithful and avoids heuristics.
 
 ### 12.9 Brace-Aware Gloss Stripping
-`stripWikiMarkup()` uses depth-based scanning rather than regex for `[[links]]` and `{{templates}}`. **Rationale:** regex-based replacement can mis-handle nested structures (e.g. `[[link]]` producing duplicated text, or `{{t|g={{g|m}}}}` leaving stray braces). The brace-aware implementation: (1) finds matching `]]`/`}}` by depth counting; (2) extracts `[[link|display]]` → display, `[[link]]` → link; (3) recursively strips markup inside link display text; (4) removes templates entirely. **Design choice:** process `'''` before `''` to avoid partial italic matches.
+`stripWikiMarkup()` uses depth-based scanning rather than regex for `[[links]]` and `{{templates}}`. **Rationale:** regex-based replacement can mis-handle nested structures (e.g. `[[link]]` producing duplicated text, or `{{t|g={{g|m}}}}` leaving stray braces). The brace-aware implementation: (1) finds matching `]]`/`}}` by depth counting; (2) extracts `[[link|display]]` → display, `[[link]]` → link; (3) recursively strips markup inside link display text; (4) for templates, extracts visible text from recognized inline display families or removes the template entirely. **Design choice:** process `'''` before `''` to avoid partial italic matches.
+
+**Inline display template allowlist** (`strip-wiki-markup.ts`): The following template families produce visible output instead of being silently stripped:
+| Template | Extraction | Example |
+|----------|-----------|---------|
+| `{{l\|lang\|term}}`, `{{m\|…}}`, `{{link\|…}}`, `{{mention\|…}}`, `{{alt\|…}}`, `{{alter\|…}}` | param 3 (term) | `{{l|en|cat}}` → "cat" |
+| `{{w\|page\|display?}}`, `{{w2\|…}}`, `{{pedlink\|…}}` | param 2 or param 1 | `{{w|Pan (genus)}}` → "Pan (genus)" |
+| `{{vern\|name}}` | param 1 | `{{vern|chimpanzee}}` → "chimpanzee" |
+| `{{taxlink\|name\|rank}}`, `{{taxfmt\|name\|rank}}` | param 1 | `{{taxlink|Hominidae|family}}` → "Hominidae" |
+| `{{gloss\|text}}`, `{{gl\|text}}` | param 1 | `{{gl|cooking utensil}}` → "cooking utensil" |
+| `{{non-gloss definition\|text}}`, `{{ngd\|…}}`, `{{n-g\|…}}` | param 1 | `{{ngd|Used as…}}` → "Used as…" |
+| `{{taxon\|rank\|parent_rank\|parent\|desc}}` | structured phrase | → "A taxonomic genus within the family Hominidae – chimpanzees…" |
+
+All extracted text is recursively passed through `stripWikiMarkup` so nested `[[links]]` within template parameters are also resolved. Templates not in this list are removed entirely (source-faithful: if we cannot extract meaningful display text, we do not fabricate it).
+
+**`{{taxon}}` definition-line decoding** (`register-senses.ts`): When a sense line consists entirely of a `{{taxon|…}}` template, `glossFromAuxDefinitionTemplate` produces a structured gloss: "A taxonomic {rank} within the {parent_rank} {parent_name} – {description}". Parameters are stripped of wiki markup before assembly.
 
 ### 12.10 Formatter Architecture (High-Fidelity Rendering)
 `src/formatter.ts` provides a polymorphic `format(data, options)` function that dispatches to a registered `FormatterStyle`. From v2.2, the system utilizes **Handlebars-based templates** (`src/templates/*.hbs`) for complex output formats (HTML, Markdown).
@@ -971,6 +1015,13 @@ The Vite dev server (`webapp/`) registers a small plugin that watches `src/templ
 
 #### 12.10.5 Etymology language labels in Handlebars (`langLabel`)
 Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang slot) for every chain/cognate row. The optional `source_lang_name` field is not always present. Handlebars templates therefore use a **`langLabel`** helper (registered in `src/formatter.ts`) that prints `source_lang_name` when set, otherwise **`source_lang`**, matching the fallback behaviour already used in plain-text formatters. **Rationale:** avoids empty language tags in HTML/Markdown when only the code is extracted from template parameters.
+
+**Etymology chain inline rendering** (`etym-inline`):
+- The opening `<` symbol (inside `etym-paren-lead`) is followed by a **non-breaking space** (`&nbsp;`) to prevent orphaning at line breaks: `(< panorama)` instead of `(<panorama)`.
+- Inter-step connectors (`etymSymbol`: `<`, `~`, `bor.`, `cog.`) are followed by `&nbsp;` to tie the symbol to the next value.
+- When `langLabel` returns content (e.g. "Middle English"), CSS `.lang-tag:not(:empty) { margin-right: 0.2em }` provides spacing before the term; empty lang-tags produce zero width, so the `&nbsp;` in `etym-paren-lead` alone bridges `<` to the term for singleton chains.
+- Handlebars `~` whitespace stripping is applied to `{{~#if term~}}` and `{{~#unless @last}}…{{~/unless~}}` to eliminate phantom trailing spaces inside the closing `)`. The `{{#if gloss}}` block retains regular whitespace so the space between term and gloss is preserved.
+- Font size is `0.8em` with `line-height: 1.35`, matching `.entry-line-note` for visual consistency.
 
 #### 12.10.6 `FetchResult` rendering and homonym merge (presentation layer)
 
@@ -1237,7 +1288,21 @@ Within the same language tier, secondary keys are deterministic:
 "source-faithful extraction" principle. Priority sorting remains opt-in,
 and is now configurable without changing extraction semantics.
 
-#### 12.28.1 Extraction support transparency (`support_warning`)
+#### 12.28.1 Normalized PoS and form-of sort order (webapp grouping)
+
+**Problem:** When the webapp merges lexemes from different Wiktionary pages (fuzzy mode) and groups them by language > headword > PoS, the original Wiktionary page order is no longer meaningful. Map insertion order makes the PoS grouping non-deterministic — whichever page was fetched first dictates PoS ordering.
+
+**Solution:** A canonical sort order for parts of speech and form-of referral types, grounded in European lexicographic convention (OED, Duden, Van Dale, Larousse), Wiktionary's own editorial convention (WT:ELE), and capitalization-visibility (proper nouns lead).
+
+**PoS tiers** (lower = earlier in display): **0** proper noun/name → **1** noun → **2** verb (all subtypes including Japanese verb classes) → **3** adjective → **4** adverb → **5** pronoun → **6** numeral → **7** determiner/article → **8** preposition/postposition → **9** conjunction → **10** interjection → **11** particle → **12** participle → **13** phrase/expression/proverb/contraction → **14** affix types → **15** abbreviation → **16** character/symbol/punctuation → **17** Japanese specialty → **99** fallback. Within the same tier: alphabetical by PoS slug.
+
+**Form-of tiers** (morphological proximity to lemma): **0** plural of → **1** inflection of / core paradigm (including language-prefixed form-of templates) → **2** specific morph categories (verb/noun/adj form of, participle, tense forms) → **3** alternative form → **4** alternative case → **5** alternative spelling → **6** diminutive/augmentative → **7** abbreviation/short for/clipping → **8** misspelling → **9** ellipsis of → **99** catch-all.
+
+**Sort key chain** in `buildHeadwordGroups`: form (alphabetical) → LEXEME before form-of → PoS rank → etymology_index → form-of rank → original index. Post-build, `posGroups` are explicitly sorted by PoS rank.
+
+**Implementation:** `POS_SORT_RANK` and `FORM_OF_SORT_RANK` maps with `posRank()` and `formOfRank()` helpers in `webapp/src/lexeme-pill-groups.ts`. No model or pipeline changes — the sort is purely a presentation concern.
+
+#### 12.28.2 Extraction support transparency (`support_warning`)
 
 **Problem:** An empty **`value`** from a convenience wrapper is ambiguous: the
 data may be missing from the entry, or present in wikitext but not extracted.
@@ -1674,9 +1739,9 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 |--------|----------------|
 | **`index.ts`** | Public package **barrel**: re-exports **`wiktionary()`**, **`wiktionaryRecursive()`**, **`stripCombiningMarksForPageTitle`** from `wiktionary-core.ts`, plus library/formatter/stem/wrapper helpers and shared constants. |
 | **`wiktionary-core.ts`** | **`wiktionary()`**, fuzzy merge, **`wiktionaryRecursive()`**, lemma resolution queue, Wikidata enrichment loop, `sort`, internal `guessLexemeTypeFromTemplates()` (via `isFormOfTemplateName` / `isVariantFormOfTemplateName`). Import from here inside the repo instead of `index.ts` to avoid cycles. |
-| **`constants.ts`** | Shared defaults: **`LANG_PRIORITY`**, **`SERVER_DEFAULT_WIKI_LANG`**, cache TTL, rate-limit interval. |
+| **`constants.ts`** | Shared defaults: **`LANG_PRIORITY`**, **`SERVER_DEFAULT_WIKI_LANG`**, **`DEFAULT_CACHE_TTL_MS`** (30 min), **`DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS`** (200ms). |
 | **`src/model/`** | `SCHEMA_VERSION`, `Lexeme`, `FetchResult`, `EtymologyStep`, `DecodeContext`, `TemplateDecoder`, `DecoderDebugEvent`, and all shared interfaces (see `model/index.ts`). |
-| **`api.ts`** | **`mwFetchJson()`** (rate limit + fetch), **`normalizeWiktionaryQueryPage()`**, **`fetchWikitextEnWiktionary()`**, **`fetchWikidataEntity()`**, Wikidata title lookups by site. |
+| **`api.ts`** | **`mwFetchJson()`** (rate limit + 429 retry + fetch), **`normalizeWiktionaryQueryPage()`**, **`fetchWikitextEnWiktionary()`**, **`fetchWikidataEntity()`**, Wikidata title lookups by site. |
 | **`parser.ts`** | Language sections (`extractLanguageSection`, `extractAllLanguageSections`), **`splitEtymologiesAndPOS()`** (PoS-boundary rule), **`parseTemplates()`** (brace-aware, optional positions), heading → PoS mapping, language name ↔ code helpers, sense-line parsing helpers used by the registry. |
 | **`registry.ts`** | Public entry: singleton **`registry`**, **`registerAllDecoders(registry)`**, re-exports **`registerAllDecoders`**, **`DecoderRegistry`**, **`stripWikiMarkup`**, form-of predicates. Ordered decoder list: **`docs/registry-inventory.md`**. |
 | **`registry/decoder-registry.ts`** | **`DecoderRegistry`** class, **`decodeAll()`**, patch merge via **`merge-patches.ts`**. |
@@ -1694,9 +1759,10 @@ This section is a **reader’s guide** to the repository layout as it exists tod
 | **`stem.ts`** | Stem extraction from **`lexeme.templates_all`** (paradigm templates). |
 | **`wrapper-invoke.ts`** | **`invokeWrapperMethod()`** — canonical argument wiring for CLI and webapp (`translate`, `wikipediaLink`, `isInstance`, `conjugate`, `hyphenate`, …). |
 | **`utils.ts`** | **`deepMerge()`**, **`commonsThumbUrl()`**, shared utilities. |
-| **`cache.ts`** | **`TieredCache`**, **`MemoryCache`**, **`getCache()`** / **`setCache()`** global accessor pattern for L1 (+ optional L2/L3 adapters). |
+| **`cache.ts`** | **`TieredCache`**, **`MemoryCache`**, **`getCache()`** / **`configureCache()`** global accessor pattern for L1 (+ optional L2/L3 adapters via `CacheAdapter`). |
 | **`server-fetch.ts`** | **`buildApiFetchResponse()`** — pure assembly of `GET /api/fetch` responses for `server.ts` and tests. |
-| **`rate-limiter.ts`** | **`RateLimiter`**, **`getRateLimiter()`**, throttle + User-Agent headers. |
+| **`rate-limiter.ts`** | **`RateLimiter`**, **`getRateLimiter()`**, **`configureRateLimiter()`**, throttle + User-Agent headers, `maxRetries429`. |
+| **`configure.ts`** | **`configureSdk()`** (unified infra setup), re-exports **`configureRateLimiter`**, **`configureCache`**, and config types (`SdkConfig`, `RateLimiterConfig`, `CacheAdapter`). |
 
 ### 14.2 Consumers
 

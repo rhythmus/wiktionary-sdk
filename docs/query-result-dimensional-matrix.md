@@ -127,6 +127,7 @@ Resolved lemma lexemes are **appended** to `lexemes` with **`resolved_for_query`
 | **J2. Wikidata** | **Lemma** rows (`type === "LEXEME"`) on the **queried** page when QID resolvable. **Exception:** Translingual lexemes are **skipped** when the QID came from the Wikipedia-title fallback (step 3 of the resolution chain), because Wikipedia articles describe language-specific concepts that are semantically wrong for Translingual entries. |
 | **J3. Parse morph lines** | **Inflected** stubs matching `isPerLangFormOfTemplate` + empty wikitext morph (see enrich module). |
 | **J4. ISO 639 enrichment** | **Translingual** Symbol entries with `{{ISO 639\|N}}` definition lines: template expanded via `action=parse` to resolve language name; correct Wikidata QID looked up via the language's Wikipedia article (e.g. "Godié language" → Q3914412). Module: `src/pipeline/iso639-enrich.ts`. |
+| **J5. Disambiguation resolution** | When the resolved QID is a disambiguation page (P31 includes `Q4167410`), `buildSenseMatchesForDisambiguation` scores lexeme senses against Wikipedia candidates (title-token = 2 pts, aux-token = 1 pt, title-phrase = 4 pts). Confident matches (score >= 4) promote the best candidate QID to `lex.wikidata.qid`, annotate senses with `sense.wikidata_qid`, strip `Q4167410` from `instance_of`, and store the original in `disambiguation.source_qid`. Unresolved entries set `disambiguation.unresolved = true`. Rendering filters `Q4167410` from pill lists and shows per-sense QID pills inline. The webapp hoists shared unresolved QIDs to a global annotation. |
 
 ---
 
@@ -180,6 +181,10 @@ Use this as a **checklist** for mental simulation: pick one option from each row
 9. **Only form-of stubs (no etym prose)**  
    D1 + F2 + H5  
    → Valid lexeme with empty/minimal etymology chain; **not** an error.
+
+10. **Disambiguation page QID resolved to concept QIDs**  
+    J2 + J5  
+    → Polysemous word (e.g. "pan") where the page-level QID is a Wikipedia disambiguation page. Pipeline scores senses against candidates; confident matches promote per-sense QIDs and replace the top-level QID. Rendering suppresses `Q4167410` noise; webapp hoists shared unresolved QIDs to a global annotation.
 
 ---
 

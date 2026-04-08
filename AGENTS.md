@@ -132,7 +132,7 @@ The SDK uses **Handlebars** for high-fidelity rendering of dictionary entries.
 1.  **HTML Design**: Edit `src/present/templates/entry.html.hbs` (per-lexeme) and `src/present/templates/lexeme-homonym-group.html.hbs` (homonym merge via `formatFetchResult`).
 2.  **Markdown Design**: Edit `src/present/templates/entry.md.hbs`.
 3.  **Styling**: Edit `src/present/templates/entry.css`.
-4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`) are registered in `src/present/handlebars-setup.ts` (loaded via `src/present/formatter.ts`).
+4.  **Helpers**: Custom Handlebars helpers (like `join`, `ifCond`, `addOne`, `langLabel`, `etymSymbol`, `subLetter`, `filterInstanceOf`) are registered in `src/present/handlebars-setup.ts` (loaded via `src/present/formatter.ts`).
 5.  **Bundle**: After editing the `.hbs` / `.css` sources, ensure `src/present/templates/templates.ts` is updated (run `npm run dev` in `webapp/` and save, or regenerate by the same logic the Vite plugin uses) and commit it.
 6.  **Whitespace**: Handlebars `~` strips whitespace between tokens. When lemma and part-of-speech sit in adjacent inline spans (and there is no romanization buffer), add CSS so they do not visually merge (e.g. `.entry-line-head .lemma ~ .pos { margin-left: … }`).
 
@@ -179,6 +179,15 @@ These behaviours come up often when extending decoders or the webapp.
 - **Wikipedia-fallback exclusion:** When the Wikidata QID is resolved via the Wikipedia-title fallback (step 3 of the `§8` resolution chain), **Translingual** lexemes (`lex.language === "Translingual"`) are **skipped** and receive no `wikidata` block. Wikipedia articles describe language-specific concepts (e.g. Q190 = "god" the deity), which are semantically wrong for Translingual entries (ISO 639 codes, taxonomic symbols).
 - **ISO 639 enrichment** (`src/pipeline/iso639-enrich.ts`): Translingual Symbol entries with `{{ISO 639|N}}` definition lines receive dedicated enrichment when `enrich: true`. The template is expanded via `action=parse` to resolve the language name (e.g. "Godié"), and the Wikidata QID is looked up via the language's Wikipedia article (e.g. "Godié language" → Q3914412). This is an allowed `action=parse` usage per constraint §1 (expanding wikitext the SDK already holds).
 
+### Wikidata disambiguation resolution pipeline
+- **Winner application (`src/pipeline/wiktionary-core.ts`):** After `buildSenseMatchesForDisambiguation` scores each lexeme sense against Wikipedia disambiguation candidates, matches with **score >= 4** are applied: the matching sense gets `sense.wikidata_qid`, the best overall candidate replaces `lex.wikidata.qid`, and `Q4167410` is stripped from `instance_of`. The original disambiguation QID is kept in `disambiguation.source_qid` for traceability. When no sense passes the threshold, `disambiguation.unresolved = true` is set.
+- **Threshold design:** Score >= 4 means at least two title-token overlaps (2 × 2), one title-token + two aux-token hits (2 + 1 + 1), or a title-phrase match (>= 4). This avoids false positives from single-token coincidences while catching legitimate matches for polysemous words like "pan" (25+ candidates).
+- **Rendering suppression (`filterInstanceOf` helper):** `Q4167410` is structurally a Wikimedia page-type marker, not a semantic classification. The `filterInstanceOf` Handlebars helper in `handlebars-setup.ts` removes it from `instance_of` arrays before rendering in both `entry.html.hbs` and `lexeme-homonym-group.html.hbs`. Unresolved disambiguation QIDs render in muted italic style.
+- **Per-sense QID pills:** When `sense.wikidata_qid` is set, a small inline pill renders after the sense gloss in both single-entry and homonym-group templates. CSS class `.metadata-pill-sense`.
+- **Webapp deduplication:** When all visible lexemes share the same unresolved disambiguation QID, the webapp hoists it to a single global annotation below the dictionary card (`.dict-wikidata-global-note` in `webapp/src/index.css`), avoiding repetitive per-lexeme display.
+- **Schema additions:** `Sense.wikidata_qid` (`05-senses.yaml`), `WikidataDisambiguation.source_qid` and `.unresolved` (`02-provenance-and-media.yaml`).
+- **Test expectations:** `test/fallback-enrichment-matrix.test.ts` asserts the new behavior: promoted QID (`Q37260` instead of `Q1215628`), `source_qid` traceability, per-sense `wikidata_qid`, and `Q4167410` absent from `instance_of`.
+
 ### Webapp form-of chain resolution
 - **`pickLemmaLexemeFromSecondFetch`** (`webapp/src/pick-lemma-lexeme.ts`) returns a discriminated union `PickLemmaResult` with three cases: `found` (LEXEME match), `chain` (target is itself a form-of pointing elsewhere), `not-found` (with descriptive reason).
 - **`FormOfLexemeBlock`** uses a `switch` on the result kind instead of mining `FetchResult.notes` for error messages. For chain cases (e.g. `{{ellipsis of|en|oh God}}` → "oh God" is `{{alt form|en|oh my God}}`), the webapp shows `"oh God" is itself a reference to → "oh my God"` with inherited serif typography (not the former red sans-serif error style).
@@ -192,6 +201,35 @@ These behaviours come up often when extending decoders or the webapp.
 
 ### Usage note preprocessing
 - `formatUsageNoteLine` (`src/decode/registry/format-usage-note-line.ts`) strips leading wikitext bullet markers (`*`, `#`, `:`, `;`) before wiki markup processing. The leading `*` was previously conflated with Markdown `*…*` emphasis markers, causing `applyInlineEmphasis` to italicize wrong text spans.
+
+### SDK infrastructure configuration (`src/ingress/configure.ts`)
+- **Pattern:** "configure-once, use-everywhere." Rate limiters, caches, and retry policies are global singletons set at application startup via **`configureSdk()`**, **`configureRateLimiter()`**, or **`configureCache()`** — not per-call options on `wiktionary()`.
+- **Package exports:** `configureSdk`, `configureRateLimiter`, `configureCache`, `SdkConfig`, `RateLimiterConfig`, `CacheAdapter` are all re-exported from the barrel (`src/index.ts`) via `src/ingress/configure.ts`.
+- **`maxRetries429`** (`RateLimiterConfig`): Controls how many times `mwFetchJson` retries on HTTP 429. Default 3; set 0 to disable. The value lives on the `RateLimiter` instance (read as `limiter.maxRetries429`), not as a module-level constant.
+- **Default rate limit interval:** `DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS = 200` (5 req/s). More conservative than Wikimedia's 200 req/s bot guideline because browser contexts cannot set a proper `User-Agent` and face stricter server-side limits.
+- **429 retry in `mwFetchJson`:** Honors `Retry-After` header (integer seconds, capped at 10s) or exponential backoff (1s, 2s, 4s, capped at 10s). After all retries are exhausted, the original HTTP error propagates.
+- **Webapp form-of resolution:** `FormOfLexemeBlock.tsx` calls `wiktionary({ enrich: false })` for secondary lemma resolution to reduce API call volume. Do not re-enable enrichment on nested fetches without addressing the resulting request storm.
+- **When adding new configurable knobs:** Place infrastructure-level config on `RateLimiterConfig` (for network behavior) or the cache options object (for storage behavior), then wire through `SdkConfig` in `configure.ts`. Do not add config to `wiktionary()` call options unless it is genuinely per-request (like `enrich`, `sort`, `matchMode`).
+
+### `{{taxon}}` and inline display templates in `stripWikiMarkup`
+- **`{{taxon}}`** is handled both in `glossFromAuxDefinitionTemplate` (definition-line decoder producing "A taxonomic {rank} within the {parent_rank} {parent_name} – {description}") and in `stripWikiMarkup` (inline context extraction). All positional params are recursively stripped of nested wiki markup.
+- **Extended allowlist** in `stripWikiMarkup`: `{{w}}` (Wikipedia link), `{{vern}}` (vernacular name), `{{taxlink}}` / `{{taxfmt}}` (taxonomic links), `{{gloss}}` / `{{gl}}`, `{{non-gloss definition}}` / `{{ngd}}` / `{{n-g}}`. These templates carry visible text that was previously silently dropped, causing empty glosses for Translingual taxonomic entries and any definition line relying on these templates.
+- **When adding new inline templates:** Add to the `if/else if` chain in `strip-wiki-markup.ts` with the appropriate positional parameter index. Recursively call `stripWikiMarkup(param, options)` on extracted text so nested markup is also resolved.
+
+### Etymology chain rendering (`etym-inline`, `etym-paren-lead`)
+- **Non-breaking spaces** (`&nbsp;`) prevent orphaned symbols: after the `<` in `etym-paren-lead`, and after each inter-step `etymSymbol` connector. Handlebars `~` whitespace control eliminates phantom trailing spaces in singleton chains.
+- **`lang-tag` spacing:** `.lang-tag:not(:empty) { margin-right: 0.2em }` — provides spacing between language name and term only when the lang-tag has content. Empty lang-tags (no source language on the chain item) produce zero visual width, relying on the `&nbsp;` in `etym-paren-lead` alone.
+- **Font size:** `.etym-inline` uses `font-size: 0.8em; line-height: 1.35` — matching `.entry-line-note` for typographic consistency.
+- **CSS escape in `templates.ts`:** The Vite dev server copies CSS source into a TypeScript template literal. CSS hex escapes like `\00a0` conflict with TypeScript's octal escape parser; prefer `margin-right` or actual Unicode characters over `content: '\00a0'` in CSS embedded in template literals.
+
+### HTTP error messages (`mwFetchJson`)
+- Error messages are now descriptive: `"HTTP 429 — Too Many Requests — please wait a moment and try again"` instead of the bare `"HTTP 429"`. The error format is always `"HTTP {status} — {reason}"`. When `res.statusText` is available, it is used; otherwise, 429 gets a specific message and all others get `"request failed"`.
+
+### Normalized PoS and form-of sort order (webapp grouping)
+- **PoS sort order** (`POS_SORT_RANK` in `webapp/src/lexeme-pill-groups.ts`): Within each headword group, parts of speech are sorted by a canonical tier ranking grounded in European lexicographic convention (OED, Duden, Van Dale), Wiktionary's WT:ELE editorial convention, and capitalization visibility. The tiers (lower = earlier): **0** proper noun/name → **1** noun → **2** verb (all subtypes including Japanese) → **3** adjective → **4** adverb → **5** pronoun → **6** numeral → **7** determiner/article → **8** preposition/postposition → **9** conjunction → **10** interjection → **11** particle → **12** participle → **13** phrase/expression/proverb → **14** affix types → **15** abbreviation → **16** character/symbol → **17** Japanese specialty → **99** fallback. Within the same tier, alphabetical by PoS slug.
+- **Form-of sort order** (`FORM_OF_SORT_RANK`): Within each PoS group, form-of referrals are sorted by morphological proximity to the lemma: **0** plural of → **1** inflection of (core paradigm) → **2** specific morph categories (verb/noun/adj form of, participle, tense forms) → **3** alternative form → **4** alternative case → **5** alternative spelling → **6** diminutive/augmentative → **7** abbreviation/short for/clipping → **8** misspelling → **9** ellipsis of → **99** catch-all. Language-prefixed form-of templates (`xx-verb form of`, etc.) sort at tier 1.
+- **Sort key chain in `buildHeadwordGroups`:** form (alphabetical) → LEXEME before form-of → PoS rank → etymology_index → form-of rank → original index. Post-build, `posGroups` are explicitly sorted by PoS rank (not Map insertion order).
+- **`groupByPosWithinLanguage`** uses the same PoS rank for consistency.
 
 ---
 

@@ -20,6 +20,7 @@ Companion to the staged physical moves in [`src-layout-refactor-plan.md`](src-la
 flowchart TB
   subgraph ingress [ingress]
     API[api / cache / rate limit]
+    CFG[configure — unified SDK config]
   end
   subgraph parse [parse]
     P[parser + headings]
@@ -31,6 +32,7 @@ flowchart TB
     W[wiktionary-core + enrich]
     SRL[sense-relation-linker]
     ISO[iso639-enrich]
+    DIS[disambiguation resolution]
   end
   subgraph model [model]
     T[types + schema version]
