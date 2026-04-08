@@ -81,7 +81,7 @@
       <span class="sense-inline">
         {{#each senses}}
         <span class="sense-item">
-          {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}</span>{{/ifCond}}
+          {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}&nbsp;</span>{{/ifCond}}
           {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
           {{#if only_used_in}}
           <span class="def-only-used-in"><span class="def-oui-lead">only used in</span> <span class="def-oui-terms">{{#each only_used_in.terms}}<span class="def-oui-term">{{this}}</span>{{#unless @last}}<span class="def-oui-sep">, </span>{{/unless}}{{/each}}</span>{{#if only_used_in.t_gloss}} <span class="def-oui-gloss">({{only_used_in.t_gloss}})</span>{{/if}}</span>
@@ -92,7 +92,7 @@
           {{#if subsenses}}
           <span class="subsense-block">
             {{#each subsenses}}
-            <span class="subsense-item">{{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}{{#if gloss}}<span class="gloss subsense-gloss">{{gloss}}</span>{{/if}}</span>
+            <span class="subsense-item">{{#ifCond ../subsenses.length ">" 1}}<span class="subsense-label">({{subLetter @index}})</span>{{/ifCond}}{{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}{{#if gloss}}<span class="gloss subsense-gloss">{{gloss}}</span>{{/if}}</span>
             {{/each}}
           </span>
           {{/if}}
@@ -166,7 +166,7 @@
       <span class="usage-inline">
         {{#ifCond usage_notes.length ">" 1}}
           {{#each usage_notes}}
-          <span class="usage-note-item"><strong>{{addOne @index}}</strong> {{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
+          <span class="usage-note-item"><strong>{{addOne @index}}</strong>&nbsp;{{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
           {{/each}}
         {{else}}
           <span class="usage-note-item">{{usage_notes.[0]}}</span>

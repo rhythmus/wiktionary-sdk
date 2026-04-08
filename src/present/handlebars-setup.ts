@@ -29,6 +29,10 @@ Handlebars.registerHelper("addOne", (index: number) => {
     return index + 1;
 });
 
+Handlebars.registerHelper("subLetter", (index: number) => {
+    return String.fromCharCode(97 + index);
+});
+
 Handlebars.registerHelper("toUpperCase", (str: string | undefined) => {
     return str ? str.toUpperCase() : "";
 });
@@ -153,9 +157,10 @@ export function applyInlineEmphasis(htmlEscapedText: string): string {
         .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
 
-export function renderUsageNoteWithRefLinks(note: string): Handlebars.SafeString {
-    const m = note.match(/^(.*)\(\s*((?:\[\d+\]\s+.+?)*)\s*\)\s*$/);
-    if (!m) return new Handlebars.SafeString(applyInlineEmphasis(escapeHtml(note)));
+export function renderUsageNoteWithRefLinks(note: string, lang?: string): Handlebars.SafeString {
+    const sqNote = smartQuotes(note, lang);
+    const m = sqNote.match(/^(.*)\(\s*((?:\[\d+\]\s+.+?)*)\s*\)\s*$/);
+    if (!m) return new Handlebars.SafeString(applyInlineEmphasis(escapeHtml(sqNote)));
 
     const body = m[1].trim();
     const refsChunk = m[2] || "";

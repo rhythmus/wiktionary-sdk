@@ -17,17 +17,40 @@ const LB_TOPIC_LABELS = new Set([
     "polytonic", "monotonic", "katharevousa", "demotic", "informal", "formal",
 ]);
 
+/** Wiktionary {{lb}} connector tokens that join adjacent labels instead of being separate items. */
+const LB_CONNECTORS = new Set(["_", "and", "or", "also", ";", ","]);
+
 /** Extracts labels and topics from a {{lb|lang|label1|label2|...}} template. */
 function parseLbTemplate(raw: string): { labels: string[]; topics: string[] } {
     const tpls = parseTemplates(raw);
     const lb = tpls.find((t) => t.name === "lb" || t.name === "label");
     if (!lb) return { labels: [], topics: [] };
     const pos = lb.params.positional ?? [];
-    // pos[0] is lang code, rest are labels
-    const allLabels = pos.slice(1).filter(Boolean).map((l) => l.replace(/_/g, " "));
+    const rawLabels = pos.slice(1).filter(Boolean);
+
+    const merged: string[] = [];
+    for (const token of rawLabels) {
+        const t = token.trim();
+        if (!t) continue;
+        if (t === "_") {
+            continue;
+        }
+        if (LB_CONNECTORS.has(t.toLowerCase())) {
+            if (merged.length > 0) {
+                merged[merged.length - 1] += `, ${t}`;
+            }
+            continue;
+        }
+        if (merged.length > 0 && /,\s*$/.test(merged[merged.length - 1])) {
+            merged[merged.length - 1] += ` ${t}`;
+        } else {
+            merged.push(t);
+        }
+    }
+
     const topics: string[] = [];
     const labels: string[] = [];
-    for (const l of allLabels) {
+    for (const l of merged) {
         if (LB_TOPIC_LABELS.has(l.toLowerCase())) {
             topics.push(l.toLowerCase());
         } else {

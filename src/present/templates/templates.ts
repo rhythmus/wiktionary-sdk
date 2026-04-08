@@ -90,7 +90,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
       <span class="sense-inline">
         {{#each senses}}
         <span class="sense-item">
-          {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}</span>{{/ifCond}}
+          {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}&nbsp;</span>{{/ifCond}}
           {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
           {{#if only_used_in}}
           <span class="def-only-used-in"><span class="def-oui-lead">only used in</span> <span class="def-oui-terms">{{#each only_used_in.terms}}<span class="def-oui-term">{{this}}</span>{{#unless @last}}<span class="def-oui-sep">, </span>{{/unless}}{{/each}}</span>{{#if only_used_in.t_gloss}} <span class="def-oui-gloss">({{only_used_in.t_gloss}})</span>{{/if}}</span>
@@ -101,7 +101,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
           {{#if subsenses}}
           <span class="subsense-block">
             {{#each subsenses}}
-            <span class="subsense-item">{{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}{{#if gloss}}<span class="gloss subsense-gloss">{{gloss}}</span>{{/if}}</span>
+            <span class="subsense-item">{{#ifCond ../subsenses.length ">" 1}}<span class="subsense-label">({{subLetter @index}})</span>{{/ifCond}}{{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}{{#if gloss}}<span class="gloss subsense-gloss">{{gloss}}</span>{{/if}}</span>
             {{/each}}
           </span>
           {{/if}}
@@ -175,7 +175,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
       <span class="usage-inline">
         {{#ifCond usage_notes.length ">" 1}}
           {{#each usage_notes}}
-          <span class="usage-note-item"><strong>{{addOne @index}}</strong> {{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
+          <span class="usage-note-item"><strong>{{addOne @index}}</strong>&nbsp;{{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
           {{/each}}
         {{else}}
           <span class="usage-note-item">{{usage_notes.[0]}}</span>
@@ -230,7 +230,7 @@ export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = `<div class="wiktionary-entry 
         <span class="sense-inline">
           {{#each senses}}
           <span class="sense-item">
-            {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}</span>{{/ifCond}}
+            {{#ifCond ../senses.length ">" 1}}<span class="sense-num">{{addOne @index}}&nbsp;</span>{{/ifCond}}
             {{#if labels}}<span class="tag">{{join labels ", "}}</span>{{/if}}
             {{#if only_used_in}}
             <span class="def-only-used-in"><span class="def-oui-lead">only used in</span> <span class="def-oui-terms">{{#each only_used_in.terms}}<span class="def-oui-term">{{this}}</span>{{#unless @last}}<span class="def-oui-sep">, </span>{{/unless}}{{/each}}</span>{{#if only_used_in.t_gloss}} <span class="def-oui-gloss">({{only_used_in.t_gloss}})</span>{{/if}}</span>
@@ -310,7 +310,7 @@ export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = `<div class="wiktionary-entry 
       <span class="usage-inline">
         {{#ifCond shared.usage_notes.length ">" 1}}
           {{#each shared.usage_notes}}
-          <span class="usage-note-item"><strong>{{addOne @index}}</strong> {{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
+          <span class="usage-note-item"><strong>{{addOne @index}}</strong>&nbsp;{{this}}</span>{{#unless @last}}<span class="note-gap" aria-hidden="true">&emsp;</span>{{/unless}}
           {{/each}}
         {{else}}
           <span class="usage-note-item">{{shared.usage_notes.[0]}}</span>
@@ -714,6 +714,7 @@ export const ENTRY_CSS = `:root {
     display: inline;
     text-indent: 0;
     margin-top: 0;
+    line-height: 15px;
 }
 
 .line-label-note {
@@ -737,9 +738,7 @@ export const ENTRY_CSS = `:root {
 }
 
 .sense-num {
-    display: inline-block;
     font-weight: 700;
-    margin-right: 0.35rem;
 }
 
 .gloss {
@@ -877,9 +876,10 @@ export const ENTRY_CSS = `:root {
 }
 
 .dict-entry-lemma-error {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.88rem;
-    color: var(--error-color, #b45309);
+    font-family: inherit;
+    font-size: inherit;
+    font-style: italic;
+    color: var(--text-color, #444);
 }
 
 @media (max-width: 640px) {
@@ -911,17 +911,16 @@ export const ENTRY_CSS = `:root {
 /* ── L-10 subsenses (## under a sense) ───────────────────────────────────── */
 .subsense-block {
     display: inline;
-    margin-left: 0.35em;
+    margin-left: 0.25em;
 }
 
 .subsense-item {
-    display: inline-block;
-    margin-right: 0.65em;
+    display: inline;
+    margin-right: 0.1em;
 }
 
-.subsense-item::before {
-    content: "· ";
-    font-weight: 600;
+.subsense-label {
+    font-style: normal;
     margin-right: 0.15em;
 }
 
