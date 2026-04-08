@@ -137,6 +137,16 @@ function glossFromAuxDefinitionTemplate(t: TemplateCall): string | null {
         const partLabel = part ? `ISO 639-${part}` : "ISO 639";
         return `${partLabel} language code`;
     }
+    if (n === "taxon") {
+        const rank = stripWikiMarkup(pos[0] ?? "").trim();
+        const parentRank = stripWikiMarkup(pos[1] ?? "").trim();
+        const parentName = stripWikiMarkup(pos[2] ?? "").trim();
+        const description = stripWikiMarkup(pos[3] ?? "").trim();
+        let gloss = `A taxonomic ${rank || "taxon"}`;
+        if (parentRank && parentName) gloss += ` within the ${parentRank} ${parentName}`;
+        if (description) gloss += ` \u2013 ${description}`;
+        return gloss;
+    }
     return null;
 }
 

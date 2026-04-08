@@ -17,7 +17,7 @@
     {{#each stacks}}
     <div class="homonym-etym-block">
       {{~#if etymology.chain~}}
-      <span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>
+      <span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;&nbsp;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{~#if term~}}<span class="etymology term">{{term}}</span>{{~/if~}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{~#unless @last}} {{etymSymbol relation}}&nbsp;{{~/unless~}}{{~/each~}})</span></span>
       {{~else~}}
       {{~#if senses~}}
       <span class="entry-line etym-missing"><span class="etym-placeholder">(etymology not given on Wiktionary)</span></span>
@@ -36,6 +36,7 @@
             {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
             {{/if}}
             {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+            {{#if wikidata_qid}}<span class="metadata-pill metadata-pill-sense">{{wikidata_qid}}</span>{{/if}}
             {{#if subsenses}}
             <span class="subsense-block">
               {{#each subsenses}}
@@ -118,8 +119,12 @@
     {{~/if~}}
     {{~#if shared.wikidata~}}
     <span class="entry-line entry-line-meta">
+      {{~#if shared.wikidata.disambiguation.unresolved~}}
+      <span class="metadata-pill metadata-pill-muted">Wikidata {{shared.wikidata.qid}} (disambiguation)</span>
+      {{~else~}}
       <span class="metadata-pill">Wikidata {{shared.wikidata.qid}}</span>
-      {{#each shared.wikidata.instance_of}}
+      {{~/if~}}
+      {{#each (filterInstanceOf shared.wikidata.instance_of)}}
       <span class="metadata-pill">Instance: {{this}}</span>
       {{/each}}
       {{#each shared.wikidata.subclass_of}}

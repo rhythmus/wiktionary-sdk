@@ -45,14 +45,52 @@ export function stripWikiMarkup(text: string, options: { preserveEmphasis?: bool
         if (text.startsWith("{{", i)) {
             const end = findMatching(text, i + 2, "{{", "}}");
             if (end !== -1) {
-                // Keep visible term for link-like templates; drop others.
                 const inner = text.slice(i + 2, end);
                 const parts = inner.split("|");
                 const rawName = (parts[0] || "").trim().toLowerCase();
+
+                // {{l|lang|term}}, {{m|lang|term}} — display term (param 3)
                 if (["l", "link", "m", "mention", "alt", "alter"].includes(rawName)) {
                     const term = parts[2]?.trim();
-                    if (term) out.push(term);
+                    if (term) out.push(stripWikiMarkup(term, options));
                 }
+                // {{w|page|display?}} — Wikipedia link: display or page name
+                else if (rawName === "w" || rawName === "w2" || rawName === "pedlink") {
+                    const display = (parts[2] ?? parts[1] ?? "").trim();
+                    if (display) out.push(stripWikiMarkup(display, options));
+                }
+                // {{vern|name}} — vernacular name (param 1)
+                else if (rawName === "vern") {
+                    const name = (parts[1] ?? "").trim();
+                    if (name) out.push(stripWikiMarkup(name, options));
+                }
+                // {{taxlink|name|rank}} / {{taxfmt|name|rank}} — taxon name (param 1)
+                else if (rawName === "taxlink" || rawName === "taxfmt") {
+                    const name = (parts[1] ?? "").trim();
+                    if (name) out.push(stripWikiMarkup(name, options));
+                }
+                // {{gloss|text}} / {{gl|text}} — inline gloss
+                else if (rawName === "gloss" || rawName === "gl") {
+                    const g = (parts[1] ?? "").trim();
+                    if (g) out.push(stripWikiMarkup(g, options));
+                }
+                // {{non-gloss definition|text}} / {{non-gloss|text}} / {{ngd|text}}
+                else if (rawName === "non-gloss definition" || rawName === "non-gloss" || rawName === "ngd" || rawName === "n-g") {
+                    const g = (parts[1] ?? "").trim();
+                    if (g) out.push(stripWikiMarkup(g, options));
+                }
+                // {{taxon|rank|parent_rank|parent_name|description}} — taxonomic definition
+                else if (rawName === "taxon") {
+                    const rank = stripWikiMarkup(parts[1] ?? "", options).trim();
+                    const parentRank = stripWikiMarkup(parts[2] ?? "", options).trim();
+                    const parentName = stripWikiMarkup(parts[3] ?? "", options).trim();
+                    const desc = stripWikiMarkup(parts[4] ?? "", options).trim();
+                    let phrase = `A taxonomic ${rank || "taxon"}`;
+                    if (parentRank && parentName) phrase += ` within the ${parentRank} ${parentName}`;
+                    if (desc) phrase += ` \u2013 ${desc}`;
+                    out.push(phrase);
+                }
+
                 i = end + 2;
                 continue;
             }

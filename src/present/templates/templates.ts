@@ -80,9 +80,9 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
     {{~/if~}}
 
     {{~#unless form_of~}}
-    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>{{else}}{{#if senses}}<span class="entry-line etym-missing"><span class="etym-placeholder">(etymology not given on Wiktionary)</span></span>{{/if}}{{~/if~}}
+    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;&nbsp;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{~#if term~}}<span class="etymology term">{{term}}</span>{{~/if~}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{~#unless @last}} {{etymSymbol relation}}&nbsp;{{~/unless~}}{{~/each~}})</span></span>{{else}}{{#if senses}}<span class="entry-line etym-missing"><span class="etym-placeholder">(etymology not given on Wiktionary)</span></span>{{/if}}{{~/if~}}
     {{~else~}}
-    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>{{~/if~}}
+    {{~#if etymology.chain~}}<span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;&nbsp;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{~#if term~}}<span class="etymology term">{{term}}</span>{{~/if~}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{~#unless @last}} {{etymSymbol relation}}&nbsp;{{~/unless~}}{{~/each~}})</span></span>{{~/if~}}
     {{~/unless~}}
 
     {{~#if senses~}}
@@ -98,6 +98,7 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
           {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
           {{/if}}
           {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+          {{#if wikidata_qid}}<span class="metadata-pill metadata-pill-sense">{{wikidata_qid}}</span>{{/if}}
           {{#if subsenses}}
           <span class="subsense-block">
             {{#each subsenses}}
@@ -186,8 +187,12 @@ export const HTML_ENTRY_TEMPLATE = `<div class="wiktionary-entry {{#if form_of}}
 
     {{~#if wikidata~}}
     <span class="entry-line entry-line-meta">
+      {{~#if wikidata.disambiguation.unresolved~}}
+      <span class="metadata-pill metadata-pill-muted">Wikidata {{wikidata.qid}} (disambiguation)</span>
+      {{~else~}}
       <span class="metadata-pill">Wikidata {{wikidata.qid}}</span>
-      {{#each wikidata.instance_of}}
+      {{~/if~}}
+      {{#each (filterInstanceOf wikidata.instance_of)}}
       <span class="metadata-pill">Instance: {{this}}</span>
       {{/each}}
       {{#each wikidata.subclass_of}}
@@ -219,7 +224,7 @@ export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = `<div class="wiktionary-entry 
     {{#each stacks}}
     <div class="homonym-etym-block">
       {{~#if etymology.chain~}}
-      <span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{#if term}} <span class="etymology term">{{term}}</span>{{/if}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{#unless @last}} {{etymSymbol relation}} {{/unless}}{{~/each~}})</span></span>
+      <span class="entry-line"><span class="etym-inline"><span class="etym-paren-lead">(&lt;&nbsp;</span>{{~#each etymology.chain~}}<span class="lang-tag">{{langLabel this}}</span>{{~#if term~}}<span class="etymology term">{{term}}</span>{{~/if~}}{{#if gloss}} <span class="etymology gloss">{{gloss}}</span>{{/if}}{{~#unless @last}} {{etymSymbol relation}}&nbsp;{{~/unless~}}{{~/each~}})</span></span>
       {{~else~}}
       {{~#if senses~}}
       <span class="entry-line etym-missing"><span class="etym-placeholder">(etymology not given on Wiktionary)</span></span>
@@ -238,6 +243,7 @@ export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = `<div class="wiktionary-entry 
             {{#if gloss}}<span class="gloss">{{gloss}}</span>{{/if}}
             {{/if}}
             {{#if definition}}<span class="definition">{{definition}}</span>{{/if}}
+            {{#if wikidata_qid}}<span class="metadata-pill metadata-pill-sense">{{wikidata_qid}}</span>{{/if}}
             {{#if subsenses}}
             <span class="subsense-block">
               {{#each subsenses}}
@@ -320,8 +326,12 @@ export const HTML_LEXEME_HOMONYM_GROUP_TEMPLATE = `<div class="wiktionary-entry 
     {{~/if~}}
     {{~#if shared.wikidata~}}
     <span class="entry-line entry-line-meta">
+      {{~#if shared.wikidata.disambiguation.unresolved~}}
+      <span class="metadata-pill metadata-pill-muted">Wikidata {{shared.wikidata.qid}} (disambiguation)</span>
+      {{~else~}}
       <span class="metadata-pill">Wikidata {{shared.wikidata.qid}}</span>
-      {{#each shared.wikidata.instance_of}}
+      {{~/if~}}
+      {{#each (filterInstanceOf shared.wikidata.instance_of)}}
       <span class="metadata-pill">Instance: {{this}}</span>
       {{/each}}
       {{#each shared.wikidata.subclass_of}}
@@ -676,11 +686,15 @@ export const ENTRY_CSS = `:root {
     font-feature-settings: normal;
     text-transform: none;
     letter-spacing: normal;
-    margin-right: 0.35rem;
+}
+.lang-tag:not(:empty) {
+    margin-right: 0.2em;
 }
 
 .etym-inline {
     display: inline-block;
+    font-size: 0.8em;
+    line-height: 1.35;
     font-variant: normal;
     font-variant-caps: normal;
     font-feature-settings: normal;
@@ -787,6 +801,18 @@ export const ENTRY_CSS = `:root {
     font-size: inherit;
     margin-right: 0.5rem;
     font-weight: 500;
+}
+
+.metadata-pill-sense {
+    font-size: 0.8em;
+    padding: 0.1rem 0.35rem;
+    margin-left: 0.3em;
+    opacity: 0.7;
+}
+
+.metadata-pill-muted {
+    opacity: 0.45;
+    font-style: italic;
 }
 
 .tag {

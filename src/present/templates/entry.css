@@ -216,11 +216,15 @@
     font-feature-settings: normal;
     text-transform: none;
     letter-spacing: normal;
-    margin-right: 0.35rem;
+}
+.lang-tag:not(:empty) {
+    margin-right: 0.2em;
 }
 
 .etym-inline {
     display: inline-block;
+    font-size: 0.8em;
+    line-height: 1.35;
     font-variant: normal;
     font-variant-caps: normal;
     font-feature-settings: normal;
@@ -327,6 +331,18 @@
     font-size: inherit;
     margin-right: 0.5rem;
     font-weight: 500;
+}
+
+.metadata-pill-sense {
+    font-size: 0.8em;
+    padding: 0.1rem 0.35rem;
+    margin-left: 0.3em;
+    opacity: 0.7;
+}
+
+.metadata-pill-muted {
+    opacity: 0.45;
+    font-style: italic;
 }
 
 .tag {

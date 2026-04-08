@@ -62,12 +62,27 @@ export async function mwFetchJson(
     }
 
     try {
-        const res = await fetch(u.toString(), {
-            headers: limiter.getHeaders(),
-            ...(fetchSignal ? { signal: fetchSignal } : {}),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-        return await res.json();
+        for (let attempt = 0; ; attempt++) {
+            const res = await fetch(u.toString(), {
+                headers: limiter.getHeaders(),
+                ...(fetchSignal ? { signal: fetchSignal } : {}),
+            });
+            if (res.status === 429 && attempt < limiter.maxRetries429) {
+                const retryAfter = res.headers.get("Retry-After");
+                const waitMs = retryAfter && /^\d+$/.test(retryAfter.trim())
+                    ? Math.min(parseInt(retryAfter.trim(), 10) * 1000, 10_000)
+                    : Math.min(1000 * 2 ** attempt, 10_000);
+                await new Promise((r) => setTimeout(r, waitMs));
+                continue;
+            }
+            if (!res.ok) {
+                const reason = res.statusText?.trim() || (res.status === 429
+                    ? "Too Many Requests — please wait a moment and try again"
+                    : "request failed");
+                throw new Error(`HTTP ${res.status} — ${reason}`);
+            }
+            return await res.json();
+        }
     } finally {
         killTimer();
         if (outer && timeoutMs != null && timeoutMs > 0) {
