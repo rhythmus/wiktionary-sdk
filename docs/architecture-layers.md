@@ -29,6 +29,8 @@ flowchart TB
   end
   subgraph pipeline [pipeline]
     W[wiktionary-core + enrich]
+    SRL[sense-relation-linker]
+    ISO[iso639-enrich]
   end
   subgraph model [model]
     T[types + schema version]

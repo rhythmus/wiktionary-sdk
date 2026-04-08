@@ -27,7 +27,7 @@ Given:
       secondary keys within language (`etymology_index` asc, then PoS heading).
   - `matchMode?: "strict" | "fuzzy"` (defaults to `"strict"`)
     - `"strict"`: single fetch for the query string (existing behaviour).
-    - `"fuzzy"`: try normalised query variants (e.g. combining-mark stripping), merge deduplicated lexemes, and append human-readable notes when a variant produced results.
+    - `"fuzzy"`: try normalised query variants — NFC, lowercased, capitalize-first, combining-mark-stripped (and their cross-products) — merge deduplicated lexemes, and append human-readable notes when a variant produced results. Variants are **sorted alphabetically** before iteration so that merge ordering is **deterministic** regardless of input casing (e.g. querying `"god"` and `"God"` produce identical variant sets `["God", "god"]` and therefore identical result ordering). The capitalize-first variant ensures that lowercase queries also discover capitalized Wiktionary pages (e.g. proper nouns), making fuzzy matching **symmetric** with respect to case.
 
 Return:
 
@@ -55,7 +55,7 @@ The **canonical** async function for full extraction is **`wiktionary()`**, expo
 | `enrich` | `boolean` | `true` | If `true`: Wikidata enrichment for lemma lexemes **and** optional **form-of** `display_morph_lines` via `action=parse` (see §3.5d, `src/form-of-parse-enrich.ts`). If `false`, both paths are skipped. |
 | `debugDecoders` | `boolean` | `false` | Populate `FetchResult.debug` with per-lexeme `DecoderDebugEvent[]` from the registry. |
 | `sort` | `"source"` \| `"priority"` \| `{ strategy, priorities? }` | `"source"` | Lexeme ordering after merge (see §12.28). |
-| `matchMode` | `"strict"` \| `"fuzzy"` | `"strict"` | Strict: single page fetch for `query`. Fuzzy: union of deduplicated lexemes across NFC, lowercased, and combining-mark-stripped variants (`stripCombiningMarksForPageTitle`), with `notes` explaining variants (see `src/index.ts`). |
+| `matchMode` | `"strict"` \| `"fuzzy"` | `"strict"` | Strict: single page fetch for `query`. Fuzzy: union of deduplicated lexemes across NFC, lowercased, capitalize-first, and combining-mark-stripped variants (sorted alphabetically for deterministic ordering), with `notes` explaining variants. |
 
 **Internal recursion:** `wiktionaryRecursive()` performs the actual work: page fetch, section walk, decode, optional form-of parse batch, lemma fetches for `INFLECTED_FORM`, Wikidata attachment, then merge of primary + resolved lemma lexemes. A visited set keyed by `` `${lang}:${title}` `` prevents infinite lemma cycles.
 
@@ -240,12 +240,14 @@ senses:
 - `gloss_raw` (optional): the exact text after `#` / `##` before stripping.
 - `qualifier` (optional): parenthetical text extracted from after the main gloss (e.g. "for traffic violations").
 - `labels` (optional): register/style labels from `{{lb|...}}` templates (e.g. `["colloquial", "figurative"]`).
-- `topics` (optional): topic domains from `{{lb|...}}` (e.g. `["law", "art"]`). Wiktionary uses a shared label-tag system; the decoder separates stylistic labels from topic labels heuristically.
+- `topics` (optional): topic domains from `{{lb|...}}` (e.g. `["law", "art"]`). Wiktionary uses a shared label-tag system; the decoder separates stylistic labels from topic labels heuristically. **Connector handling:** `{{lb}}` tokens `_`, `also`, `and`, `or`, `;`, `,` are Wiktionary connector words; `_` joins adjacent labels without a comma (e.g. `Trinitarian_Christianity` → one label), while `also`/`and`/`or` merge into the preceding label as natural-language phrasing.
 - `only_used_in` (optional): structured decode of `{{only used in|lang|term(s)}}` when that template is the effective definition (restriction to a fixed expression, not a lemma link). Plain `gloss` remains a readable phrase; HTML may render a dedicated line.
 - **Template-only glosses**: When stripping wikitext yields an empty gloss, the sense decoder expands common definition-only templates to a plain English gloss (same parameter rules as the `form-of` decoder for form-of family templates, plus `construed with`, etc.) so user-facing output is not raw `{{…}}`.
 - Stripping is **brace-aware**: `[[link|display]]` → display, `[[link]]` → link; nested `{{...}}` removed correctly; no regex-induced duplication.
 
 ### 3.4 Semantic relations
+
+#### 3.4.1 Flat lexeme-level relations (`semantic_relations`)
 
 ```yaml
 semantic_relations:
@@ -284,7 +286,46 @@ semantic_relations:
 | `parasynonyms` | *(not yet)* | `====Parasynonyms====` | Near-synonyms with distinct nuance. |
 | `collocations` | *(not yet)* | `====Collocations====` | Typical combinations; list lines use the same `{{l}}` / `{{link}}` extraction as other relation sections. |
 
-For `{{syn}}` / `{{ant}}` / `{{hyper}}` / `{{hypo}}`, list items share the same shape: `term` (required), `qualifier?` from `q=` named param, `sense_id?` from `id=` / `sense=` when present. Section-sourced rows use `term` and optional `qualifier` from template gloss parameters where available.
+For `{{syn}}` / `{{ant}}` / `{{hyper}}` / `{{hypo}}`, list items share the same shape: `term` (required), `qualifier?` from `q=` named param, `sense_id?` from `id=` / `sense=` when present. Section-sourced rows use `term` and optional `qualifier` from template gloss parameters or parenthetical text on the bullet line (e.g. `* (formal) {{l|en|…}}`).
+
+Each `SemanticRelation` item may also carry **sense-linking metadata** (additive, all optional):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `source_evidence` | `"template_id" \| "section_scope" \| "qualifier_match" \| "heuristic"` | How this item was linked to a sense. |
+| `confidence` | `"high" \| "medium" \| "low"` | Confidence of the sense link. |
+| `matched_sense_id` | `string` | Sense ID this item was resolved to. |
+
+#### 3.4.2 Sense-grouped relations (`semantic_relations_by_sense`)
+
+An optional field on each `Lexeme`, keyed by **sense ID** (`"S1"`, `"S2"`, `"S1.1"`, …). Each value is a `SemanticRelations` object containing only the items linked to that sense. Absent when no items could be linked.
+
+```yaml
+semantic_relations_by_sense:
+  S1:
+    synonyms:
+      - term: sprint
+        source_evidence: template_id
+        confidence: high
+        matched_sense_id: S1
+  S2:
+    synonyms:
+      - term: execute
+        source_evidence: template_id
+        confidence: high
+        matched_sense_id: S2
+```
+
+#### 3.4.3 Evidence tiers
+
+The post-decode sense-relation linker (`src/pipeline/sense-relation-linker.ts`) assigns evidence and confidence in strict priority order:
+
+1. **`template_id` / high:** Template carried an explicit `id=` sense anchor matching a known `Sense.id`.
+2. **`section_scope` / medium:** Section bullet line had a parenthetical qualifier that scores >= 5 against a sense's text bag (gloss, labels, topics, qualifier).
+3. **`heuristic` / low:** Best-effort token overlap between the relation's qualifier/term and any sense's text bag, scoring >= 2 but < 5.
+4. **Unresolved:** Score < 2 against all senses — item remains in flat `semantic_relations` without linking metadata.
+
+Detailed algorithm and scoring rules: see [`docs/sense-level-semantic-relations.md`](sense-level-semantic-relations.md).
 
 ### 3.5 Etymology data
 
@@ -464,10 +505,13 @@ preferred. Scalar exceptions are marked below.
 | `pronounce(q, l)` | `GroupedLexemeResults<string\|null>` | Audio URL per lexeme. |
 | `hyphenate(q, l, opts)` | `GroupedLexemeResults<any>` | Syllable list or joined string per lexeme. |
 | `syllableCount(q, l)` | `GroupedLexemeResults<number>` | Number of syllables per lexeme. |
-| `synonyms(q, l)` | `GroupedLexemeResults<string[]>` | Synonyms per lexeme. |
-| `antonyms(q, l)` | `GroupedLexemeResults<string[]>` | Antonyms per lexeme. |
-| `hypernyms(q, l)` | `GroupedLexemeResults<string[]>` | Hypernyms per lexeme. |
-| `hyponyms(q, l)` | `GroupedLexemeResults<string[]>` | Hyponyms per lexeme. |
+| `synonyms(q, l)` | `GroupedLexemeResults<string[]>` | Synonyms per lexeme (flat). |
+| `antonyms(q, l)` | `GroupedLexemeResults<string[]>` | Antonyms per lexeme (flat). |
+| `hypernyms(q, l)` | `GroupedLexemeResults<string[]>` | Hypernyms per lexeme (flat). |
+| `hyponyms(q, l)` | `GroupedLexemeResults<string[]>` | Hyponyms per lexeme (flat). |
+| `synonymsBySense(q, l)` | `GroupedLexemeResults<Record<string, SemanticRelation[]>>` | Synonyms grouped by sense ID. |
+| `antonymsBySense(q, l)` | `GroupedLexemeResults<Record<string, SemanticRelation[]>>` | Antonyms grouped by sense ID. |
+| `relationsBySense(family, q, l)` | `GroupedLexemeResults<Record<string, SemanticRelation[]>>` | Any relation family grouped by sense ID. |
 | `translate(q, l, t)` | `GroupedLexemeResults<string[]>` | Translations per lexeme. |
 | `etymology(q, l)` | `GroupedLexemeResults<EtymologyStep[]\|null>` | Structured lineage per lexeme. |
 | `partOfSpeech(q, l)` | `GroupedLexemeResults<PartOfSpeech\|null>` | Strict grammatical PoS per lexeme; null when the section is non-PoS. |
@@ -742,7 +786,7 @@ interface TemplateDecoder {
 2. **Pronunciation** (extended): `ipa`, `el-ipa`, `audio` (now also resolves `audio_url`), `hyphenation`, `rhymes`, `homophones`, `romanization`.
 3. **Headword / POS**: `el-verb-head`, `el-noun-head`, `el-adj-head`, `el-adv-head`, `el-pron-head`, `el-numeral-head`, `el-participle-head`, `el-art-head`, **`nl-noun-head`**, **`nl-verb-head`**, **`nl-adj-head`**, **`de-noun-head`**, **`de-verb-head`**, **`de-adj-head`**.
 4. **Headword morphology** (new): `el-verb-morphology` (extracts `transitivity`, `principal_parts` from `{{el-verb}}` params); `el-noun-gender` (extracts `gender` from `{{el-noun}}`); **`nl-noun-head`** (extracts `gender` from `{{nl-noun}}`); **`de-noun-head`** (extracts `gender` from `{{de-noun}}`).
-5. **Form-of** (extended): the `form-of` decoder matches **`isFormOfTemplateName()`** — the historical `FORM_OF_TEMPLATES` / `VARIANT_TEMPLATES` sets, per-lang `{{xx-verb form of|…}}`, **and** the large en.wiktionary [Category:Form-of templates](https://en.wiktionary.org/wiki/Category:Form-of_templates) family (names ending in ` … of`, plus `rfform`, `IUPAC-*`, etc.). Produces `form_of.label` from `TAG_LABEL_MAP` / template name. **`isVariantFormOfTemplateName()`** distinguishes `FORM_OF` (spelling/lexical variant) from `INFLECTED_FORM` (grammatical inflection). `only used in` is **not** treated as lemma `form_of`; it is handled on sense lines.
+5. **Form-of** (extended): the `form-of` decoder matches **`isFormOfTemplateName()`** — the historical `FORM_OF_TEMPLATES` / `VARIANT_TEMPLATES` sets, per-lang `{{xx-verb form of|…}}`, **and** the large en.wiktionary [Category:Form-of templates](https://en.wiktionary.org/wiki/Category:Form-of_templates) family (names ending in ` … of`, plus `rfform`, `IUPAC-*`, etc.). Common Wiktionary **short aliases** (`altcase`, `alt case`, `altsp`, `altform`) are included in `VARIANT_TEMPLATES` so they produce `FORM_OF` lexeme type and readable display labels (e.g. "Alternative case form"). Produces `form_of.label` from `TAG_LABEL_MAP` / template name. **`isVariantFormOfTemplateName()`** distinguishes `FORM_OF` (spelling/lexical variant) from `INFLECTED_FORM` (grammatical inflection). `only used in` is **not** treated as lemma `form_of`; it is handled on sense lines.
 6. **Translations**: parses `====Translations====` sections for `t`, `t+`, `tt`, `tt+`, `t-simple`.
 7. **Senses**: parses `#` / `##` / `#:` lines; now extracts `qualifier` from parenthetical text and `labels`/`topics` from `{{lb|...}}` templates on definition lines.
 8. **Semantic relations**: inline `syn`, `ant`, `hyper`, `hypo`; section lists for Synonyms, Antonyms, Hypernyms, Hyponyms, Coordinate terms, Holonyms, Meronyms, Troponyms, Comeronyms, Parasynonyms, and Collocations (brace-tolerant `====…====` headings; `{{l}}` / `{{link}}` on list lines). Inline `{{cot}}`, `{{hol}}`, `{{mer}}`, `{{tro}}` are **not** decoded into structured fields yet.
@@ -796,6 +840,10 @@ Wikidata attachment runs only when `enrich !== false` in `wiktionary()`. It appl
 1. `pageprops.wikibase_item` from the Wiktionary page (when present).
 2. Else **`fetchWikidataEntityByWiktionaryTitle(enwiktionary, title)`** — `wbgetentities` with `sites=enwiktionary&titles=…`.
 3. Else **`fetchWikidataEntityByWikipediaTitle(enwiki, title)`** — same API with `sites=enwiki` (helps when the lemma aligns with a Wikipedia article but pageprops are missing).
+
+**Translingual exclusion:** When the QID was resolved via the Wikipedia-title fallback (step 3), **Translingual** lexemes are **skipped** and receive no `wikidata` block. Wikipedia articles describe language-specific concepts (e.g. Q190 = "god" the deity), which are semantically wrong for Translingual entries (ISO 639 codes, taxonomic symbols, etc.). QIDs from steps 1–2 are applied to all lexemes including Translingual.
+
+**ISO 639 Translingual enrichment:** Translingual Symbol entries whose definition is `{{ISO 639|N}}` receive dedicated enrichment (via `src/pipeline/iso639-enrich.ts`): the template is expanded via `action=parse` to resolve the language name (e.g. "Godié"), and the correct Wikidata QID is looked up via the language's Wikipedia article (e.g. "Godié language" → Q3914412).
 
 **Entity fetch:** `fetchWikidataEntity(qid)` loads `labels`, `descriptions`, `claims`, `sitelinks`. The SDK:
 
@@ -938,6 +986,8 @@ Decoders populate `EtymologyLink.source_lang` (language code or Wiktionary lang 
 - **Ultra-compact form-of:** When `form_of` is present, type is not `FORM_OF`, there is exactly one sense with a gloss, no abbrev-only morph phrase, no single-tag morph line, and no multi-morph need, render one line: surface + normalized label + lemma + gloss (L-05). **Rationale:** avoids a redundant `→` row for trivial plurals.
 - **Merged morph phrase:** Two or more morph lines from `##` subsenses, `display_morph_lines`, or expanded tags are collapsed into one phrase when possible (e.g. first/third person with shared tail; hyphen `first-person` uses “and”, spaced `first person` uses “or”), then `of:` and the lemma row (L-06/L-07). If merge is not applicable, lines are joined with ` · `. **Rationale:** dictionary-style density; bullets remain a fallback when merged text is empty.
 - **Lemma without etymology chain:** If there is no `form_of` and no `etymology.chain` but senses exist, show an explicit “(etymology not given on Wiktionary)” placeholder (L-04). **Rationale:** avoids a blank gap; inflected-only stubs still omit this on the inflected row where empty etym is normal.
+- **Subsense inline lettering:** Subsenses are rendered inline with `(a)`, `(b)`, `(c)` labels when there are two or more; singleton subsenses omit the label. **Rationale:** mid-dot bullets with `inline-block` caused undesirable line breaks; alphabetic labels with `display: inline` preserve the continuous flow expected in academic dictionaries.
+- **Usage note bullet stripping:** `formatUsageNoteLine` strips leading wikitext list markers (`*`, `#`, `:`, `;`) before wiki markup stripping. **Rationale:** the `*` bullet conflated with Markdown emphasis markers from `preserveEmphasis`, causing `applyInlineEmphasis` to incorrectly italicize intervening text.
 
 #### 12.10.7 Planned standard exports (roadmap)
 

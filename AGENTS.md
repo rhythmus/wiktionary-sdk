@@ -68,6 +68,15 @@ A custom parser handles nested `{{...}}` structures.
 - **`lexicographic_section` / `lexicographic_family`**: always set from the section heading via `src/parse/lexicographic-headings.ts` (expanded taxonomy, comparable to [wiktionary-scraper](https://github.com/LearnRomanian/wiktionary-scraper) headings).
 - **`Lexeme.type`** (`LEXEME` / `INFLECTED_FORM` / `FORM_OF`): still determined only by **form-of templates** in wikitext, not by whether the heading says “Abbreviation” or “Noun”.
 
+### 4c. Sense-level semantic relations (`src/pipeline/sense-relation-linker.ts`)
+- **Hybrid model**: `lexeme.semantic_relations` (flat, backward-compatible) + `lexeme.semantic_relations_by_sense` (sense-keyed projection, additive). Both are always consistent: the by-sense view is a strict subset of the flat view.
+- **Evidence capture** is split between **decode time** (the `semantic-relations` decoder stamps `source_evidence: "template_id"` / `"section_scope"` on items with explicit anchors) and **link time** (the post-decode linker in `src/pipeline/sense-relation-linker.ts` scores all items against all senses and assigns `matched_sense_id` + `confidence`).
+- **Three confidence tiers**: `high` (template `id=` anchor, score 100), `medium` (qualifier/gloss overlap >= 5), `low` (heuristic token overlap >= 2). Items scoring below 2 are left unlinked — they remain in the flat structure but do not appear in `semantic_relations_by_sense`.
+- **All 11 relation families** participate: synonyms, antonyms, hypernyms, hyponyms, coordinate_terms, holonyms, meronyms, troponyms, comeronyms, parasynonyms, collocations.
+- **Convenience layer**: `synonymsBySense()`, `antonymsBySense()`, `relationsBySense(family, …)` return sense-grouped results; `richEntry()` exposes `relations_by_sense`. Flat wrappers (`synonyms()`, etc.) unchanged.
+- **Schema**: `SemanticRelation` extended with `source_evidence`, `confidence`, `matched_sense_id`; new `$defs` `RelationSourceEvidence`, `RelationConfidence`, `SemanticRelationsBySense`.
+- **Detail**: [`docs/sense-level-semantic-relations.md`](docs/sense-level-semantic-relations.md).
+
 ### 5. Environment-Agnostic Assets (Cross-Platform Parity)
 - **Strict Rule**: Templates and static assets MUST be bundled as imported TypeScript strings (see `src/present/templates/templates.ts`) rather than loaded via Node-specific filesystem APIs (`fs`, `path`).
 - **Reason**: To ensure the SDK remains fully functional in both Node.js (CLI/Server) and Browser (Webapp) environments without a runtime filesystem.
@@ -85,7 +94,7 @@ A custom parser handles nested `{{...}}` structures.
 
 ## ⚖️ Rigid Constraints & "No Heuristics" Policy
 
-1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `src/ingress/api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/convenience/morphology.ts`, and per-lang form-of nested inflection lines in `src/pipeline/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals).
+1.  **No article HTML scraping**: Do not fetch or parse arbitrary **article** HTML from `/wiki/…` outside the API. Always use the MediaWiki API in `src/ingress/api.ts`. **Allowed (documented exceptions):** `action=parse` on **wikitext you already hold** to obtain structured expansion output — same class of call as Greek conjugation/declension expansion in `src/convenience/morphology.ts`, per-lang form-of nested inflection lines in `src/pipeline/form-of-parse-enrich.ts` (see **`docs/form-of-display-and-mediawiki-parse.md`** for rationales, Spanish Lua case, and explicit non-goals), and **ISO 639 template enrichment** in `src/pipeline/iso639-enrich.ts` (expanding `{{ISO 639|N}}` to resolve the language name for Translingual Symbol entries).
 2.  **No linguistic "Guessing"**: If a stem or gender is missing from a headword template, do not attempt to calculate it. Leave the field undefined.
 3.  **Traceability**: Every field added to a `NormalizedEntry` must be traceable to a source line or template parameter.
 4.  **Verbatim Storage**: All template calls must be stored verbatim in `entry.templates` for forensic verification.
@@ -104,7 +113,7 @@ A custom parser handles nested `{{...}}` structures.
     | Paradigms / tables | `conjugate`, `decline`, `principalParts`, `inflectionTableRef` | **Implemented** (row warnings where helpers apply) |
     | Morphology traits | `morphology` | **Implemented** |
     | Headword slots | `gender`, `transitivity` | **Implemented**; `partOfSpeech`, `lexicographicClass` — **Gap** |
-    | Semantic relations | `synonyms`, `antonyms`, `hypernyms`, `hyponyms` | **Implemented** (raw `{{syn}}` / `{{ant}}` / `{{hyper}}` / `{{hypo}}` vs empty list); `comeronyms`, `parasynonyms`, `collocations` — **Gap** |
+    | Semantic relations | `synonyms`, `antonyms`, `hypernyms`, `hyponyms` | **Implemented** (raw `{{syn}}` / `{{ant}}` / `{{hyper}}` / `{{hypo}}` vs empty list; **sense-level linking** with `source_evidence` / `confidence` / `matched_sense_id` + `semantic_relations_by_sense`); `comeronyms`, `parasynonyms`, `collocations` — **Gap** (support warnings) |
     | Pronunciation | `ipa`, `pronounce`, `hyphenate`, `syllableCount`, `rhymes`, `homophones` | **Implemented**; `audioGallery` — **Gap** |
     | Senses / translations | `translate` (gloss + en senses + native-senses row), `exampleDetails`, `citations` | **Implemented**; `richEntry` — **Gap** |
     | Etymology | `etymology`, `etymologyChain`, `etymologyCognates` | **Implemented**; `etymologyText` — **Gap** |
@@ -160,6 +169,29 @@ These behaviours come up often when extending decoders or the webapp.
 
 ### Webapp language filter
 - When adding a first-class lookup language for the playground (e.g. Spanish `es`), add it to the **`LANGUAGES`** (or equivalent) list in `webapp/src/App.tsx` so the bar filter matches `langToLanguageName` / `extractLanguageSection`.
+
+### Fuzzy case matching and deterministic ordering
+- **`buildFuzzyQueryVariants()`** (`src/pipeline/wiktionary-core.ts`) generates NFC, lowercased, **capitalize-first**, and combining-mark-stripped variants (plus cross-products). All six candidates are deduplicated via `Set` and then **sorted alphabetically** (Unicode codepoint order) before iteration.
+- **Consequence:** `"god"` and `"God"` produce **identical** variant sets `["God", "god"]` in the same order — merge is **symmetric and deterministic** with respect to input casing.
+- **en.wiktionary case sensitivity:** Unlike Wikipedia, en.wiktionary.org has **case-sensitive** first characters. `"God"` and `"god"` are genuinely **different pages** with distinct editorial content (proper noun vs common noun). Fuzzy mode discovers both but does **not** merge them — they are separate lexemes with separate IDs. The webapp annotates provenance (`page: God` / `page: god` tags) when lexemes from different pages share a pill group.
+
+### Wikidata QID and Translingual entries
+- **Wikipedia-fallback exclusion:** When the Wikidata QID is resolved via the Wikipedia-title fallback (step 3 of the `§8` resolution chain), **Translingual** lexemes (`lex.language === "Translingual"`) are **skipped** and receive no `wikidata` block. Wikipedia articles describe language-specific concepts (e.g. Q190 = "god" the deity), which are semantically wrong for Translingual entries (ISO 639 codes, taxonomic symbols).
+- **ISO 639 enrichment** (`src/pipeline/iso639-enrich.ts`): Translingual Symbol entries with `{{ISO 639|N}}` definition lines receive dedicated enrichment when `enrich: true`. The template is expanded via `action=parse` to resolve the language name (e.g. "Godié"), and the Wikidata QID is looked up via the language's Wikipedia article (e.g. "Godié language" → Q3914412). This is an allowed `action=parse` usage per constraint §1 (expanding wikitext the SDK already holds).
+
+### Webapp form-of chain resolution
+- **`pickLemmaLexemeFromSecondFetch`** (`webapp/src/pick-lemma-lexeme.ts`) returns a discriminated union `PickLemmaResult` with three cases: `found` (LEXEME match), `chain` (target is itself a form-of pointing elsewhere), `not-found` (with descriptive reason).
+- **`FormOfLexemeBlock`** uses a `switch` on the result kind instead of mining `FetchResult.notes` for error messages. For chain cases (e.g. `{{ellipsis of|en|oh God}}` → "oh God" is `{{alt form|en|oh my God}}`), the webapp shows `"oh God" is itself a reference to → "oh my God"` with inherited serif typography (not the former red sans-serif error style).
+
+### Form-of template short aliases
+- **`VARIANT_TEMPLATES`** (`src/decode/registry/form-of-predicates.ts`) now includes common Wiktionary short aliases: `altcase`, `alt case`, `altsp`, `altform`, `alternative case form of`, `alternative spelling of`. These were previously unrecognized — entries using them (e.g. `{{altcase|en|God}}`) rendered with empty glosses.
+- **`form-of-display-label.ts`** maps aliases to readable labels (e.g. `altcase` → "Alternative case form").
+
+### `{{lb}}` label connector tokens
+- `parseLbTemplate` (`src/decode/registry/register-senses.ts`) treats `_`, `also`, `and`, `or`, `;`, `,` as connector tokens. `_` joins adjacent labels without a comma; other connectors merge into the preceding label as natural-language phrasing. Previously, `_` became a blank label producing double commas (e.g. "Trinitarian, , Christianity").
+
+### Usage note preprocessing
+- `formatUsageNoteLine` (`src/decode/registry/format-usage-note-line.ts`) strips leading wikitext bullet markers (`*`, `#`, `:`, `;`) before wiki markup processing. The leading `*` was previously conflated with Markdown `*…*` emphasis markers, causing `applyInlineEmphasis` to italicize wrong text spans.
 
 ---
 
@@ -240,6 +272,7 @@ When roadmap items ship, update **`CHANGELOG.md`** (versioned notes + roadmap hi
 - [Test suite guide](test/README.md) (mocking, tiers, goldens, coverage)
 - [Wiktionary SDK spec](docs/wiktionary-sdk-spec.md) (ground truth)
 - [Form-of display & MediaWiki parse enrichment](docs/form-of-display-and-mediawiki-parse.md) (Lua vs wikitext, Spanish case, parse API rationale, what not to do)
+- [**Sense-level semantic relations**](docs/sense-level-semantic-relations.md) (hybrid model, evidence tiers, linking algorithm, schema, convenience API)
 - [Query result dimensional matrix](docs/query-result-dimensional-matrix.md) (combinatorics: languages, PoS, etymologies, lexeme types, morph richness, fuzzy merge)
 - [Roadmap / staged product backlog](docs/ROADMAP.md) (remaining engineering + product work; delivered stages in `CHANGELOG.md`)
 - [**Modular `src/` layout refactor (phased)**](docs/src-layout-refactor-plan.md) (ingress → parse → decode → pipeline → present → convenience → model split; alpha-era, no path-compat obligation)

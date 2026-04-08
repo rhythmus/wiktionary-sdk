@@ -37,9 +37,9 @@ The **simplest** case is one point in each axis: existing page, strict match, on
 | **A3. Redirect** | API `redirects=1`; normalized title in page object; content is redirect target’s revision (normal MW behaviour). |
 | **A4. Combining-mark retry** | If title missing, retry without combining marks; note may be appended when `debugDecoders` or internal note path documents it. |
 | **B1. Strict** | Single `runSingle(query)`. |
-| **B2. Fuzzy** | Several variants tried; **merged** lexeme list with **deduplication by lexeme `id`**; `notes` may list variant used. Same logical page can appear once if ids match. |
+| **B2. Fuzzy** | Variants include NFC, lowercased, **capitalize-first**, and combining-mark-stripped forms (plus cross-products). Variants are **sorted alphabetically** before iteration, so merge ordering is **deterministic** regardless of input casing (`"god"` and `"God"` both produce variants `["God", "god"]`). Merged lexeme list with **deduplication by lexeme `id`**; `notes` list variant used. Because lexeme IDs embed the source page title, lexemes from different case-variant pages (e.g. "God" vs "god") are correctly treated as **distinct** entries and both appear in the result. |
 
-**Combination:** (A2) alone yields **empty** result regardless of other axes. (B2)+(A1) can still yield **one** merged set or **multiple** if variants hit **different** pages (rare).
+**Combination:** (A2) alone yields **empty** result regardless of other axes. (B2)+(A1) can yield **one** merged set when variants hit the same page, or **multiple distinct lexemes** when variants hit **different** pages (common for case-sensitive pairs like "God"/"god", proper noun/common noun splits).
 
 ---
 
@@ -123,9 +123,10 @@ Resolved lemma lexemes are **appended** to `lexemes` with **`resolved_for_query`
 
 | Case | Applies to |
 |------|------------|
-| **J1. `enrich: false`** | No Wikidata merge; **no** `display_morph_lines` parse pass. |
-| **J2. Wikidata** | **Lemma** rows (`type === "LEXEME"`) on the **queried** page when QID resolvable. |
+| **J1. `enrich: false`** | No Wikidata merge; **no** `display_morph_lines` parse pass; **no** ISO 639 enrichment. |
+| **J2. Wikidata** | **Lemma** rows (`type === "LEXEME"`) on the **queried** page when QID resolvable. **Exception:** Translingual lexemes are **skipped** when the QID came from the Wikipedia-title fallback (step 3 of the resolution chain), because Wikipedia articles describe language-specific concepts that are semantically wrong for Translingual entries. |
 | **J3. Parse morph lines** | **Inflected** stubs matching `isPerLangFormOfTemplate` + empty wikitext morph (see enrich module). |
+| **J4. ISO 639 enrichment** | **Translingual** Symbol entries with `{{ISO 639\|N}}` definition lines: template expanded via `action=parse` to resolve language name; correct Wikidata QID looked up via the language's Wikipedia article (e.g. "Godié language" → Q3914412). Module: `src/pipeline/iso639-enrich.ts`. |
 
 ---
 
@@ -199,9 +200,28 @@ Use this as a **checklist** for mental simulation: pick one option from each row
 | Lexeme assembly | `wiktionaryRecursive` (`pipeline/wiktionary-core.ts`) |
 | Form-of + type | `registry.ts` (`form-of` decoder, `isFormOfTemplateName`, …) |
 | Parse morph enrichment | `form-of-parse-enrich.ts` |
+| Sense-relation linking | `sense-relation-linker.ts` (post-decode pass, see below) |
 | Formatter / bullets | `formatter.ts`, `entry.html.hbs` |
 | **`FetchResult` HTML** (notes, empty state, homonym merge) | `formatFetchResult()`, `groupLexemesForIntegratedHomonyms()` (`lexeme-display-groups.ts`), `lexeme-homonym-group.html.hbs` |
 
 ---
 
-*When adding new behaviours (e.g. another enrichment gate), extend **Axis H** or **Axis J** and add a row to §11.*
+## 14. Axis L: Sense-level semantic relation linking
+
+After decoding, the sense-relation linker (`src/pipeline/sense-relation-linker.ts`) runs on each lexeme to produce **`semantic_relations_by_sense`** — a projection of the flat `semantic_relations` keyed by sense ID.
+
+| Case | Behaviour |
+|------|-----------|
+| **L1. Template `id=` anchor** | Direct sense match, `confidence: "high"`, score 100. |
+| **L2. Section qualifier** | Parenthetical text on bullet line, scored against sense text bags; `confidence: "medium"` when score >= 5. |
+| **L3. Heuristic overlap** | Token overlap between relation term/qualifier and sense gloss; `confidence: "low"` when 2 <= score < 5. |
+| **L4. Unresolved** | Score < 2 against all senses; item stays in flat structure only, absent from by-sense view. |
+| **L5. No senses** | Linker skips entirely; `semantic_relations_by_sense` absent. |
+
+This axis is **within-lexeme** (like H) and orthogonal to the other dimensions. Every relation item in the flat structure may acquire `source_evidence`, `confidence`, and `matched_sense_id`. The by-sense view is a strict subset of the flat view.
+
+**Detail:** [`docs/sense-level-semantic-relations.md`](sense-level-semantic-relations.md).
+
+---
+
+*When adding new behaviours (e.g. another enrichment gate), extend **Axis H**, **Axis J**, or **Axis L** and add a row to §11.*
