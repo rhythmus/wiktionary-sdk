@@ -16,6 +16,7 @@ import {
     fetchWikidataEntity,
     fetchWikidataEntityByWiktionaryTitle,
     fetchWikidataEntityByWikipediaTitle,
+    fetchWikipediaDisambiguationLinks,
 } from "../ingress/api";
 import {
     extractLanguageSection,
@@ -38,6 +39,8 @@ import {
 } from "../decode/registry";
 import { deepMerge, commonsThumbUrl, parallelMap } from "../infra/utils";
 import { enrichFormOfMorphLinesFromParseBatch } from "./form-of-parse-enrich";
+import { enrichIso639LexemesBatch } from "./iso639-enrich";
+import { linkRelationsToSenses } from "./sense-relation-linker";
 import { LANG_PRIORITY } from "../infra/constants";
 
 export type LexemeSortStrategy = "source" | "priority";
@@ -52,6 +55,164 @@ function wikidataSitelinkUrl(site: string | undefined, title: string | undefined
     if (!site || !title || !site.endsWith("wiki")) return undefined;
     const lang = site.slice(0, -4);
     return `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+}
+
+function capitalizeFirstTitleChar(title: string): string {
+    if (!title) return title;
+    return title[0].toLocaleUpperCase() + title.slice(1);
+}
+
+function wikipediaTitleCandidates(title: string, query: string): string[] {
+    const candidates: string[] = [];
+    const seen = new Set<string>();
+    const push = (v: string | undefined) => {
+        const t = (v || "").trim();
+        if (!t || seen.has(t)) return;
+        seen.add(t);
+        candidates.push(t);
+    };
+    const pushWithDisambiguationFallback = (v: string | undefined) => {
+        const t = (v || "").trim();
+        if (!t) return;
+        push(t);
+        if (!/\([^)]*\)\s*$/.test(t)) {
+            push(`${t} (disambiguation)`);
+        }
+    };
+
+    pushWithDisambiguationFallback(title);
+    pushWithDisambiguationFallback(capitalizeFirstTitleChar(title));
+    if (query && query !== title) {
+        pushWithDisambiguationFallback(query);
+        pushWithDisambiguationFallback(capitalizeFirstTitleChar(query));
+    }
+    return candidates;
+}
+
+const WIKIDATA_DISAMBIGUATION_QID = "Q4167410";
+const DISAMBIGUATION_WIKIPEDIA_CANDIDATE_LIMIT = 25;
+const SENSE_MATCH_STOPWORDS = new Set([
+    "the", "and", "for", "with", "from", "this", "that", "these", "those", "into", "onto",
+    "about", "under", "over", "into", "than", "then", "such", "term", "word", "words", "sense",
+    "meaning", "meanings", "page", "article", "used", "use", "very", "much", "more", "less",
+    "write", "writing",
+]);
+
+function tokenizeForLooseMatch(s: string): string[] {
+    return (s || "")
+        .toLocaleLowerCase()
+        .replace(/[_()[\],.;:!?/\\'"`-]+/g, " ")
+        .split(/\s+/)
+        .map((x) => x.trim())
+        .filter((x) => x.length >= 3 && !SENSE_MATCH_STOPWORDS.has(x));
+}
+
+function buildSenseMatchesForDisambiguation(
+    senses: Lexeme["senses"] | undefined,
+    candidates: Array<{ title: string; qid: string | null; match_texts?: string[] }>,
+): Array<{
+    sense_id: string;
+    candidate_qid: string;
+    candidate_title: string;
+    score: number;
+    match_reasons?: {
+        title_token_hits?: number;
+        aux_token_hits?: number;
+        title_phrase_hit?: boolean;
+    };
+}> {
+    if (!senses || senses.length === 0) return [];
+    const withQid = candidates.filter((c) => Boolean(c.qid)) as Array<{
+        title: string;
+        qid: string;
+        match_texts?: string[];
+    }>;
+    if (withQid.length === 0) return [];
+    const out: Array<{
+        sense_id: string;
+        candidate_qid: string;
+        candidate_title: string;
+        score: number;
+        match_reasons?: {
+            title_token_hits?: number;
+            aux_token_hits?: number;
+            title_phrase_hit?: boolean;
+        };
+    }> = [];
+    for (const sense of senses) {
+        const senseTextParts: string[] = [sense.gloss || ""];
+        if (sense.gloss_raw) senseTextParts.push(sense.gloss_raw);
+        if (sense.qualifier) senseTextParts.push(sense.qualifier);
+        for (const ex of sense.examples || []) {
+            if (typeof ex === "string") senseTextParts.push(ex);
+            else {
+                if (ex.text) senseTextParts.push(ex.text);
+                if (ex.translation) senseTextParts.push(ex.translation);
+                if (ex.raw) senseTextParts.push(ex.raw);
+            }
+        }
+        const senseText = senseTextParts.join(" ").toLocaleLowerCase();
+        const senseTokens = new Set(tokenizeForLooseMatch(senseText));
+        if (senseTokens.size === 0) continue;
+        let best: {
+            title: string;
+            qid: string;
+            score: number;
+            titleTokenHits: number;
+            auxTokenHits: number;
+            titlePhraseHit: boolean;
+        } | null = null;
+        for (const candidate of withQid) {
+            const titleTokens = new Set(tokenizeForLooseMatch(candidate.title));
+            const auxTokens = new Set(tokenizeForLooseMatch((candidate.match_texts || []).join(" ")));
+            let score = 0;
+            let titleTokenHits = 0;
+            let auxTokenHits = 0;
+            for (const token of titleTokens) {
+                if (senseTokens.has(token)) {
+                    score += 2;
+                    titleTokenHits += 1;
+                }
+            }
+            for (const token of auxTokens) {
+                if (senseTokens.has(token)) {
+                    score += 1;
+                    auxTokenHits += 1;
+                }
+            }
+            const candTitleLower = candidate.title.toLocaleLowerCase();
+            let titlePhraseHit = false;
+            if (candTitleLower && senseText.includes(candTitleLower)) {
+                score += 4;
+                titlePhraseHit = true;
+            }
+            if (score < 2) continue;
+            if (!best || score > best.score) {
+                best = {
+                    title: candidate.title,
+                    qid: candidate.qid,
+                    score,
+                    titleTokenHits,
+                    auxTokenHits,
+                    titlePhraseHit,
+                };
+            }
+        }
+        if (best) {
+            out.push({
+                sense_id: sense.id,
+                candidate_qid: best.qid,
+                candidate_title: best.title,
+                score: best.score,
+                match_reasons: {
+                    ...(best.titleTokenHits > 0 ? { title_token_hits: best.titleTokenHits } : {}),
+                    ...(best.auxTokenHits > 0 ? { aux_token_hits: best.auxTokenHits } : {}),
+                    ...(best.titlePhraseHit ? { title_phrase_hit: true } : {}),
+                },
+            });
+        }
+    }
+    return out;
 }
 
 /**
@@ -167,10 +328,12 @@ function buildFuzzyQueryVariants(query: string): string[] {
     const variants = [
         nfc,
         nfc.toLocaleLowerCase(),
+        capitalizeFirstTitleChar(nfc),
         stripDiacritics(nfc),
         stripDiacritics(nfc).toLocaleLowerCase(),
+        capitalizeFirstTitleChar(stripDiacritics(nfc)),
     ].filter((v) => v.trim().length > 0);
-    return [...new Set(variants)];
+    return [...new Set(variants)].sort();
 }
 
 function lemmaKey(lang: WikiLang, lemma: string) {
@@ -391,6 +554,11 @@ export async function wiktionaryRecursive({
 
     if (enrich) {
         await enrichFormOfMorphLinesFromParseBatch(lexemes, qPage.title, formOfParseConcurrency);
+        await enrichIso639LexemesBatch(lexemes, qPage.title);
+    }
+
+    for (const lex of lexemes) {
+        linkRelationsToSenses(lex);
     }
 
     const lemmaRequests: Array<{ lemma: string; lang: WikiLang; triggeredBy: string }> = [];
@@ -452,25 +620,34 @@ export async function wiktionaryRecursive({
     if (enrich) {
         let resolvedEntity: any = null;
         let resolvedQid: string | undefined;
+        let resolvedQidFromWikipedia = false;
         let fallbackAttempted = false;
         for (const lex of lexemes) {
             if (lex.type !== "LEXEME") continue;
             let qid = qPage.pageprops?.wikibase_item as string | undefined;
-            if (!qid && resolvedQid) qid = resolvedQid;
+            let qidFromWikipedia = false;
+            if (!qid && resolvedQid) { qid = resolvedQid; qidFromWikipedia = resolvedQidFromWikipedia; }
             if (!qid && !fallbackAttempted) {
                 fallbackAttempted = true;
                 try {
                     resolvedEntity = await fetchWikidataEntityByWiktionaryTitle(qPage.title);
                     if (!resolvedEntity?.id) {
-                        resolvedEntity = await fetchWikidataEntityByWikipediaTitle(qPage.title);
+                        const wikiCandidates = wikipediaTitleCandidates(qPage.title, query);
+                        for (const candidate of wikiCandidates) {
+                            resolvedEntity = await fetchWikidataEntityByWikipediaTitle(candidate);
+                            if (resolvedEntity?.id) break;
+                        }
+                        resolvedQidFromWikipedia = Boolean(resolvedEntity?.id);
                     }
                     resolvedQid = resolvedEntity?.id;
+                    qidFromWikipedia = resolvedQidFromWikipedia;
                     if (resolvedQid) qid = resolvedQid;
                 } catch {
                     // best-effort fallback only
                 }
             }
             if (!qid) continue;
+            if (qidFromWikipedia && lex.language === "Translingual") continue;
             lex.wikidata = { qid };
             try {
                 const wd =
@@ -504,6 +681,46 @@ export async function wiktionaryRecursive({
 
                     const p279 = wd.claims?.P279 ?? [];
                     lex.wikidata.subclass_of = p279.map((c: any) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
+                    const isDisambiguation = (lex.wikidata.instance_of || []).includes(WIKIDATA_DISAMBIGUATION_QID);
+                    if (isDisambiguation) {
+                        const links = await fetchWikipediaDisambiguationLinks(
+                            qPage.title,
+                            DISAMBIGUATION_WIKIPEDIA_CANDIDATE_LIMIT,
+                        );
+                        const candidates: Array<{ title: string; qid: string | null; url?: string; match_texts?: string[] }> = [];
+                        for (const link of links) {
+                            let candidateQid: string | null = null;
+                            let matchTexts: string[] = [];
+                            try {
+                                const c = await fetchWikidataEntityByWikipediaTitle(link.title);
+                                candidateQid = c?.id || null;
+                                const labelEn = c?.labels?.en?.value ? [String(c.labels.en.value)] : [];
+                                const descEn = c?.descriptions?.en?.value ? [String(c.descriptions.en.value)] : [];
+                                const aliasEn = Array.isArray(c?.aliases?.en)
+                                    ? c.aliases.en.map((x: any) => String(x?.value || "")).filter(Boolean)
+                                    : [];
+                                matchTexts = [...labelEn, ...descEn, ...aliasEn];
+                            } catch {
+                                candidateQid = null;
+                            }
+                            candidates.push({
+                                title: link.title,
+                                qid: candidateQid,
+                                url: `https://en.wikipedia.org/wiki/${encodeURIComponent(link.title.replace(/ /g, "_"))}`,
+                                ...(matchTexts.length > 0 ? { match_texts: matchTexts } : {}),
+                            });
+                        }
+                        const senseMatches = buildSenseMatchesForDisambiguation(lex.senses, candidates);
+                        const publicCandidates = candidates.map((c) => ({
+                            title: c.title,
+                            qid: c.qid,
+                            ...(c.url ? { url: c.url } : {}),
+                        }));
+                        lex.wikidata.disambiguation = {
+                            candidates: publicCandidates,
+                            ...(senseMatches.length > 0 ? { sense_matches: senseMatches } : {}),
+                        };
+                    }
                 }
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err);

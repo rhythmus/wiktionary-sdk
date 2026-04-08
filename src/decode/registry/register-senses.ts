@@ -109,6 +109,11 @@ function glossFromAuxDefinitionTemplate(t: TemplateCall): string | null {
         const term = (pos[1] ?? "").trim();
         if (term) return `construed with ${stripWikiMarkup(term).trim() || term}`;
     }
+    if (n === "iso 639") {
+        const part = (pos[0] ?? "").trim();
+        const partLabel = part ? `ISO 639-${part}` : "ISO 639";
+        return `${partLabel} language code`;
+    }
     return null;
 }
 

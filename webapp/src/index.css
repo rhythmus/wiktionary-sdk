@@ -8,7 +8,7 @@
 :root {
   /* Light-mode page (outside dark island) */
   --page-bg:       #F7F7F5;
-  --page-bg-alt:   #FFFFFF;
+  --page-bg-alt:   #FFF8EB;
   --page-border:   rgba(0, 0, 0, 0.07);
   --page-text:     #111111;
   --page-muted:    #6b7280;
@@ -711,6 +711,12 @@ code {
   line-height: 1.2;
 }
 
+.dict-card .dict-entry-lemma-error {
+  font-family: 'Source Serif 4', serif;
+  font-style: italic;
+  color: var(--page-text);
+}
+
 @media (max-width: 640px) {
   .dict-card .dict-entry-nested-arrow {
     font-size: 1em;
@@ -783,6 +789,15 @@ code {
   margin-top: 1.75rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--page-border);
+}
+
+.dict-provenance-tag {
+  font-size: 0.7rem;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: rgba(0, 0, 0, 0.38);
+  letter-spacing: 0.02em;
+  margin-bottom: 0.15rem;
+  user-select: none;
 }
 
 /* ── Dark island wrapper ── */

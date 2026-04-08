@@ -42,20 +42,22 @@ export const FormOfLexemeBlock: FC<{
     })
       .then((res) => {
         if (cancelled) return;
-        const picked = pickLemmaLexemeFromSecondFetch(res, lemmaQuery, preferredPos);
-        if (!picked) {
-          const noise = /retried without combining marks/i;
-          const meaningful = res.notes.find((n) => !noise.test(n));
-          setLemmaResolveError(
-            meaningful ??
-              (res.lexemes.length === 0
-                ? 'No lexemes for this lemma page (language section or PoS filter).'
-                : 'No lemma lexeme in the API response for this page.'),
-          );
-          setLemmaResolveEntry(null);
-        } else {
-          setLemmaResolveEntry(picked);
-          setLemmaResolveError(null);
+        const result = pickLemmaLexemeFromSecondFetch(res, lemmaQuery, preferredPos);
+        switch (result.kind) {
+          case 'found':
+            setLemmaResolveEntry(result.lexeme);
+            setLemmaResolveError(null);
+            break;
+          case 'chain':
+            setLemmaResolveEntry(null);
+            setLemmaResolveError(
+              `"${lemmaQuery}" is itself a reference to → "${result.chainTarget}"`,
+            );
+            break;
+          case 'not-found':
+            setLemmaResolveEntry(null);
+            setLemmaResolveError(result.reason);
+            break;
         }
       })
       .catch((e: unknown) => {

@@ -910,14 +910,31 @@ const App: React.FC = () => {
           >
             {/* Stack every lexeme in the active (language + PoS) group — lemma fetches run per form-of row. */}
             <div className="dict-merged-lexeme-stack">
-              {activeLexemeGroupIndices.map((idx) => {
-                const lex = results[idx];
-                if (!lex) return null;
-                if (lexemeNeedsLemmaResolution(lex)) {
-                  return <FormOfLexemeBlock key={lex.id} lexeme={lex} debugMode={debugMode} matchMode={matchMode} />;
-                }
-                return <PlainLexemeHtmlBlock key={lex.id} lexeme={lex} />;
-              })}
+              {(() => {
+                const activePages = new Set(
+                  activeLexemeGroupIndices
+                    .map((i) => results[i]?.source?.wiktionary?.title)
+                    .filter(Boolean),
+                );
+                const showProvenance = activePages.size > 1;
+                return activeLexemeGroupIndices.map((idx) => {
+                  const lex = results[idx];
+                  if (!lex) return null;
+                  const pageTitle = lex.source?.wiktionary?.title;
+                  return (
+                    <div key={lex.id}>
+                      {showProvenance && pageTitle && (
+                        <div className="dict-provenance-tag" title={`This entry is from the Wiktionary page "${pageTitle}"`}>
+                          page: {pageTitle}
+                        </div>
+                      )}
+                      {lexemeNeedsLemmaResolution(lex)
+                        ? <FormOfLexemeBlock lexeme={lex} debugMode={debugMode} matchMode={matchMode} />
+                        : <PlainLexemeHtmlBlock lexeme={lex} />}
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             {/* One pill per language + PoS; card shows all rows in that group together */}
@@ -927,11 +944,16 @@ const App: React.FC = () => {
                   const active = g.indices.includes(selectedEntryIdx);
                   const r = g.representative;
                   const base = `${langName(r.language)} · ${posLabelForPill(r)}`;
-                  const visibleCount = filterMergedStackIndices(results, g.indices).length;
+                  const visibleIndices = filterMergedStackIndices(results, g.indices);
+                  const visibleCount = visibleIndices.length;
                   const label = visibleCount > 1 ? `${base} (${visibleCount})` : base;
+                  const distinctPages = [...new Set(visibleIndices.map((i) => results[i]?.source?.wiktionary?.title).filter(Boolean))];
+                  const multiPage = distinctPages.length > 1;
                   const title =
                     visibleCount > 1
-                      ? `${visibleCount} entry block(s) for this language and part of speech are combined in the card above (lemma-only rows omitted when shown via a form-of link).`
+                      ? (multiPage
+                          ? `${visibleCount} entries from ${distinctPages.length} pages (${distinctPages.join(', ')}); fuzzy match combined results for variant spellings.`
+                          : `${visibleCount} entry block(s) for this language and part of speech are combined in the card above (lemma-only rows omitted when shown via a form-of link).`)
                       : undefined;
                   return (
                     <button

@@ -165,7 +165,7 @@ export async function fetchWikidataEntity(qid: string) {
         formatversion: "2",
         origin: "*",
         ids: qid,
-        props: "labels|descriptions|claims|sitelinks",
+        props: "labels|descriptions|aliases|claims|sitelinks",
     });
     const ent = j?.entities?.[qid];
     const result = ent ?? null;
@@ -186,7 +186,7 @@ async function fetchWikidataEntityBySiteTitle(site: string, title: string) {
         origin: "*",
         sites: site,
         titles: title,
-        props: "labels|descriptions|claims|sitelinks",
+        props: "labels|descriptions|aliases|claims|sitelinks",
     });
     const entities = j?.entities ? Object.values(j.entities) : [];
     const first = (entities.find((e: any) => e && e.id && !e.missing) as any) || null;
@@ -200,4 +200,30 @@ export async function fetchWikidataEntityByWiktionaryTitle(title: string) {
 
 export async function fetchWikidataEntityByWikipediaTitle(title: string) {
     return fetchWikidataEntityBySiteTitle("enwiki", title);
+}
+
+export async function fetchWikipediaDisambiguationLinks(title: string, limit = 50): Promise<Array<{ title: string }>> {
+    const cacheKey = `enwiki:disambig-links:${title}:${limit}`;
+    const cache = getCache();
+    const cached = await cache.get<Array<{ title: string }>>(cacheKey);
+    if (cached) return cached;
+
+    const origin = "https://en.wikipedia.org/w/api.php";
+    const j = await mwFetchJson(origin, {
+        action: "query",
+        format: "json",
+        formatversion: "2",
+        origin: "*",
+        prop: "links",
+        plnamespace: "0",
+        redirects: "1",
+        titles: title,
+        pllimit: String(Math.max(1, Math.min(limit, 500))),
+    });
+    const page = j?.query?.pages?.[0];
+    const links = (page?.links ?? [])
+        .map((x: any) => ({ title: String(x?.title || "").trim() }))
+        .filter((x: { title: string }) => x.title.length > 0);
+    await cache.set(cacheKey, links);
+    return links;
 }

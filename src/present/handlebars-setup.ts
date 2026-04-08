@@ -8,6 +8,8 @@ import {
     ENTRY_CSS,
     HTML_LEXEME_HOMONYM_GROUP_TEMPLATE,
 } from "./templates/templates";
+import { smartQuotes } from "./smart-quotes";
+export { smartQuotes } from "./smart-quotes";
 
 // ---------------------------------------------------------
 // HANDLEBARS SETUP
@@ -98,6 +100,43 @@ Handlebars.registerHelper("posLine", (entry: Record<string, unknown>) => {
     }
     return display;
 });
+
+/**
+ * Apply typographic smart quotes to all prose text fields in a lexeme context
+ * (glosses, usage notes, etymology glosses, definitions) before template rendering.
+ * Leaves term/headword/label fields unchanged.
+ */
+export function applySmartQuotesToContext(ctx: Record<string, unknown>): Record<string, unknown> {
+    const lang = typeof ctx.language === "string" ? ctx.language : undefined;
+    if (Array.isArray(ctx.senses)) {
+        ctx.senses = (ctx.senses as any[]).map((s) => applySqToSense(s, lang));
+    }
+    if (ctx.etymology && typeof ctx.etymology === "object") {
+        const etym = ctx.etymology as Record<string, unknown>;
+        if (Array.isArray(etym.chain)) {
+            etym.chain = (etym.chain as any[]).map((step) =>
+                step?.gloss ? { ...step, gloss: smartQuotes(step.gloss, lang) } : step
+            );
+        }
+        if (Array.isArray(etym.cognates)) {
+            etym.cognates = (etym.cognates as any[]).map((cog) =>
+                cog?.gloss ? { ...cog, gloss: smartQuotes(cog.gloss, lang) } : cog
+            );
+        }
+        ctx.etymology = etym;
+    }
+    return ctx;
+}
+
+function applySqToSense(sense: any, lang: string | undefined): any {
+    const out = { ...sense };
+    if (typeof out.gloss === "string") out.gloss = smartQuotes(out.gloss, lang);
+    if (typeof out.definition === "string") out.definition = smartQuotes(out.definition, lang);
+    if (Array.isArray(out.subsenses)) {
+        out.subsenses = out.subsenses.map((ss: any) => applySqToSense(ss, lang));
+    }
+    return out;
+}
 
 export function escapeHtml(text: string): string {
     return text

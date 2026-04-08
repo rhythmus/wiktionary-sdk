@@ -11,6 +11,7 @@ import {
     entryCss,
     escapeHtml,
     renderUsageNoteWithRefLinks,
+    applySmartQuotesToContext,
 } from "./handlebars-setup";
 
 /** Appends row-level SDK coverage notes for {@link GroupedLexemeResults} / `LexemeResult` arrays. */
@@ -225,14 +226,15 @@ class TextStyle implements FormatterStyle {
 }
 function prepareLexemeHtmlContext(entry: any, options: FormatOptions): Record<string, unknown> {
     const standalone = options.mode === "html";
+    const lang: string | undefined = entry.language;
     const usageNotes = Array.isArray(entry.usage_notes)
         ? entry.usage_notes.map((n: unknown) =>
               typeof n === "string"
-                  ? renderUsageNoteWithRefLinks(n)
+                  ? renderUsageNoteWithRefLinks(n, lang)
                   : new Handlebars.SafeString(escapeHtml(String(n)))
           )
         : entry.usage_notes;
-    return {
+    const ctx: Record<string, unknown> = {
         ...entry,
         headword: entry.headword || entry.form,
         pos:
@@ -245,6 +247,7 @@ function prepareLexemeHtmlContext(entry: any, options: FormatOptions): Record<st
         relations: entry.relations ?? entry.semantic_relations,
         usage_notes: usageNotes,
     };
+    return applySmartQuotesToContext(ctx);
 }
 
 function formatLexemeHtmlFragment(lexeme: Lexeme, options: FormatOptions): string {
@@ -263,12 +266,16 @@ function formatHomonymGroupHtml(items: Lexeme[], options: FormatOptions): string
         { ...first, wikidata, usage_notes },
         { ...options, mode: "html-fragment" }
     );
-    const stacks = items.map((lex) => ({
-        etymology: lex.etymology,
-        senses: lex.senses,
-        relations: lex.semantic_relations,
-        derived_terms: lex.derived_terms,
-    }));
+    const stacks = items.map((lex) => {
+        const stackCtx: Record<string, unknown> = {
+            language: lex.language,
+            etymology: lex.etymology,
+            senses: lex.senses,
+            relations: lex.semantic_relations,
+            derived_terms: lex.derived_terms,
+        };
+        return applySmartQuotesToContext(stackCtx);
+    });
     return htmlHomonymGroupTemplate({
         headword: first.form,
         shared,
@@ -391,8 +398,7 @@ class MarkdownStyle extends TextStyle {
         }).join("\n");
     }
     rich(entry: any, options: FormatOptions): string {
-        // Use Handlebars template for the "Gold Standard" markdown design
-        const context = {
+        const context: Record<string, unknown> = {
             ...entry,
             headword: entry.headword || entry.form,
             pos:
@@ -404,7 +410,7 @@ class MarkdownStyle extends TextStyle {
             standalone: options.mode === "markdown",
             relations: entry.relations ?? entry.semantic_relations,
         };
-        return mdEntryTemplate(context);
+        return mdEntryTemplate(applySmartQuotesToContext(context));
     }
     nullValue(): string {
         return "`null`";
