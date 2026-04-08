@@ -7,6 +7,8 @@ export {
     DEFAULT_CACHE_TTL_MS,
     DEFAULT_RATE_LIMIT_MIN_INTERVAL_MS,
 } from "./infra/constants";
+export { configureSdk, configureRateLimiter, configureCache } from "./ingress/configure";
+export type { SdkConfig, RateLimiterConfig, CacheAdapter } from "./ingress/configure";
 export * from "./convenience";
 export * from "./present/formatter";
 export * from "./present/lexeme-display-groups";

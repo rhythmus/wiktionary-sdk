@@ -18,13 +18,15 @@ import { SHARED_COPY } from './shared-copy.generated';
 import type { Lexeme, WikiLang, DecoderDebugEvent } from '@engine/model';
 import { FormOfLexemeBlock } from './FormOfLexemeBlock';
 import { PlainLexemeHtmlBlock } from './PlainLexemeHtmlBlock';
+import { HomonymGroupBlock } from './HomonymGroupBlock';
 import {
-  buildLexemePillGroups,
+  buildLanguagePillGroups,
+  buildHeadwordGroups,
   filterMergedStackIndices,
   langName,
   lexemeNeedsLemmaResolution,
   posLabelForPill,
-  type LexemePillGroup,
+  type LanguagePillGroup,
 } from './lexeme-pill-groups';
 import { runPlaygroundApiExecute } from './playground-api-execute';
 import { readInitialQueryFromWindow, readQueryParamQ } from './url-query-popstate';
@@ -118,6 +120,24 @@ const SORT_OPTIONS: Array<{ value: LexemeSortStrategy; label: string; narrow: st
   { value: 'priority', label: 'Priority order', narrow: 'Pri' },
 ];
 
+const TARGET_LANGUAGES = [
+  { value: '', label: 'No target', flag: '—' },
+  { value: 'en', label: 'English', flag: '🇬🇧' },
+  { value: 'el', label: 'Greek', flag: '🇬🇷' },
+  { value: 'es', label: 'Spanish', flag: '🇪🇸' },
+  { value: 'nl', label: 'Dutch', flag: '🇳🇱' },
+  { value: 'de', label: 'German', flag: '🇩🇪' },
+  { value: 'fr', label: 'French', flag: '🇫🇷' },
+  { value: 'it', label: 'Italian', flag: '🇮🇹' },
+  { value: 'pt', label: 'Portuguese', flag: '🇵🇹' },
+  { value: 'ru', label: 'Russian', flag: '🇷🇺' },
+  { value: 'ja', label: 'Japanese', flag: '🇯🇵' },
+  { value: 'ar', label: 'Arabic', flag: '🇸🇦' },
+  { value: 'da', label: 'Danish', flag: '🇩🇰' },
+  { value: 'af', label: 'Afrikaans', flag: '🇿🇦' },
+  { value: 'la', label: 'Latin', flag: 'LA' },
+] as const;
+
 // Removed duplicate langName helper
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -157,6 +177,7 @@ function playgroundTypescriptSnippet(
   matchMode: 'strict' | 'fuzzy',
   debugDecoders: boolean,
   sortStrategy: LexemeSortStrategy,
+  enrichFlag = true,
 ): string {
   const q = JSON.stringify(query || '');
   const langLit = JSON.stringify(lang);
@@ -167,7 +188,7 @@ function playgroundTypescriptSnippet(
     const mm = JSON.stringify(matchMode);
     const dbg = debugDecoders ? 'true' : 'false';
     const sort = JSON.stringify(sortStrategy);
-    return `${importLine}\n\nawait wiktionary({ query: ${q}, lang: ${langLit}, pos: ${posLit}, enrich: true, debugDecoders: ${dbg}, matchMode: ${mm}, sort: ${sort} });`;
+    return `${importLine}\n\nawait wiktionary({ query: ${q}, lang: ${langLit}, pos: ${posLit}, enrich: ${enrichFlag ? 'true' : 'false'}, debugDecoders: ${dbg}, matchMode: ${mm}, sort: ${sort} });`;
   }
 
   let props: Record<string, unknown> | undefined;
@@ -276,6 +297,7 @@ function buildPlaygroundTsSource(
   matchMode: 'strict' | 'fuzzy',
   debugDecoders: boolean,
   sortStrategy: LexemeSortStrategy,
+  enrichFlag = true,
 ): string {
   const base = playgroundTypescriptSnippet(
     method,
@@ -286,6 +308,7 @@ function buildPlaygroundTsSource(
     matchMode,
     debugDecoders,
     sortStrategy,
+    enrichFlag,
   );
   return `${base}\n\n${playgroundResultAppendix(apiResult, apiLoading)}`;
 }
@@ -401,6 +424,8 @@ const App: React.FC = () => {
   const [prefPos, setPrefPos] = useState('Auto');
   const [matchMode, setMatchMode] = useState<'strict' | 'fuzzy'>('fuzzy');
   const [sortStrategy, setSortStrategy] = useState<LexemeSortStrategy>('source');
+  const [targetLang, setTargetLang] = useState('en');
+  const [enrich, setEnrich] = useState(true);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Lexeme[]>([]);
   const [rawBlock, setRawBlock] = useState('');
@@ -472,7 +497,7 @@ const App: React.FC = () => {
         query: q,
         lang,
         pos: prefPos,
-        enrich: true,
+        enrich,
         debugDecoders: debugMode,
         matchMode,
         sort: sortStrategy,
@@ -511,7 +536,7 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [lang, prefPos, matchMode, compareMode, compareLang, debugMode, sortStrategy]);
+  }, [lang, prefPos, matchMode, compareMode, compareLang, debugMode, sortStrategy, enrich]);
 
   const handleApiExecute = useCallback(async (queryOverride?: string) => {
     const qEff = (queryOverride ?? query).trim();
@@ -523,7 +548,7 @@ const App: React.FC = () => {
       lang,
       prefPos,
       apiMethods: API_METHODS,
-      enrich: true,
+      enrich,
       debugDecoders: debugMode,
       matchMode,
       sort: sortStrategy,
@@ -546,6 +571,19 @@ const App: React.FC = () => {
     }
     setApiLoading(false);
   }, [apiMethod, apiProps, query, lang, prefPos, matchMode, debugMode, sortStrategy]);
+
+  const dictCardRef = useRef<HTMLDivElement | null>(null);
+  const [dictCardVisible, setDictCardVisible] = useState(true);
+  useEffect(() => {
+    const el = dictCardRef.current;
+    if (!el) { setDictCardVisible(true); return; }
+    const obs = new IntersectionObserver(
+      ([entry]) => setDictCardVisible(entry.isIntersecting),
+      { threshold: 0 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  });
 
   const runWiktionaryForUiRef = useRef(runWiktionaryForUi);
   runWiktionaryForUiRef.current = runWiktionaryForUi;
@@ -647,22 +685,62 @@ const App: React.FC = () => {
     });
   };
 
-  // ── Decoder matches ──────────────────────────────────────────────────────
-  const lexemePillGroups = useMemo(() => buildLexemePillGroups(results), [results]);
+  // ── Language-level pill groups (dictionary-style) ────────────────────────
+  const languagePillGroups = useMemo(() => buildLanguagePillGroups(results), [results]);
 
-  /** Flat indices for the pill group that contains the current selection (stacked card; omits lemma rows duplicated by a form-of nested target). */
-  const activeLexemeGroupIndices = useMemo(() => {
-    if (results.length === 0) return [];
-    const g = lexemePillGroups.find((gr) => gr.indices.includes(selectedEntryIdx));
-    const raw = g
-      ? g.indices
-      : [Math.max(0, Math.min(selectedEntryIdx, results.length - 1))];
-    return filterMergedStackIndices(results, raw);
-  }, [results, lexemePillGroups, selectedEntryIdx]);
+  const translingualGroup = useMemo(
+    () => languagePillGroups.find((g) => g.language === "Translingual") ?? null,
+    [languagePillGroups],
+  );
 
-  const handleLexemePillClick = useCallback((group: LexemePillGroup) => {
+  const primaryLanguageGroup = useMemo(() => {
+    if (results.length === 0) return null;
+    return languagePillGroups.find((g) => g.indices.includes(selectedEntryIdx))
+      ?? languagePillGroups[0]
+      ?? null;
+  }, [results, languagePillGroups, selectedEntryIdx]);
+
+  /** Groups to render in the card: the selected language, plus Translingual auto-appended when few groups exist. */
+  const activeLanguageGroups = useMemo(() => {
+    if (!primaryLanguageGroup) return [];
+    const groups = [primaryLanguageGroup];
+    const nonTranslingualCount = languagePillGroups.filter((g) => g.language !== "Translingual").length;
+    if (
+      translingualGroup &&
+      translingualGroup !== primaryLanguageGroup &&
+      nonTranslingualCount <= 2
+    ) {
+      groups.push(translingualGroup);
+    }
+    return groups;
+  }, [primaryLanguageGroup, translingualGroup, languagePillGroups]);
+
+  const activeHeadwordGroupsByLang = useMemo(() => {
+    return activeLanguageGroups.map((g) => ({
+      group: g,
+      headwordGroups: buildHeadwordGroups(results, filterMergedStackIndices(results, g.indices)),
+    }));
+  }, [results, activeLanguageGroups]);
+
+  const handleLanguagePillClick = useCallback((group: LanguagePillGroup) => {
     setSelectedEntryIdx(group.indices[0]);
   }, []);
+
+  /** Detect a shared unresolved disambiguation QID across all visible lexemes. */
+  const sharedDisambigNote = useMemo(() => {
+    if (results.length === 0) return null;
+    const qids = new Set<string>();
+    let allUnresolved = true;
+    for (const r of results) {
+      if (!r.wikidata?.qid) continue;
+      qids.add(r.wikidata.qid);
+      if (!r.wikidata.disambiguation?.unresolved) allUnresolved = false;
+    }
+    if (qids.size !== 1 || !allUnresolved) return null;
+    const qid = [...qids][0];
+    const sourceQid = results.find((r) => r.wikidata?.disambiguation?.source_qid)?.wikidata?.disambiguation?.source_qid;
+    return { qid: sourceQid ?? qid, isDisambiguation: true };
+  }, [results]);
 
   const decoderMatches = useMemo(() => {
     if (!debugMode || results.length === 0) return [];
@@ -695,8 +773,9 @@ const App: React.FC = () => {
         matchMode,
         debugMode,
         sortStrategy,
+        enrich,
       ),
-    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode, sortStrategy],
+    [apiMethod, query, lang, prefPos, apiProps, apiResult, apiLoading, matchMode, debugMode, sortStrategy, enrich],
   );
 
   const playgroundCurlSource = useMemo(
@@ -757,116 +836,87 @@ const App: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search a term, e.g. γράφω…"
           />
-          {!narrowSearchBar && (
-            <div className="bar-filters">
-              <span className="bar-divider" />
-              <select
-                className="bar-select-lang"
-                aria-label="Dictionary language"
-                value={lang}
-                onChange={(e) => setLang(e.target.value as WikiLang)}
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l.value} value={l.value}>
-                    {narrowSearchBar ? l.narrow : `${l.flag} ${l.label}`}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="bar-select-pos"
-                aria-label="Part of speech filter"
-                value={prefPos}
-                onChange={(e) => setPrefPos(e.target.value)}
-              >
-                {POS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {narrowSearchBar ? o.narrow : o.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="bar-select-match"
-                aria-label="Match mode"
-                value={matchMode}
-                onChange={(e) => setMatchMode(e.target.value as 'strict' | 'fuzzy')}
-              >
-                {MATCH_OPTIONS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {narrowSearchBar ? m.narrow : m.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="bar-select-match"
-                aria-label="Sort strategy"
-                value={sortStrategy}
-                onChange={(e) => setSortStrategy(e.target.value as LexemeSortStrategy)}
-              >
-                {SORT_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {narrowSearchBar ? s.narrow : s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <button type="submit" className="fetch-btn" disabled={loading}>
-            {loading ? <Loader2 size={13} className="fetch-spinner animate-spin" aria-hidden /> : <Search size={14} className="fetch-icon" aria-hidden />}
-            <span className="fetch-label">{loading ? 'Loading…' : 'Fetch'}</span>
-          </button>
-        </form>
-        {narrowSearchBar && (
-          <div className="bar-filters-outside">
+          <div className="bar-filters">
+            {!narrowSearchBar && <span className="bar-divider" />}
             <select
-              className="bar-select-lang"
-              aria-label="Dictionary language"
+              className="bar-select-lang bar-select-lang-icon"
+              aria-label="Source language"
+              title="Source language"
               value={lang}
               onChange={(e) => setLang(e.target.value as WikiLang)}
             >
               {LANGUAGES.map((l) => (
                 <option key={l.value} value={l.value}>
-                  {`${l.flag} ${l.label}`}
+                  {l.value === lang ? l.flag : `${l.flag} ${l.label}`}
                 </option>
               ))}
             </select>
+            <span className="bar-lang-arrow" aria-hidden>→</span>
             <select
-              className="bar-select-pos"
-              aria-label="Part of speech filter"
-              value={prefPos}
-              onChange={(e) => setPrefPos(e.target.value)}
+              className="bar-select-lang bar-select-lang-icon"
+              aria-label="Target language"
+              title="Target language (for translations)"
+              value={targetLang}
+              onChange={(e) => setTargetLang(e.target.value)}
             >
-              {POS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="bar-select-match"
-              aria-label="Match mode"
-              value={matchMode}
-              onChange={(e) => setMatchMode(e.target.value as 'strict' | 'fuzzy')}
-            >
-              {MATCH_OPTIONS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="bar-select-match"
-              aria-label="Sort strategy"
-              value={sortStrategy}
-              onChange={(e) => setSortStrategy(e.target.value as LexemeSortStrategy)}
-            >
-              {SORT_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
+              {TARGET_LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.value === targetLang ? l.flag : `${l.flag} ${l.label}`}
                 </option>
               ))}
             </select>
           </div>
-        )}
+          <button type="submit" className="fetch-btn" disabled={loading}>
+            {loading ? <Loader2 size={13} className="fetch-spinner animate-spin" aria-hidden /> : <Search size={14} className="fetch-icon" aria-hidden />}
+            <span className="fetch-label">{loading ? 'Loading…' : 'Fetch'}</span>
+          </button>
+        </form>
+        <div className="bar-secondary-filters">
+          <label className="bar-toggle-enrich" title="Fetch Wikidata enrichment (QIDs, labels, images)">
+            <input
+              type="checkbox"
+              checked={enrich}
+              onChange={(e) => setEnrich(e.target.checked)}
+            />
+            Enrich
+          </label>
+          <select
+            className="bar-select-match"
+            aria-label="Match mode"
+            value={matchMode}
+            onChange={(e) => setMatchMode(e.target.value as 'strict' | 'fuzzy')}
+          >
+            {MATCH_OPTIONS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="bar-select-pos"
+            aria-label="Part of speech filter"
+            value={prefPos}
+            onChange={(e) => setPrefPos(e.target.value)}
+          >
+            {POS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="bar-select-match"
+            aria-label="Sort strategy"
+            value={sortStrategy}
+            onChange={(e) => setSortStrategy(e.target.value as LexemeSortStrategy)}
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
       </div>
 
@@ -900,78 +950,105 @@ const App: React.FC = () => {
             . {SHARED_COPY.introTail}
           </p>
 
-      {/* Dictionary result card */}
+      {/* Language pill bar — sticky, full-width, horizontally scrolling; fades when card leaves viewport */}
       <AnimatePresence>
-        {currentEntry && (
+        {currentEntry && languagePillGroups.length > 1 && (
           <motion.div
-            key={`${currentEntry.id ?? currentEntry.form}-${activeLexemeGroupIndices.join(',')}`}
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="dict-card app-dict-card"
+            key="lang-pill-bar"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: dictCardVisible ? 1 : 0, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ opacity: { duration: 0.25 } }}
+            className="dict-lang-pill-bar"
+            style={{ pointerEvents: dictCardVisible ? 'auto' : 'none' }}
           >
-            {/* Stack every lexeme in the active (language + PoS) group — lemma fetches run per form-of row. */}
-            <div className="dict-merged-lexeme-stack">
-              {(() => {
-                const activePages = new Set(
-                  activeLexemeGroupIndices
-                    .map((i) => results[i]?.source?.wiktionary?.title)
-                    .filter(Boolean),
-                );
-                const showProvenance = activePages.size > 1;
-                return activeLexemeGroupIndices.map((idx) => {
-                  const lex = results[idx];
-                  if (!lex) return null;
-                  const pageTitle = lex.source?.wiktionary?.title;
-                  return (
-                    <div key={lex.id}>
-                      {showProvenance && pageTitle && (
-                        <div className="dict-provenance-tag" title={`This entry is from the Wiktionary page "${pageTitle}"`}>
-                          page: {pageTitle}
-                        </div>
-                      )}
-                      {lexemeNeedsLemmaResolution(lex)
-                        ? <FormOfLexemeBlock lexeme={lex} debugMode={debugMode} matchMode={matchMode} />
-                        : <PlainLexemeHtmlBlock lexeme={lex} />}
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-
-            {/* One pill per language + PoS; card shows all rows in that group together */}
-            {results.length > 1 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '2rem', borderTop: '1px solid var(--page-border)', paddingTop: '1.25rem' }}>
-                {lexemePillGroups.map((g) => {
-                  const active = g.indices.includes(selectedEntryIdx);
-                  const r = g.representative;
-                  const base = `${langName(r.language)} · ${posLabelForPill(r)}`;
-                  const visibleIndices = filterMergedStackIndices(results, g.indices);
-                  const visibleCount = visibleIndices.length;
-                  const label = visibleCount > 1 ? `${base} (${visibleCount})` : base;
-                  const distinctPages = [...new Set(visibleIndices.map((i) => results[i]?.source?.wiktionary?.title).filter(Boolean))];
-                  const multiPage = distinctPages.length > 1;
-                  const title =
-                    visibleCount > 1
-                      ? (multiPage
-                          ? `${visibleCount} entries from ${distinctPages.length} pages (${distinctPages.join(', ')}); fuzzy match combined results for variant spellings.`
-                          : `${visibleCount} entry block(s) for this language and part of speech are combined in the card above (lemma-only rows omitted when shown via a form-of link).`)
-                      : undefined;
-                  return (
-                    <button
-                      key={g.key}
-                      type="button"
-                      className={`dict-entry-pill${active ? ' active' : ''}`}
-                      title={title}
-                      onClick={() => handleLexemePillClick(g)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {languagePillGroups.map((g) => {
+              const isTL = g.language === "Translingual";
+              const active = g === primaryLanguageGroup;
+              const autoExpanded = !active && activeLanguageGroups.includes(g);
+              const count = filterMergedStackIndices(results, g.indices).length;
+              const label = count > 1 ? `${langName(g.language)} (${count})` : langName(g.language);
+              const pillClass = [
+                'dict-entry-pill',
+                active || autoExpanded ? 'active' : '',
+                isTL ? 'translingual' : '',
+              ].filter(Boolean).join(' ');
+              const title = isTL
+                ? `Translingual entries apply across all languages (symbols, codes, taxonomic names). ${count} entr${count === 1 ? 'y' : 'ies'}.`
+                : `${count} entr${count === 1 ? 'y' : 'ies'} for ${langName(g.language)}`;
+              return (
+                <button
+                  key={g.language}
+                  type="button"
+                  className={pillClass}
+                  title={title}
+                  onClick={() => handleLanguagePillClick(g)}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Dictionary result card */}
+      <AnimatePresence>
+        {currentEntry && primaryLanguageGroup && (
+          <motion.div
+            ref={dictCardRef}
+            key={activeLanguageGroups.map((g) => g.language).join('+')}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="dict-card app-dict-card"
+          >
+            <div className="dict-merged-lexeme-stack">
+              {activeHeadwordGroupsByLang.map(({ group: lg, headwordGroups }, lgIdx) => (
+                <div key={lg.language}>
+                  {lgIdx > 0 && <hr className="dict-headword-separator" />}
+                  {headwordGroups.map((hw, hwIdx) => (
+                    <div key={hw.form} className="dict-headword-section">
+                      {hwIdx > 0 && <hr className="dict-headword-separator" />}
+                      {hw.posGroups.map((pg, pgIdx) => (
+                        <div key={`${hw.form}-${pg.posLabel}`} className="dict-pos-section">
+                          {pgIdx > 0 && <hr className="dict-pos-separator" />}
+                          {pg.lexemeIndices.length >= 2
+                            ? <HomonymGroupBlock lexemes={pg.lexemeIndices.map((i) => results[i]).filter(Boolean)} />
+                            : pg.lexemeIndices.map((idx) => {
+                                const lex = results[idx];
+                                if (!lex) return null;
+                                return <div key={lex.id}><PlainLexemeHtmlBlock lexeme={lex} /></div>;
+                              })}
+                          {pg.formOfIndices.map((idx) => {
+                            const lex = results[idx];
+                            if (!lex) return null;
+                            return (
+                              <div key={lex.id}>
+                                {lexemeNeedsLemmaResolution(lex)
+                                  ? <FormOfLexemeBlock lexeme={lex} debugMode={debugMode} matchMode={matchMode} />
+                                  : <PlainLexemeHtmlBlock lexeme={lex} />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {sharedDisambigNote && (
+        <div className="dict-wikidata-global-note">
+          Wikipedia disambiguation: <a
+            href={`https://www.wikidata.org/wiki/${sharedDisambigNote.qid}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{sharedDisambigNote.qid}</a> — concept QIDs not resolved to individual senses
+        </div>
+      )}
 
       {/* ════════════════════════════════════════════════
           DARK ISLAND — Playground + Debug Inspector
@@ -1201,7 +1278,7 @@ const App: React.FC = () => {
             <button
               className={`dk-icon-btn${compareMode ? ' active-emerald' : ''}`}
               onClick={() => { setCompareMode((v) => !v); if (!compareMode && results.length > 0) handleSearch(); }}
-              title="Toggle comparison view (secondary fetch runs with enrich: false)"
+              title="Toggle comparison view (secondary fetch runs without enrichment)"
             >
               <Columns2 size={11} /> Compare
             </button>

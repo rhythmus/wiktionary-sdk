@@ -36,7 +36,7 @@ export const FormOfLexemeBlock: FC<{
       query: lemmaQuery,
       lang,
       pos: 'Auto',
-      enrich: true,
+      enrich: false,
       debugDecoders: debugMode,
       matchMode,
     })

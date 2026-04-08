@@ -58,7 +58,7 @@ body {
 }
 
 .app-hero-wrap {
-  padding: 3.5rem 0 2rem;
+  padding: 3.5rem 0 1rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -107,11 +107,14 @@ code {
 .app-hero-tagline {
   font-size: 1rem;
   margin-top: 1.1rem;
+  padding-bottom: 16px;
   line-height: 1.5;
+  text-wrap: balance;
 }
 
 .app-hero-intro {
   margin-top: 0.85rem;
+  margin-bottom: 1.5em;
   max-width: 760px;
 }
 
@@ -531,8 +534,66 @@ code {
   min-width: 0;
 }
 
-.bar-filters-outside {
-  display: none;
+.bar-secondary-filters {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.15rem;
+  margin-top: 0.4rem;
+  padding: 0 0.5rem;
+}
+
+.bar-secondary-filters select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  background-size: 9px 9px;
+  border: none;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--page-muted);
+  cursor: pointer;
+  padding: 3px 18px 3px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.bar-secondary-filters select:hover {
+  color: var(--page-text);
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.bar-toggle-enrich {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--page-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  user-select: none;
+}
+
+.bar-toggle-enrich:hover {
+  color: var(--page-text);
+}
+
+.bar-toggle-enrich input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--page-accent);
+  cursor: pointer;
 }
 
 .google-bar select {
@@ -560,16 +621,23 @@ code {
   text-overflow: ellipsis;
 }
 
-.google-bar select.bar-select-lang {
-  max-width: min(6.75rem, 30vw);
+.google-bar select.bar-select-lang-icon {
+  width: auto;
+  max-width: 2.2rem;
+  padding: 4px 2px 4px 2px;
+  background-image: none;
+  font-size: 1rem;
+  line-height: 1;
+  text-overflow: clip;
 }
 
-.google-bar select.bar-select-pos {
-  max-width: min(5rem, 24vw);
-}
-
-.google-bar select.bar-select-match {
-  max-width: min(5.25rem, 24vw);
+.google-bar .bar-lang-arrow {
+  color: var(--page-muted);
+  font-size: 0.72rem;
+  flex-shrink: 0;
+  margin: 0 0;
+  opacity: 0.45;
+  user-select: none;
 }
 
 @media (max-width: 640px) {
@@ -589,8 +657,12 @@ code {
     padding-left: 0;
   }
 
-  .google-bar .fetch-btn {
+  .google-bar .bar-filters {
     order: 3;
+  }
+
+  .google-bar .fetch-btn {
+    order: 4;
     width: 39px;
     min-width: 39px;
     height: 39px;
@@ -619,32 +691,18 @@ code {
     display: none;
   }
 
-  .bar-filters-outside {
-    margin-top: 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: nowrap;
-    width: 100%;
-    padding: 0.2rem 0.1rem 0 0.1rem;
+  .bar-secondary-filters {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    padding: 0;
   }
 
-  .bar-filters-outside .bar-select-lang,
-  .bar-filters-outside .bar-select-pos,
-  .bar-filters-outside .bar-select-match {
-    flex: 1 1 0;
-    min-width: 0;
-    width: auto;
-    max-width: none;
-    height: 32px;
-    padding: 5px 16px 5px 10px;
-    background-position: right 4px center;
-    background-size: 10px 10px;
-    font-size: 0.74rem;
-    letter-spacing: 0.01em;
-    text-transform: none;
-    border-radius: 9px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+  .bar-secondary-filters select {
+    font-size: 0.72rem;
+    padding: 5px 18px 5px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.10);
     background-color: #fff;
   }
 }
@@ -763,6 +821,26 @@ code {
   margin: 1.5rem 0;
 }
 
+/* Language pill bar — sticky, full-viewport-width, single scrollable row */
+.dict-lang-pill-bar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  padding: 0.6rem 1.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--page-bg, #fff);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.dict-lang-pill-bar::-webkit-scrollbar { height: 3px; }
+.dict-lang-pill-bar::-webkit-scrollbar-thumb { background: var(--page-border); border-radius: 2px; }
+
 .dict-entry-pill {
   padding: 4px 12px;
   border-radius: 999px;
@@ -776,12 +854,21 @@ code {
   cursor: pointer;
   font-family: 'Inter', sans-serif;
   transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .dict-entry-pill:hover { border-color: var(--page-accent); color: var(--page-accent); }
 .dict-entry-pill.active {
   border-color: var(--page-accent);
   background: rgba(79, 70, 229, 0.08);
   color: var(--page-accent);
+}
+.dict-entry-pill.translingual {
+  font-style: italic;
+  border-style: dashed;
+}
+.dict-entry-pill.translingual.active {
+  border-style: dashed;
 }
 
 /* Hero card: multiple lexemes for same language + PoS stacked vertically */
@@ -791,13 +878,34 @@ code {
   border-top: 1px solid var(--page-border);
 }
 
-.dict-provenance-tag {
-  font-size: 0.7rem;
-  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-  color: rgba(0, 0, 0, 0.38);
-  letter-spacing: 0.02em;
-  margin-bottom: 0.15rem;
-  user-select: none;
+.dict-headword-separator {
+  border: none;
+  border-top: 2px solid var(--page-border, rgba(0, 0, 0, 0.12));
+  margin: 2rem 0 1.75rem;
+}
+
+.dict-pos-separator {
+  border: none;
+  border-top: 1px dashed var(--page-border, rgba(0, 0, 0, 0.08));
+  margin: 1.25rem 0 1rem;
+}
+
+.dict-headword-section {}
+.dict-pos-section {}
+
+.dict-wikidata-global-note {
+  text-align: center;
+  font-size: 0.82em;
+  color: var(--page-muted, #888);
+  margin: 0.75rem 0 1.5rem;
+  font-style: italic;
+}
+.dict-wikidata-global-note a {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-style: normal;
+  color: var(--page-muted, #888);
+  text-decoration: underline;
+  text-decoration-style: dotted;
 }
 
 /* ── Dark island wrapper ── */
@@ -1100,6 +1208,11 @@ code {
 
   .app-shell {
     padding: 0 1.25rem 4rem;
+  }
+
+  .dict-lang-pill-bar {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .dict-card {

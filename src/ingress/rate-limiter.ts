@@ -24,6 +24,8 @@ export interface RateLimiterConfig {
    * (after the current slot). Default: unlimited.
    */
   maxQueue?: number;
+  /** Max retries on HTTP 429 responses (exponential backoff). Default: 3. Set 0 to disable. */
+  maxRetries429?: number;
 }
 
 export class RateLimiter {
@@ -34,6 +36,7 @@ export class RateLimiter {
   readonly userAgent: string;
   readonly proxyUrl: string | null;
   private maxQueue: number | null;
+  readonly maxRetries429: number;
 
   constructor(config?: RateLimiterConfig) {
     this.minInterval = config?.minIntervalMs ?? DEFAULT_MIN_INTERVAL_MS;
@@ -41,6 +44,7 @@ export class RateLimiter {
     this.proxyUrl = config?.proxyUrl ?? null;
     this.maxQueue =
       config?.maxQueue != null && config.maxQueue > 0 ? Math.floor(config.maxQueue) : null;
+    this.maxRetries429 = config?.maxRetries429 ?? 3;
   }
 
   async throttle(): Promise<void> {
