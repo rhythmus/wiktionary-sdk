@@ -10,33 +10,90 @@ githubOwner: rhythmus
 githubRepo: wiktionary-sdk
 npmPackage: wiktionary-sdk
 nodeVersion: "18"
+shareText: "Check out Wiktionary SDK — structured lexicographic data from Wiktionary"
+shareHashtags: "Wiktionary,NLP,TypeScript,OpenSource"
 
-# ── Badges (rendered in README + webapp) ───────────────────────────
-# Each entry: { label, image, link? (omit for non-clickable), alt }
-badges:
-  - label: GitHub Pages
-    image: https://github.com/{github}/actions/workflows/deploy-webapp.yml/badge.svg
-    link: https://github.com/{github}/actions/workflows/deploy-webapp.yml
-    alt: GitHub Pages deploy status
-  - label: License
-    image: https://img.shields.io/github/license/{github}.svg
-    link: https://github.com/{github}/blob/master/LICENSE
-    alt: License
+# ── Hero badges (above the fold — trust & promotional) ─────────────
+heroBadges:
   - label: Node
     image: https://img.shields.io/badge/node-%3E%3D{node}-brightgreen?logo=node.js&logoColor=white
     alt: Node.js version
   - label: TypeScript
     image: https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white
     alt: TypeScript
-  - label: npm types
-    image: https://img.shields.io/npm/types/{npm}.svg?color=brightgreen
-    alt: Type definitions
   - label: npm
     image: https://img.shields.io/npm/v/{npm}.svg
     link: https://www.npmjs.com/package/{npm}
     alt: npm version
+  - label: npm types
+    image: https://img.shields.io/npm/types/{npm}.svg?color=brightgreen
+    alt: Type definitions
+  - label: License
+    image: https://img.shields.io/github/license/{github}.svg
+    link: https://github.com/{github}/blob/master/LICENSE
+    alt: License
+  - label: Open source
+    image: https://img.shields.io/badge/open_source-ISC-brightgreen
+    link: https://github.com/{github}/blob/master/LICENSE
+    alt: Open source — ISC license
+  - label: Bundle size
+    image: https://img.shields.io/bundlephobia/minzip/{npm}
+    link: https://bundlephobia.com/package/{npm}
+    alt: npm bundle size
+  - label: Last commit
+    image: https://img.shields.io/github/last-commit/{github}
+    alt: GitHub last commit
+
+
+# ── Secondary badges (below the fold — informational) ──────────────
+secondaryBadges:
+  - label: GitHub Pages
+    image: https://github.com/{github}/actions/workflows/deploy-webapp.yml/badge.svg
+    link: https://github.com/{github}/actions/workflows/deploy-webapp.yml
+    alt: GitHub Pages deploy status
   - label: CI
     image: https://github.com/{github}/actions/workflows/ci.yml/badge.svg
     link: https://github.com/{github}/actions/workflows/ci.yml
     alt: CI status
+  - label: Tests
+    image: https://img.shields.io/badge/tests-passing-brightgreen
+    link: https://github.com/{github}/actions/workflows/ci.yml
+    alt: Tests
+  - label: Release
+    image: https://img.shields.io/github/v/release/{github}
+    link: https://github.com/{github}/releases
+    alt: GitHub release
+  - label: Release date
+    image: https://img.shields.io/github/release-date/{github}
+    alt: GitHub release date
+  - label: Repo size
+    image: https://img.shields.io/github/repo-size/{github}
+    alt: GitHub repo size
 
+
+# ── Share badges (social sharing row) ──────────────────────────────
+shareBadges:
+  - platform: X
+    image: https://img.shields.io/badge/share-000000?logo=x&logoColor=white
+    link: https://x.com/intent/tweet?text={shareTextEncoded}%20{githubUrl}&hashtags={shareHashtags}
+    alt: Share on X
+  - platform: Facebook
+    image: https://img.shields.io/badge/share-1877F2?logo=facebook&logoColor=white
+    link: https://www.facebook.com/sharer/sharer.php?u={githubUrl}
+    alt: Share on Facebook
+  - platform: LinkedIn
+    image: https://img.shields.io/badge/share-0A66C2?logo=linkedin&logoColor=white
+    link: https://www.linkedin.com/sharing/share-offsite/?url={githubUrl}
+    alt: Share on LinkedIn
+  - platform: Reddit
+    image: https://img.shields.io/badge/share-FF4500?logo=reddit&logoColor=white
+    link: https://www.reddit.com/submit?title={shareTextEncoded}%20{githubUrl}
+    alt: Share on Reddit
+  - platform: Telegram
+    image: https://img.shields.io/badge/share-0088CC?logo=telegram&logoColor=white
+    link: https://t.me/share/url?url={githubUrl}&text={shareTextEncoded}
+    alt: Share on Telegram
+  - platform: Hacker News
+    image: https://img.shields.io/badge/share-F0652F?logo=ycombinator&logoColor=white
+    link: https://news.ycombinator.com/submitlink?u={githubUrl}&t={shareTextEncoded}
+    alt: Share on Hacker News

@@ -4,13 +4,14 @@
 
 => Online demo on https://rhythmus.github.io/wiktionary-sdk/
 
-[![GitHub Pages deploy status](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/deploy-webapp.yml/badge.svg)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/deploy-webapp.yml)
-[![License](https://img.shields.io/github/license/rhythmus/wiktionary-sdk.svg)](https://github.com/rhythmus/wiktionary-sdk/blob/master/LICENSE)
 ![Node.js version](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)
-![Type definitions](https://img.shields.io/npm/types/wiktionary-sdk.svg?color=brightgreen)
 [![npm version](https://img.shields.io/npm/v/wiktionary-sdk.svg)](https://www.npmjs.com/package/wiktionary-sdk)
-[![CI status](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml)
+![Type definitions](https://img.shields.io/npm/types/wiktionary-sdk.svg?color=brightgreen)
+[![License](https://img.shields.io/github/license/rhythmus/wiktionary-sdk.svg)](https://github.com/rhythmus/wiktionary-sdk/blob/master/LICENSE)
+[![Open source — ISC license](https://img.shields.io/badge/open_source-ISC-brightgreen)](https://github.com/rhythmus/wiktionary-sdk/blob/master/LICENSE)
+[![npm bundle size](https://img.shields.io/bundlephobia/minzip/wiktionary-sdk)](https://bundlephobia.com/package/wiktionary-sdk)
+![GitHub last commit](https://img.shields.io/github/last-commit/rhythmus/wiktionary-sdk)
 
 [Wiktionary](https://www.wiktionary.org/) is the world's largest open multilingual dictionary, but its underlying wiki markup is far from a rigorous database. Extracting unambiguous, strongly typed, machine-readable data from its vast template ecosystem is messy — often a real [p.i.t.a](https://rhythmus.github.io/wiktionary-sdk/?q=pain%20in%20the%20ass). Wiktionary SDK solves this with an easy-to-use interface that spares you the headache of wrestling with the official REST API's bewildering outputs.
 
@@ -739,3 +740,15 @@ The Wiktionary SDK is being positioned as the foundational data layer for a comp
 - **Morpheme Transparency**: Linking every inflected form in a text back to its exhaustive lemma profile.
 
 For the full architectural vision, see **[TEXT_TO_DICTIONARY_PLAN.md](file:///Users/woutersoudan/git/wiktionary-sdk/docs/TEXT_TO_DICTIONARY_PLAN.md)**.
+
+
+<!-- badges:secondary -->
+
+[![GitHub Pages deploy status](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/deploy-webapp.yml/badge.svg)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/deploy-webapp.yml)
+[![CI status](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/rhythmus/wiktionary-sdk)](https://github.com/rhythmus/wiktionary-sdk/releases)
+![GitHub release date](https://img.shields.io/github/release-date/rhythmus/wiktionary-sdk)
+![GitHub repo size](https://img.shields.io/github/repo-size/rhythmus/wiktionary-sdk)
+
+[![Share on X](https://img.shields.io/badge/share-000000?logo=x&logoColor=white)](https://x.com/intent/tweet?text=Check%20out%20Wiktionary%20SDK%20%E2%80%94%20structured%20lexicographic%20data%20from%20Wiktionary%20https://github.com/rhythmus/wiktionary-sdk&hashtags=Wiktionary,NLP,TypeScript,OpenSource) [![Share on Facebook](https://img.shields.io/badge/share-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/rhythmus/wiktionary-sdk) [![Share on LinkedIn](https://img.shields.io/badge/share-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/sharing/share-offsite/?url=https://github.com/rhythmus/wiktionary-sdk) [![Share on Reddit](https://img.shields.io/badge/share-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/submit?title=Check%20out%20Wiktionary%20SDK%20%E2%80%94%20structured%20lexicographic%20data%20from%20Wiktionary%20https://github.com/rhythmus/wiktionary-sdk) [![Share on Telegram](https://img.shields.io/badge/share-0088CC?logo=telegram&logoColor=white)](https://t.me/share/url?url=https://github.com/rhythmus/wiktionary-sdk&text=Check%20out%20Wiktionary%20SDK%20%E2%80%94%20structured%20lexicographic%20data%20from%20Wiktionary) [![Share on Hacker News](https://img.shields.io/badge/share-F0652F?logo=ycombinator&logoColor=white)](https://news.ycombinator.com/submitlink?u=https://github.com/rhythmus/wiktionary-sdk&t=Check%20out%20Wiktionary%20SDK%20%E2%80%94%20structured%20lexicographic%20data%20from%20Wiktionary)

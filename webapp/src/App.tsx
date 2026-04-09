@@ -934,7 +934,7 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <p className="app-badges">
-        {SHARED_COPY.badges.map((b) => {
+        {SHARED_COPY.heroBadges.map((b) => {
           const img = <img key={b.label} src={b.image} alt={b.alt} height="20" />;
           const link = 'link' in b ? (b as { link: string }).link : undefined;
           return link
@@ -1476,6 +1476,26 @@ const App: React.FC = () => {
 
       <p className="app-body-paragraph">Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries** and initial support for **Dutch (NL)** and **German (DE)**.</p>
       <p className="app-body-paragraph">The project is designed as a **multi-client ecosystem**, separating the core extraction engine from its various interfaces (Web, CLI, API server, and NPM package).</p>
+
+      {/* ── Secondary badges + share (below the fold) ── */}
+      <p className="app-badges app-secondary-badges">
+        {SHARED_COPY.secondaryBadges.map((b) => {
+          const img = <img key={b.label} src={b.image} alt={b.alt} height="20" />;
+          const link = 'link' in b ? (b as { link: string }).link : undefined;
+          return link
+            ? <a key={b.label} href={link} target="_blank" rel="noreferrer">{img}</a>
+            : img;
+        })}
+      </p>
+      <p className="app-badges app-share-badges">
+        {SHARED_COPY.shareBadges.map((b) => {
+          const img = <img key={b.label} src={b.image} alt={b.alt} height="20" />;
+          const link = 'link' in b ? (b as { link: string }).link : undefined;
+          return link
+            ? <a key={b.label} href={link} target="_blank" rel="noreferrer">{img}</a>
+            : img;
+        })}
+      </p>
 
       {/* ── Footer ────────────────────────────────── */}
       <footer className="app-footer">
