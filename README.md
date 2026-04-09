@@ -4,7 +4,15 @@
 
 => Online demo on https://rhythmus.github.io/wiktionary-sdk/
 
-[Wiktionary](https://www.wiktionary.org/) is the world’s largest open multilingual dictionary, but its underlying wiki markup is far from a rigorous database. Extracting unambiguous, strongly typed, machine-readable data from its vast template ecosystem is messy — often a real _[pita](https://rhythmus.github.io/wiktionary-sdk/?q=pain%20in%20the%20ass)_. Wiktionary SDK solves this with an easy-to-use interface that spares you the headache of wrestling with the official REST API’s bewildering outputs.
+[![GitHub Pages deploy status](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/deploy-webapp.yml/badge.svg)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/deploy-webapp.yml)
+[![License](https://img.shields.io/github/license/rhythmus/wiktionary-sdk.svg)](https://github.com/rhythmus/wiktionary-sdk/blob/master/LICENSE)
+![Node.js version](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)
+![Type definitions](https://img.shields.io/npm/types/wiktionary-sdk.svg?color=brightgreen)
+[![npm version](https://img.shields.io/npm/v/wiktionary-sdk.svg)](https://www.npmjs.com/package/wiktionary-sdk)
+[![CI status](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/rhythmus/wiktionary-sdk/actions/workflows/ci.yml)
+
+[Wiktionary](https://www.wiktionary.org/) is the world's largest open multilingual dictionary, but its underlying wiki markup is far from a rigorous database. Extracting unambiguous, strongly typed, machine-readable data from its vast template ecosystem is messy — often a real [p.i.t.a](https://rhythmus.github.io/wiktionary-sdk/?q=pain%20in%20the%20ass). Wiktionary SDK solves this with an easy-to-use interface that spares you the headache of wrestling with the official REST API's bewildering outputs.
 
 Wiktionary SDK is a specialized tool for the **deterministic and source-faithful extraction** of lexicographic data from Wiktionary, with a primary focus on **Greek entries** and initial support for **Dutch (NL)** and **German (DE)**.
 

@@ -112,6 +112,15 @@ code {
   text-wrap: balance;
 }
 
+.app-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0.7rem 0 0;
+  padding: 0;
+}
+.app-badges img { display: block; }
+
 .app-hero-intro {
   margin-top: 0.85rem;
   margin-bottom: 1.5em;

@@ -933,6 +933,16 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
+      <p className="app-badges">
+        {SHARED_COPY.badges.map((b) => {
+          const img = <img key={b.label} src={b.image} alt={b.alt} height="20" />;
+          const link = 'link' in b ? (b as { link: string }).link : undefined;
+          return link
+            ? <a key={b.label} href={link} target="_blank" rel="noreferrer">{img}</a>
+            : img;
+        })}
+      </p>
+
       <p className="app-hero-intro app-body-paragraph">
             <a href={SHARED_COPY.wiktionaryUrl} target="_blank" rel="noreferrer">Wiktionary</a> {SHARED_COPY.introLead.replace(/^Wiktionary\s+/, "")}{" "}
             <a
